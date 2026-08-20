@@ -11,7 +11,7 @@ export const systemModules = [
   },
   {
     name: 'database',
-    path: 'database/schema.sql',
-    description: 'SQL schema file for persistent portal data.',
+    path: 'backend/database',
+    description: 'Google Sheets database adapters, schema, and initialization logic.',
   },
 ]

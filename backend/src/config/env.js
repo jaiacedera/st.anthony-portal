@@ -27,7 +27,12 @@ function loadEnvFile(filePath) {
       }
 
       const key = normalizedLine.slice(0, separatorIndex).trim()
-      const value = normalizedLine.slice(separatorIndex + 1).trim()
+      const rawValue = normalizedLine.slice(separatorIndex + 1).trim()
+      const value =
+        (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+        (rawValue.startsWith("'") && rawValue.endsWith("'"))
+          ? rawValue.slice(1, -1)
+          : rawValue
 
       return {
         ...values,
@@ -44,4 +49,10 @@ export const env = {
     process.env.FRONTEND_ORIGIN ??
     fileEnv.FRONTEND_ORIGIN ??
     'http://localhost:5173',
+  googleProjectId: process.env.GOOGLE_PROJECT_ID ?? fileEnv.GOOGLE_PROJECT_ID ?? '',
+  googleClientEmail:
+    process.env.GOOGLE_CLIENT_EMAIL ?? fileEnv.GOOGLE_CLIENT_EMAIL ?? '',
+  googlePrivateKey:
+    process.env.GOOGLE_PRIVATE_KEY ?? fileEnv.GOOGLE_PRIVATE_KEY ?? '',
+  googleSheetId: process.env.GOOGLE_SHEET_ID ?? fileEnv.GOOGLE_SHEET_ID ?? '',
 }

@@ -4,13 +4,17 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --config frontend/vite.config.ts",
+    "dev": "node scripts/dev.mjs",
+    "dev:frontend": "vite --config frontend/vite.config.ts",
+    "dev:backend": "node backend/src/server.js",
     "build": "tsc -b && vite build --config frontend/vite.config.ts",
     "lint": "eslint . --config frontend/eslint.config.js",
     "preview": "vite preview --config frontend/vite.config.ts",
-    "start:backend": "node backend/src/server.js"
+    "start:backend": "node backend/src/server.js",
+    "init:sheets": "node backend/database/initSheets.js"
   },
   "dependencies": {
+    "googleapis": "^162.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

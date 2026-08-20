@@ -18,6 +18,11 @@ export function getSystemHealth() {
 export function getSystemOverview() {
   return {
     name: 'St. Anthony Portal API',
-    routes: ['GET /api/health', 'GET /api/modules'],
+    routes: [
+      'GET /api/health',
+      'GET /api/modules',
+      'GET /api/database/google-sheets/status',
+      'POST /api/database/google-sheets/init',
+    ],
   }
 }

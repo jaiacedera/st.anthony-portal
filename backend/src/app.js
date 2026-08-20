@@ -7,26 +7,24 @@ import { findRoute } from './routes/systemRoutes.js'
 
 export function createApp() {
   return createServer((req, res) => {
-    try {
-      applyCors(res)
+    applyCors(res)
 
-      if (req.method === 'OPTIONS') {
-        res.writeHead(204)
-        res.end()
-        return
-      }
-
-      const requestUrl = new URL(req.url ?? '/', 'http://localhost')
-      const routeHandler = findRoute(req.method ?? 'GET', requestUrl.pathname)
-
-      if (!routeHandler) {
-        handleNotFound(res, requestUrl.pathname)
-        return
-      }
-
-      routeHandler(req, res)
-    } catch (error) {
-      handleServerError(res, error)
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204)
+      res.end()
+      return
     }
+
+    const requestUrl = new URL(req.url ?? '/', 'http://localhost')
+    const routeHandler = findRoute(req.method ?? 'GET', requestUrl.pathname)
+
+    if (!routeHandler) {
+      handleNotFound(res, requestUrl.pathname)
+      return
+    }
+
+    Promise.resolve(routeHandler(req, res)).catch((error) => {
+      handleServerError(res, error)
+    })
   })
 }

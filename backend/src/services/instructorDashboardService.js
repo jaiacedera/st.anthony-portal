@@ -6,6 +6,21 @@ function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
 }
 
+function normalizeValue(value) {
+  return String(value ?? '').trim().toLowerCase()
+}
+
+function getEmailLocalPart(value) {
+  const normalized = normalizeValue(value)
+  const separatorIndex = normalized.indexOf('@')
+
+  if (separatorIndex <= 0) {
+    return ''
+  }
+
+  return normalized.slice(0, separatorIndex)
+}
+
 function getDisplayValue(value, fallback = 'Not set') {
   const normalized = String(value ?? '').trim()
   return normalized || fallback
@@ -28,23 +43,26 @@ function getMostCommonValue(items) {
 }
 
 function resolveInstructorId(account, instructors) {
-  if (typeof account.instructor_id === 'string' && account.instructor_id.trim()) {
-    return account.instructor_id.trim()
-  }
-
-  if (typeof account.email === 'string' && account.email.trim()) {
-    const matchedInstructor = instructors.find(
-      (instructor) =>
-        isActiveStatus(instructor.status) &&
-        String(instructor.email ?? '').trim().toLowerCase() === account.email.trim().toLowerCase(),
-    )
-
-    if (matchedInstructor?.instructor_id) {
-      return matchedInstructor.instructor_id
-    }
-  }
-
   const activeInstructors = instructors.filter((instructor) => isActiveStatus(instructor.status))
+  const accountInstructorId = normalizeValue(account.instructor_id)
+  const accountEmail = normalizeValue(account.email)
+  const accountUsername = normalizeValue(account.username)
+  const matchedInstructors = activeInstructors.filter((instructor) => {
+    const instructorId = normalizeValue(instructor.instructor_id)
+    const instructorEmail = normalizeValue(instructor.email)
+    const instructorEmailLocalPart = getEmailLocalPart(instructor.email)
+
+    return (
+      (accountInstructorId && instructorId === accountInstructorId) ||
+      (accountEmail && instructorEmail === accountEmail) ||
+      (accountUsername &&
+        (instructorId === accountUsername || instructorEmailLocalPart === accountUsername))
+    )
+  })
+
+  if (matchedInstructors.length === 1) {
+    return matchedInstructors[0].instructor_id
+  }
 
   if (activeInstructors.length === 1) {
     return activeInstructors[0].instructor_id

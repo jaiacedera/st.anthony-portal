@@ -100,15 +100,37 @@ export function InstructorShell({
   semesterLabel,
   children,
 }: InstructorShellProps) {
+  const isDashboard = active === 'dashboard'
+
   return (
-    <main className="instructor-portal-page">
+    <main
+      className={
+        isDashboard
+          ? 'instructor-portal-page instructor-portal-page--dashboard'
+          : 'instructor-portal-page'
+      }
+    >
       <SideBar active={active} />
-      <section className="instructor-main-panel">
+      <section
+        className={
+          isDashboard
+            ? 'instructor-main-panel instructor-main-panel--dashboard'
+            : 'instructor-main-panel'
+        }
+      >
         <InstructorTopBar
           schoolYearLabel={schoolYearLabel}
           semesterLabel={semesterLabel}
         />
-        <div className="instructor-main-content">{children}</div>
+        <div
+          className={
+            isDashboard
+              ? 'instructor-main-content instructor-main-content--dashboard'
+              : 'instructor-main-content'
+          }
+        >
+          {children}
+        </div>
       </section>
     </main>
   )

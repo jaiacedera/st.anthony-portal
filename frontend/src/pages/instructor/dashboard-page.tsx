@@ -214,6 +214,14 @@ export default function DashboardPage() {
     }
   }, [username])
 
+  const dashboardAlerts = [
+    errorMessage,
+    dashboard?.needsBinding
+      ? dashboard.message ??
+        'This instructor account still needs to be linked to a Google Sheets instructor record.'
+      : '',
+  ].filter(Boolean)
+
   return (
     <InstructorShell
       active="dashboard"
@@ -221,6 +229,16 @@ export default function DashboardPage() {
       semesterLabel={dashboard?.header.semester ?? 'Loading...'}
     >
       <div className="instructor-dashboard">
+        {dashboardAlerts.length ? (
+          <div className="dashboard-alert-stack" aria-live="polite">
+            {dashboardAlerts.map((message, index) => (
+              <section key={`${message}-${index}`} className="dashboard-alert-row">
+                <div className="dashboard-alert">{message}</div>
+              </section>
+            ))}
+          </div>
+        ) : null}
+
         <section className="dashboard-stats" aria-label="Instructor dashboard overview">
           {isLoading
             ? statConfig.map((item) => (
@@ -246,23 +264,8 @@ export default function DashboardPage() {
               ))}
         </section>
 
-        {errorMessage ? (
-          <section className="dashboard-alert-row">
-            <div className="dashboard-alert">{errorMessage}</div>
-          </section>
-        ) : null}
-
-        {dashboard?.needsBinding ? (
-          <section className="dashboard-alert-row">
-            <div className="dashboard-alert">
-              {dashboard.message ??
-                'This instructor account still needs to be linked to a Google Sheets instructor record.'}
-            </div>
-          </section>
-        ) : null}
-
         <section className="dashboard-panels">
-          <article className="instructor-panel subject-management">
+          <article className="instructor-panel subject-management subject-management-card">
             <div className="instructor-panel-header">
               <PanelLead />
               <h2>Subject Management</h2>
@@ -276,52 +279,54 @@ export default function DashboardPage() {
                 <span>Actions</span>
               </div>
 
-              {isLoading ? (
-                <div className="dashboard-loading-block">
-                  <div className="dashboard-loading-row" />
-                  <div className="dashboard-loading-row" />
-                  <div className="dashboard-loading-row" />
-                </div>
-              ) : dashboard?.previews.subjects.length ? (
-                dashboard.previews.subjects.map((subject) => (
-                  <div
-                    key={subject.subjectId}
-                    className="instructor-table-row table-layout--subjects subject-row"
-                  >
-                    <span className="course-pill">{subject.subjectCode}</span>
-                    <div>
-                      <div className="course-title">{subject.subjectName}</div>
-                      <div className="course-meta">{subject.schedule}</div>
-                    </div>
-                    <span className="table-stat">{subject.studentCount}</span>
-                    <div className="table-actions">
-                      <button
-                        type="button"
-                        className="icon-action-button"
-                        aria-label={`Add students to ${subject.subjectName}`}
-                      >
-                        <UserPlusIcon />
-                      </button>
-                      <a
-                        className="icon-action-button"
-                        href="/instructor/subjects"
-                        aria-label={`View ${subject.subjectName}`}
-                      >
-                        <FolderIcon />
-                      </a>
-                      <button
-                        type="button"
-                        className="icon-action-button"
-                        aria-label={`More options for ${subject.subjectName}`}
-                      >
-                        <MoreIcon />
-                      </button>
-                    </div>
+              <div className="dashboard-panel-content">
+                {isLoading ? (
+                  <div className="dashboard-loading-block">
+                    <div className="dashboard-loading-row" />
+                    <div className="dashboard-loading-row" />
+                    <div className="dashboard-loading-row" />
                   </div>
-                ))
-              ) : (
-                renderPanelState('No subjects created yet.')
-              )}
+                ) : dashboard?.previews.subjects.length ? (
+                  dashboard.previews.subjects.map((subject) => (
+                    <div
+                      key={subject.subjectId}
+                      className="instructor-table-row table-layout--subjects subject-row"
+                    >
+                      <span className="course-pill">{subject.subjectCode}</span>
+                      <div>
+                        <div className="course-title">{subject.subjectName}</div>
+                        <div className="course-meta">{subject.schedule}</div>
+                      </div>
+                      <span className="table-stat">{subject.studentCount}</span>
+                      <div className="table-actions">
+                        <button
+                          type="button"
+                          className="icon-action-button"
+                          aria-label={`Add students to ${subject.subjectName}`}
+                        >
+                          <UserPlusIcon />
+                        </button>
+                        <a
+                          className="icon-action-button"
+                          href="/instructor/subjects"
+                          aria-label={`View ${subject.subjectName}`}
+                        >
+                          <FolderIcon />
+                        </a>
+                        <button
+                          type="button"
+                          className="icon-action-button"
+                          aria-label={`More options for ${subject.subjectName}`}
+                        >
+                          <MoreIcon />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  renderPanelState('No subjects created yet.')
+                )}
+              </div>
             </div>
 
             <div className="instructor-panel-footer">
@@ -330,7 +335,7 @@ export default function DashboardPage() {
           </article>
 
           <div className="dashboard-right-column">
-            <article className="instructor-panel grade-posting">
+            <article className="instructor-panel grade-posting grade-posting-card">
               <div className="instructor-panel-header">
                 <PanelLead />
                 <h2>Grade Posting</h2>
@@ -344,28 +349,30 @@ export default function DashboardPage() {
                   <span>Action</span>
                 </div>
 
-                {isLoading ? (
-                  <div className="dashboard-loading-block">
-                    <div className="dashboard-loading-row dashboard-loading-row--compact" />
-                    <div className="dashboard-loading-row dashboard-loading-row--compact" />
-                  </div>
-                ) : dashboard?.previews.gradePosting.length ? (
-                  dashboard.previews.gradePosting.map((subject) => (
-                    <div
-                      key={subject.subjectId}
-                      className="instructor-table-row table-layout--grades grade-row"
-                    >
-                      <span className="course-pill course-pill--compact">{subject.subjectCode}</span>
-                      <span className="course-title">{subject.subjectName}</span>
-                      <span className="table-stat">{subject.studentCount}</span>
-                      <a className="post-grade-button" href="/instructor/grades">
-                        Post Grades
-                      </a>
+                <div className="dashboard-panel-content">
+                  {isLoading ? (
+                    <div className="dashboard-loading-block">
+                      <div className="dashboard-loading-row dashboard-loading-row--compact" />
+                      <div className="dashboard-loading-row dashboard-loading-row--compact" />
                     </div>
-                  ))
-                ) : (
-                  renderPanelState('No subjects available for grade posting.')
-                )}
+                  ) : dashboard?.previews.gradePosting.length ? (
+                    dashboard.previews.gradePosting.map((subject) => (
+                      <div
+                        key={subject.subjectId}
+                        className="instructor-table-row table-layout--grades grade-row"
+                      >
+                        <span className="course-pill course-pill--compact">{subject.subjectCode}</span>
+                        <span className="course-title">{subject.subjectName}</span>
+                        <span className="table-stat">{subject.studentCount}</span>
+                        <a className="post-grade-button" href="/instructor/grades">
+                          Post Grades
+                        </a>
+                      </div>
+                    ))
+                  ) : (
+                    renderPanelState('No subjects available for grade posting.')
+                  )}
+                </div>
               </div>
 
               <div className="instructor-panel-footer">
@@ -373,7 +380,7 @@ export default function DashboardPage() {
               </div>
             </article>
 
-            <article className="instructor-panel breakdown-request">
+            <article className="instructor-panel breakdown-request breakdown-request-card">
               <div className="instructor-panel-header">
                 <PanelLead />
                 <h2>Breakdown Request</h2>
@@ -387,43 +394,45 @@ export default function DashboardPage() {
                   <span>Action</span>
                 </div>
 
-                {isLoading ? (
-                  <div className="dashboard-loading-block">
-                    <div className="dashboard-loading-row dashboard-loading-row--compact" />
-                    <div className="dashboard-loading-row dashboard-loading-row--compact" />
-                  </div>
-                ) : dashboard?.previews.pendingRequests.length ? (
-                  dashboard.previews.pendingRequests.map((request) => (
-                    <div
-                      key={request.requestId}
-                      className="instructor-table-row table-layout--requests request-row"
-                    >
-                      <span className="course-title">{request.studentName}</span>
-                      <span className="course-pill course-pill--compact">{request.subjectCode}</span>
-                      <span
-                        className={
-                          request.status.toUpperCase() === 'PENDING'
-                            ? 'request-status'
-                            : 'request-status request-status--neutral'
-                        }
-                      >
-                        {request.status}
-                      </span>
-                      <div className="request-actions">
-                        <button type="button" className="request-action request-action--approve">
-                          <CheckIcon />
-                          <span>Approve</span>
-                        </button>
-                        <button type="button" className="request-action request-action--reject">
-                          <XIcon />
-                          <span>Reject</span>
-                        </button>
-                      </div>
+                <div className="dashboard-panel-content">
+                  {isLoading ? (
+                    <div className="dashboard-loading-block">
+                      <div className="dashboard-loading-row dashboard-loading-row--compact" />
+                      <div className="dashboard-loading-row dashboard-loading-row--compact" />
                     </div>
-                  ))
-                ) : (
-                  renderPanelState('No pending breakdown requests.')
-                )}
+                  ) : dashboard?.previews.pendingRequests.length ? (
+                    dashboard.previews.pendingRequests.map((request) => (
+                      <div
+                        key={request.requestId}
+                        className="instructor-table-row table-layout--requests request-row"
+                      >
+                        <span className="course-title">{request.studentName}</span>
+                        <span className="course-pill course-pill--compact">{request.subjectCode}</span>
+                        <span
+                          className={
+                            request.status.toUpperCase() === 'PENDING'
+                              ? 'request-status'
+                              : 'request-status request-status--neutral'
+                          }
+                        >
+                          {request.status}
+                        </span>
+                        <div className="request-actions">
+                          <button type="button" className="request-action request-action--approve">
+                            <CheckIcon />
+                            <span>Approve</span>
+                          </button>
+                          <button type="button" className="request-action request-action--reject">
+                            <XIcon />
+                            <span>Reject</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    renderPanelState('No pending breakdown requests.')
+                  )}
+                </div>
               </div>
 
               <div className="instructor-panel-footer">

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:frontend": "vite --config frontend/vite.config.ts",
-    "dev:backend": "node backend/src/server.js",
+    "dev:backend": "node --watch backend/src/server.js",
     "build": "tsc -b && vite build --config frontend/vite.config.ts",
     "lint": "eslint . --config frontend/eslint.config.js",
     "preview": "vite preview --config frontend/vite.config.ts",

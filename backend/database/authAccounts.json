@@ -8,5 +8,18 @@
     "status": "ACTIVE",
     "created_at": "2026-08-19T00:00:00.000Z",
     "updated_at": "2026-08-19T00:00:00.000Z"
+  },
+  {
+    "account_id": "a5d1b5f47c9d7e983a8fb1d8a993c055",
+    "role": "STUDENT",
+    "username": "jairahacedera@gmail.com",
+    "email": "jairahacedera@gmail.com",
+    "student_id": "71e580f2-6260-4799-a157-a8cb71da7c58",
+    "created_by_instructor_id": "robinacedera",
+    "password_salt": "2fd08be4cb2375ab7a38a536d408880a",
+    "password_hash": "819344d0ded984e046856392e0bdaa940de9f4a29258da3b89a1d96beef6f1dda81d528f8c689a5eb0ba66c42509830b3ff1f903d6f36544d6c85c6e442e967d",
+    "status": "ACTIVE",
+    "created_at": "2026-08-21T14:30:44.031Z",
+    "updated_at": "2026-08-21T14:30:44.031Z"
   }
 ]

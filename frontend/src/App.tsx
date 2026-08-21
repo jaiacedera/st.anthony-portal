@@ -5,16 +5,25 @@ import InstructorProfilePage from './pages/instructor/instructor-profile'
 import RequestsPage from './pages/instructor/requests-page'
 import StudentsPage from './pages/instructor/students-page'
 import SubjectsPage from './pages/instructor/subjects-page'
+import StudentDashboardPage from './pages/student/dashboard-page'
+import StudentRequestPage from './pages/student/request-page'
 import StudentAuthPage from './pages/student/student-auth-page'
+import StudentProfilePage from './pages/student/student-profile'
 import { readInstructorAuth } from './utils/instructorAuth'
+import { readStudentAuth } from './utils/studentAuth'
 
 function getInstructorAuth() {
   return readInstructorAuth()
 }
 
+function getStudentAuth() {
+  return readStudentAuth()
+}
+
 function App() {
   const pathname = window.location.pathname.replace(/\/+$/, '') || '/'
   const isInstructorSignedIn = Boolean(getInstructorAuth())
+  const isStudentSignedIn = Boolean(getStudentAuth())
 
   if (pathname.startsWith('/instructor/') && pathname !== '/instructor' && !isInstructorSignedIn) {
     window.location.replace('/instructor')
@@ -23,6 +32,16 @@ function App() {
 
   if (pathname === '/instructor' && isInstructorSignedIn) {
     window.location.replace('/instructor/dashboard')
+    return null
+  }
+
+  if (pathname.startsWith('/student/') && pathname !== '/student' && !isStudentSignedIn) {
+    window.location.replace('/student')
+    return null
+  }
+
+  if (pathname === '/student' && isStudentSignedIn) {
+    window.location.replace('/student/dashboard')
     return null
   }
 
@@ -52,6 +71,22 @@ function App() {
 
   if (pathname === '/instructor') {
     return <InstructorAuthPage />
+  }
+
+  if (pathname === '/student/dashboard') {
+    return <StudentDashboardPage />
+  }
+
+  if (pathname === '/student/requests') {
+    return <StudentRequestPage />
+  }
+
+  if (pathname === '/student/profile') {
+    return <StudentProfilePage />
+  }
+
+  if (pathname === '/student') {
+    return <StudentAuthPage />
   }
 
   return <StudentAuthPage />

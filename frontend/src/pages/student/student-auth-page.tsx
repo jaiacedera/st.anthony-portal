@@ -4,8 +4,8 @@ export default function StudentAuthPage() {
   return (
     <AuthPortalPage
       portalLabel="STUDENT"
-      firstFieldName="studentNumber"
-      firstFieldPlaceholder="Student Number"
+      firstFieldName="email"
+      firstFieldPlaceholder="Email"
       forgotPasswordHref="/student/forgot-password"
     />
   )

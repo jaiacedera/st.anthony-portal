@@ -1,9 +1,22 @@
-import { postInstructorLogin } from '../controllers/authController.js'
+import {
+  postInstructorLogin,
+  postStudentLogin,
+} from '../controllers/authController.js'
 import {
   getDatabaseStatus,
   postDatabaseInitialization,
 } from '../controllers/databaseController.js'
 import { getInstructorDashboardData } from '../controllers/instructorDashboardController.js'
+import { getStudentDashboardData } from '../controllers/studentDashboardController.js'
+import {
+  getInstructorSubjectsData,
+  postInstructorSubject,
+} from '../controllers/instructorSubjectsController.js'
+import {
+  getInstructorStudentsData,
+  postInstructorStudent,
+  postInstructorStudentEnrollment,
+} from '../controllers/instructorStudentsController.js'
 import {
   getHealth,
   getModules,
@@ -20,9 +33,44 @@ const routes = [
     handler: postInstructorLogin,
   },
   {
+    method: 'POST',
+    pathname: '/api/auth/student/login',
+    handler: postStudentLogin,
+  },
+  {
     method: 'GET',
     pathname: '/api/instructor/dashboard',
     handler: getInstructorDashboardData,
+  },
+  {
+    method: 'GET',
+    pathname: '/api/student/dashboard',
+    handler: getStudentDashboardData,
+  },
+  {
+    method: 'GET',
+    pathname: '/api/instructor/subjects',
+    handler: getInstructorSubjectsData,
+  },
+  {
+    method: 'POST',
+    pathname: '/api/instructor/subjects',
+    handler: postInstructorSubject,
+  },
+  {
+    method: 'GET',
+    pathname: '/api/instructor/students',
+    handler: getInstructorStudentsData,
+  },
+  {
+    method: 'POST',
+    pathname: '/api/instructor/students',
+    handler: postInstructorStudent,
+  },
+  {
+    method: 'POST',
+    pathname: '/api/instructor/students/enrollment',
+    handler: postInstructorStudentEnrollment,
   },
   {
     method: 'GET',

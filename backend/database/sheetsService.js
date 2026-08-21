@@ -266,6 +266,52 @@ export async function createSubject({
   })
 }
 
+export async function createStudent({
+  studentNumber,
+  email,
+  firstName,
+  middleName,
+  lastName,
+  yearLevel,
+}) {
+  if (!email?.trim()) {
+    throw new Error('Student email is required.')
+  }
+
+  if (studentNumber?.trim()) {
+    const duplicateStudentNumber = await findRows(SHEET_NAMES.STUDENTS, {
+      student_number: studentNumber.trim(),
+    })
+
+    if (duplicateStudentNumber.length > 0) {
+      throw new Error('A student with this student number already exists.')
+    }
+  }
+
+  const duplicateEmail = await findRows(SHEET_NAMES.STUDENTS, {
+    email: email.trim(),
+  })
+
+  if (duplicateEmail.length > 0) {
+    throw new Error('A student with this email already exists.')
+  }
+
+  const timestamp = new Date().toISOString()
+
+  return appendRow(SHEET_NAMES.STUDENTS, {
+    student_id: randomUUID(),
+    student_number: toCellValue(studentNumber),
+    email: email.trim(),
+    first_name: toCellValue(firstName),
+    middle_name: toCellValue(middleName),
+    last_name: toCellValue(lastName),
+    year_level: toCellValue(yearLevel),
+    status: 'ACTIVE',
+    created_at: timestamp,
+    updated_at: timestamp,
+  })
+}
+
 export async function addStudentToSubject({ subjectId, studentId, addedBy }) {
   const [student, subject] = await Promise.all([
     getRowById(

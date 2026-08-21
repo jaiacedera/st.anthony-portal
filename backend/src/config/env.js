@@ -55,4 +55,9 @@ export const env = {
   googlePrivateKey:
     process.env.GOOGLE_PRIVATE_KEY ?? fileEnv.GOOGLE_PRIVATE_KEY ?? '',
   googleSheetId: process.env.GOOGLE_SHEET_ID ?? fileEnv.GOOGLE_SHEET_ID ?? '',
+  brevoApiKey: process.env.BREVO_API_KEY ?? fileEnv.BREVO_API_KEY ?? '',
+  brevoSenderEmail:
+    process.env.BREVO_SENDER_EMAIL ?? fileEnv.BREVO_SENDER_EMAIL ?? '',
+  brevoSenderName:
+    process.env.BREVO_SENDER_NAME ?? fileEnv.BREVO_SENDER_NAME ?? 'St. Anthony College',
 }

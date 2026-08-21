@@ -7,8 +7,8 @@ const commands = [
       process.platform === 'win32' ? 'cmd.exe' : process.execPath,
     args:
       process.platform === 'win32'
-        ? ['/d', '/s', '/c', 'node backend/src/server.js']
-        : ['backend/src/server.js'],
+        ? ['/d', '/s', '/c', 'node --watch backend/src/server.js']
+        : ['--watch', 'backend/src/server.js'],
   },
   {
     label: 'frontend',

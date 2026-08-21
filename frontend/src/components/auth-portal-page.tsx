@@ -119,25 +119,27 @@ export function AuthPortalPage({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!isInstructorPortal) {
-      return
-    }
-
     setIsSubmitting(true)
     setErrorMessage('')
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/auth/instructor/login`, {
+      const response = await fetch(
+        isInstructorPortal
+          ? `${apiBaseUrl}/api/auth/instructor/login`
+          : `${apiBaseUrl}/api/auth/student/login`,
+        {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: credential,
+          ...(isInstructorPortal ? { username: credential } : { email: credential }),
+          credential,
           password,
           rememberMe,
         }),
-      })
+        },
+      )
 
       const payload = (await response.json()) as {
         success?: boolean
@@ -147,34 +149,51 @@ export function AuthPortalPage({
           username: string
           role: string
           instructorId?: string
+          studentId?: string
+          email?: string
         }
       }
 
       if (!response.ok || !payload.success || !payload.account) {
-        setErrorMessage(payload.message ?? 'Unable to sign in to the instructor portal.')
+        setErrorMessage(
+          payload.message ??
+            (isInstructorPortal
+              ? 'Unable to sign in to the instructor portal.'
+              : 'Unable to sign in to the student portal.'),
+        )
         return
       }
 
       const authPayload = JSON.stringify({
         accountId: payload.account.accountId,
         instructorId: payload.account.instructorId,
+        studentId: payload.account.studentId,
+        email: payload.account.email,
         username: payload.account.username,
         role: payload.account.role,
         rememberMe,
         signedInAt: new Date().toISOString(),
       })
 
+      const storageKey = isInstructorPortal ? 'instructor-auth' : 'student-auth'
+
       if (rememberMe) {
-        window.localStorage.setItem('instructor-auth', authPayload)
-        window.sessionStorage.removeItem('instructor-auth')
+        window.localStorage.setItem(storageKey, authPayload)
+        window.sessionStorage.removeItem(storageKey)
       } else {
-        window.sessionStorage.setItem('instructor-auth', authPayload)
-        window.localStorage.removeItem('instructor-auth')
+        window.sessionStorage.setItem(storageKey, authPayload)
+        window.localStorage.removeItem(storageKey)
       }
 
-      window.location.href = '/instructor/dashboard'
+      window.location.href = isInstructorPortal
+        ? '/instructor/dashboard'
+        : '/student/dashboard'
     } catch {
-      setErrorMessage('Instructor login is unavailable. Make sure the backend server is running on port 3000.')
+      setErrorMessage(
+        isInstructorPortal
+          ? 'Instructor login is unavailable. Make sure the backend server is running on port 3000.'
+          : 'Student login is unavailable. Make sure the backend server is running on port 3000.',
+      )
     } finally {
       setIsSubmitting(false)
     }

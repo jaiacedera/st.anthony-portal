@@ -87,6 +87,23 @@ function ChevronDownIcon() {
   )
 }
 
+function ChevronRightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  )
+}
+
+function PersonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.4" />
+      <path d="M5.5 19a6.5 6.5 0 0 1 13 0" />
+    </svg>
+  )
+}
+
 function MoreIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -257,7 +274,10 @@ export default function StudentDashboardPage() {
               <h2>My Subjects</h2>
               <span className="student-panel-underline"></span>
             </div>
-            <span className="student-subjects-view-all">View All</span>
+            <span className="student-subjects-view-all">
+              <span>View All</span>
+              <ChevronRightIcon />
+            </span>
           </header>
 
           <div className="student-mobile-subjects-list">
@@ -282,7 +302,10 @@ export default function StudentDashboardPage() {
                       <div className="student-mobile-subject-copy">
                         <strong>{subject.subjectCode}</strong>
                         <span>{subject.subjectName}</span>
-                        <small>{subject.instructorName}</small>
+                        <small className="student-mobile-subject-instructor">
+                          <PersonIcon />
+                          <span>{subject.instructorName}</span>
+                        </small>
                       </div>
                     </div>
 

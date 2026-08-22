@@ -1098,7 +1098,7 @@ export default function StudentsPage() {
                       {subjectPickerOpen ? (
                         <div
                           id="student-subject-multiselect-menu"
-                          className="student-subject-multiselect-menu subject-multiselect-menu"
+                          className="student-subject-multiselect-menu subject-dropdown"
                           role="listbox"
                           aria-multiselectable="true"
                         >
@@ -1110,14 +1110,14 @@ export default function StudentsPage() {
                                 </span>
                                 <input
                                   type="search"
-                                  className="student-subject-search subject-dropdown-search"
+                                  className="student-subject-search subject-dropdown-search-input"
                                   value={subjectSearchValue}
                                   onChange={(event) => setSubjectSearchValue(event.target.value)}
                                   placeholder="Search subjects..."
                                 />
                               </div>
 
-                              <div className="student-subject-options">
+                              <div className="student-subject-options subject-dropdown-options">
                                 {filteredCreateSubjects.length ? (
                                   filteredCreateSubjects.map((subject) => {
                                     const isSelected = createStudentForm.subjectIds.includes(subject.id)
@@ -1142,22 +1142,22 @@ export default function StudentsPage() {
                                     )
                                   })
                                 ) : (
-                                  <div className="student-subject-option student-subject-option--empty">
+                                  <div className="student-subject-option student-subject-option--empty subject-dropdown-empty">
                                     <span>No subjects found.</span>
                                   </div>
                                 )}
                               </div>
                             </>
                           ) : isLoading ? (
-                            <div className="student-subject-option student-subject-option--empty create-student-menu-state">
+                            <div className="student-subject-option student-subject-option--empty subject-dropdown-empty create-student-menu-state">
                               <span>Loading subjects...</span>
                             </div>
                           ) : errorMessage ? (
-                            <div className="student-subject-option student-subject-option--empty create-student-menu-state">
+                            <div className="student-subject-option student-subject-option--empty subject-dropdown-empty create-student-menu-state">
                               <span>Unable to load subjects.</span>
                             </div>
                           ) : (
-                            <div className="student-subject-option student-subject-option--empty create-student-menu-state">
+                            <div className="student-subject-option student-subject-option--empty subject-dropdown-empty create-student-menu-state">
                               <span>No subjects available.</span>
                             </div>
                           )}

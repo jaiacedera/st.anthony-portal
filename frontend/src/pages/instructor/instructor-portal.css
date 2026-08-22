@@ -1977,7 +1977,7 @@
   font-weight: 600;
 }
 
-.student-create-field input,
+.student-create-field input:not([type='checkbox']):not(.student-subject-search):not(.subject-dropdown-search-input),
 .student-create-field select {
   width: 100%;
   min-height: 46px;
@@ -1996,6 +1996,7 @@
 
 .student-subject-multiselect {
   position: relative;
+  width: 100%;
 }
 
 .student-subject-multiselect-trigger {
@@ -2004,8 +2005,8 @@
   justify-content: space-between;
   width: 100%;
   min-height: 44px;
-  padding: 7px 12px;
-  border: 1px solid #d8d8d8;
+  padding: 6px 12px;
+  border: 1px solid #d7d7d7;
   border-radius: 7px;
   background: #ffffff;
   color: #333333;
@@ -2027,6 +2028,8 @@
   align-items: center;
   justify-content: center;
   color: #800a09;
+  width: 16px;
+  height: 16px;
   flex: none;
   transition: transform 0.18s ease;
 }
@@ -2046,13 +2049,12 @@
   right: 0;
   left: 0;
   z-index: 50;
-  max-height: 180px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  width: 100%;
   border: 1px solid #d8d8d8;
-  border-radius: 7px;
+  border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .subject-dropdown-search-wrapper {
@@ -2100,14 +2102,18 @@
 
 .student-subject-options {
   display: grid;
+  max-height: 160px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .student-subject-option {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 38px;
-  padding: 7px 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
   box-sizing: border-box;
   background: #ffffff;
   color: #141414;
@@ -2129,10 +2135,19 @@
 }
 
 .student-subject-checkbox {
-  width: 17px;
-  height: 17px;
+  appearance: auto;
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  min-height: 17px !important;
+  max-width: 17px !important;
+  max-height: 17px !important;
+  margin: 0 !important;
+  padding: 0 !important;
   accent-color: #800a09;
-  flex: none;
+  flex: 0 0 17px;
+  border-radius: 3px;
+  cursor: pointer;
 }
 
 .subject-option-text {
@@ -2140,17 +2155,27 @@
   color: #333333;
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .student-subject-option--empty {
   color: #6c6767;
   cursor: default;
-  justify-content: center;
-  text-align: center;
 }
 
 .student-subject-option--empty:hover {
   background: transparent;
+}
+
+.subject-dropdown-empty {
+  justify-content: center;
+  padding: 14px;
+  text-align: center;
+  font-size: 13px;
+  color: #777777;
 }
 
 .student-selected-subject-chip {
@@ -2158,10 +2183,10 @@
   align-items: center;
   gap: 6px;
   max-width: calc(100% - 30px);
-  padding: 5px 8px;
+  padding: 4px 8px;
   border-radius: 5px;
-  background: #f9eaea;
-  color: #6f4141;
+  background: #f8e8e8;
+  color: #6c4a4a;
   font-size: 12px;
   font-weight: 500;
   line-height: 1.3;

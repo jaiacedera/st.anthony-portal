@@ -22,6 +22,7 @@ export async function sendStudentWelcomeEmail({
   const subjectIntro = subjectLabels.length
     ? `You have been added to the following subject${subjectLabels.length === 1 ? '' : 's'}:`
     : 'You can complete subject assignment later. Current status:'
+  const studentPortalUrl = getStudentPortalUrl()
 
   let response
 
@@ -51,6 +52,8 @@ export async function sendStudentWelcomeEmail({
               <p>Your student access has been created for the St. Anthony College portal.</p>
               <p><strong>Login email:</strong> ${escapeHtml(recipientEmail)}<br />
               <strong>Default password:</strong> ${escapeHtml(defaultPassword)}</p>
+              <p><strong>Student portal:</strong>
+              <a href="${escapeHtml(studentPortalUrl)}">${escapeHtml(studentPortalUrl)}</a></p>
               <p>${subjectIntro}</p>
               <ul>${subjectListMarkup}</ul>
               <p>Please keep these credentials safe. Your remaining profile details can be completed during student onboarding.</p>
@@ -63,6 +66,7 @@ export async function sendStudentWelcomeEmail({
           'Your student access has been created for the St. Anthony College portal.',
           `Login email: ${recipientEmail}`,
           `Default password: ${defaultPassword}`,
+          `Student portal: ${studentPortalUrl}`,
           '',
           `Assigned subjects: ${subjectLabels.length ? subjectLabels.join(', ') : 'No subjects assigned yet'}`,
           '',
@@ -111,4 +115,8 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;')
+}
+
+function getStudentPortalUrl() {
+  return String(env.frontendOrigin || 'http://localhost:5173').trim()
 }

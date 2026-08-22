@@ -341,39 +341,41 @@ export default function StudentProfilePage() {
               </div>
             </div>
 
-            <div className="student-profile-heading">
-              <h2>{isLoading ? 'Loading...' : fullName}</h2>
-              <p>{isLoading ? 'Loading...' : courseYear}</p>
-              <span>{isLoading ? 'Loading...' : studentNumber}</span>
-            </div>
-
-            <div className="student-profile-contact-list">
-              <div className="student-profile-contact-row student-profile-contact-row--email">
-                <span className="student-profile-contact-icon" aria-hidden="true">
-                  <MailIcon />
-                </span>
-                <span>{isLoading ? 'Loading...' : email}</span>
+            <div className="student-profile-summary-content">
+              <div className="student-profile-heading">
+                <h2>{isLoading ? 'Loading...' : fullName}</h2>
+                <p>{isLoading ? 'Loading...' : courseYear}</p>
+                <span>{isLoading ? 'Loading...' : studentNumber}</span>
               </div>
 
-              <div className="student-profile-contact-row student-profile-contact-row--phone">
-                <span className="student-profile-contact-icon" aria-hidden="true">
-                  <PhoneIcon />
-                </span>
-                <span>{isLoading ? 'Loading...' : phone}</span>
-              </div>
+              <div className="student-profile-contact-list">
+                <div className="student-profile-contact-row student-profile-contact-row--email">
+                  <span className="student-profile-contact-icon" aria-hidden="true">
+                    <MailIcon />
+                  </span>
+                  <span>{isLoading ? 'Loading...' : email}</span>
+                </div>
 
-              <div className="student-profile-contact-row student-profile-contact-row--address">
-                <span className="student-profile-contact-icon" aria-hidden="true">
-                  <PinIcon />
-                </span>
-                <span>{isLoading ? 'Loading...' : address}</span>
-              </div>
+                <div className="student-profile-contact-row student-profile-contact-row--phone">
+                  <span className="student-profile-contact-icon" aria-hidden="true">
+                    <PhoneIcon />
+                  </span>
+                  <span>{isLoading ? 'Loading...' : phone}</span>
+                </div>
 
-              <div className="student-profile-contact-row student-profile-contact-row--joined">
-                <span className="student-profile-contact-icon" aria-hidden="true">
-                  <CalendarIcon />
-                </span>
-                <span>{isLoading ? 'Loading...' : joinedAt}</span>
+                <div className="student-profile-contact-row student-profile-contact-row--address">
+                  <span className="student-profile-contact-icon" aria-hidden="true">
+                    <PinIcon />
+                  </span>
+                  <span>{isLoading ? 'Loading...' : address}</span>
+                </div>
+
+                <div className="student-profile-contact-row student-profile-contact-row--joined">
+                  <span className="student-profile-contact-icon" aria-hidden="true">
+                    <CalendarIcon />
+                  </span>
+                  <span>{isLoading ? 'Loading...' : joinedAt}</span>
+                </div>
               </div>
             </div>
           </aside>

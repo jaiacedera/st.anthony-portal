@@ -255,11 +255,13 @@ export default function StudentDashboardPage() {
         <section className="student-dashboard-stats" aria-label="Student dashboard overview">
           {overviewCards.map((card) => (
             <article key={card.key} className={`student-overview-card student-overview-card--${card.tone}`}>
-              <span className={`student-overview-icon student-overview-icon--${card.tone}`}>{card.icon}</span>
-              <div className="student-overview-copy">
-                <strong className="student-overview-value">{card.value}</strong>
-                <span className="student-overview-title">{card.title}</span>
-                <span className="student-overview-subtitle">{card.subtitle}</span>
+              <div className="student-overview-card-inner">
+                <span className={`student-overview-icon student-overview-icon--${card.tone}`}>{card.icon}</span>
+                <div className="student-overview-copy">
+                  <strong className="student-overview-value">{card.value}</strong>
+                  <span className="student-overview-title">{card.title}</span>
+                  <span className="student-overview-subtitle">{card.subtitle}</span>
+                </div>
               </div>
             </article>
           ))}

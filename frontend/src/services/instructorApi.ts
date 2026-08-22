@@ -147,6 +147,7 @@ export type CreateInstructorStudentInput = {
 export type CreateInstructorStudentPayload = {
   success: boolean
   message?: string
+  student?: InstructorStudentRecord
 }
 
 export type DeleteInstructorStudentInput = {

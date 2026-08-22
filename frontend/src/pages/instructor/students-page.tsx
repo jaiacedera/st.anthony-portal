@@ -112,6 +112,10 @@ function countLabel(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`
 }
 
+function sortStudentsByName(records: InstructorStudentRecord[]) {
+  return [...records].sort((left, right) => left.fullName.localeCompare(right.fullName))
+}
+
 function StudentDetailRow({
   label,
   value,
@@ -395,7 +399,17 @@ export default function StudentsPage() {
         ...createStudentForm,
       })
 
-      await loadStudents()
+      if (payload.student) {
+        setStudents((current) =>
+          sortStudentsByName([
+            ...current.filter((student) => student.id !== payload.student?.id),
+            payload.student as InstructorStudentRecord,
+          ]),
+        )
+      } else {
+        await loadStudents()
+      }
+
       setSelectedSubjectId(createStudentForm.subjectIds[0] ?? '')
       setActiveTab(createStudentForm.subjectIds.length ? 'subject' : 'all')
       setIsCreateStudentOpen(false)

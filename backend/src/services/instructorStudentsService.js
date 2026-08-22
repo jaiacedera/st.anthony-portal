@@ -422,6 +422,7 @@ export async function createInstructorStudentForUser({
   }
 
   const subjectLabels = []
+  const createdSubjects = []
 
   for (const subjectId of normalizedSubjectIds) {
     const enrollment = await addStudentToSubject({
@@ -443,6 +444,7 @@ export async function createInstructorStudentForUser({
 
     if (matchedSubject[0]) {
       subjectLabels.push(formatSubjectLabel(matchedSubject[0]))
+      createdSubjects.push(matchedSubject[0])
     }
   }
 
@@ -454,6 +456,11 @@ export async function createInstructorStudentForUser({
 
   return {
     success: true,
+    student: mapStudentRecord({
+      student,
+      enrolledSubjects: createdSubjects,
+      gradesBySubjectId: new Map(),
+    }),
     message: emailResult.sent
       ? normalizedSubjectIds.length
         ? 'Student created successfully, added to the selected subjects, and sent a default password email.'

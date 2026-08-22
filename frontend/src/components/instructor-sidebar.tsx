@@ -10,7 +10,7 @@ export type InstructorSection =
   | 'requests'
   | 'profile'
 
-type SideBarProps = {
+type InstructorSidebarProps = {
   active: InstructorSection
 }
 
@@ -142,7 +142,7 @@ function renderIcon(section: InstructorSection) {
   return <FileIcon />
 }
 
-export function SideBar({ active }: SideBarProps) {
+export function InstructorSidebar({ active }: InstructorSidebarProps) {
   function handleNavigate(event: MouseEvent<HTMLAnchorElement>, href: string) {
     event.preventDefault()
     navigateTo(href)

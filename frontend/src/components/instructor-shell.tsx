@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { SideBar, type InstructorSection } from './side-bar'
+import { InstructorSidebar, type InstructorSection } from './instructor-sidebar'
 import '../pages/instructor/instructor-portal.css'
 
 type InstructorShellProps = {
@@ -101,19 +101,17 @@ export function InstructorShell({
   children,
 }: InstructorShellProps) {
   const isDashboard = active === 'dashboard'
-  const isStudents = active === 'students'
 
   return (
     <main
       className={[
         'instructor-portal-page',
         isDashboard ? 'instructor-portal-page--dashboard' : '',
-        isStudents ? 'instructor-portal-page--students' : '',
       ]
         .filter(Boolean)
         .join(' ')}
     >
-      <SideBar active={active} />
+      <InstructorSidebar active={active} />
       <section
         className={
           isDashboard

@@ -44,7 +44,11 @@ export type StudentDashboardPayload = {
   requests: Array<{
     requestId: string
     subjectId: string
+    subjectCode: string
+    subjectName: string
+    requestType: string
     status: string
+    requestedAt: string
   }>
 }
 

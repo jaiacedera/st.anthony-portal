@@ -142,6 +142,9 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
       isActiveStatus(subject.status) &&
       activeSubjectIds.has(String(subject.subject_id ?? '').trim()),
   )
+  const subjectById = new Map(
+    subjects.map((subject) => [String(subject.subject_id ?? '').trim(), subject]),
+  )
   const studentGrades = grades.filter(
     (grade) => String(grade.student_id ?? '').trim() === String(student.student_id ?? '').trim(),
   )
@@ -164,6 +167,10 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
     (request) =>
       String(request.student_id ?? '').trim() === String(student.student_id ?? '').trim() &&
       String(request.status ?? '').trim().toUpperCase() === 'PENDING',
+  )
+  const allRequests = gradeRequests.filter(
+    (request) =>
+      String(request.student_id ?? '').trim() === String(student.student_id ?? '').trim(),
   )
 
   return {
@@ -218,11 +225,22 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
         }
       })
       .sort((left, right) => left.subjectCode.localeCompare(right.subjectCode)),
-    requests: pendingRequests.map((request) => ({
-      requestId: String(request.request_id ?? '').trim(),
-      subjectId: String(request.subject_id ?? '').trim(),
-      status: getDisplayValue(request.status, 'PENDING'),
-    })),
+    requests: allRequests
+      .map((request) => {
+        const subjectId = String(request.subject_id ?? '').trim()
+        const subject = subjectById.get(subjectId)
+
+        return {
+          requestId: String(request.request_id ?? '').trim(),
+          subjectId,
+          subjectCode: getDisplayValue(subject?.subject_code, 'N/A'),
+          subjectName: getDisplayValue(subject?.subject_name, 'Untitled Subject'),
+          requestType: 'Grade Breakdown',
+          status: getDisplayValue(request.status, 'PENDING'),
+          requestedAt: getOptionalValue(request.requested_at),
+        }
+      })
+      .sort((left, right) => right.requestedAt.localeCompare(left.requestedAt)),
   }
 }
 

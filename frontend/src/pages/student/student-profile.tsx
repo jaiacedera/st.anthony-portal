@@ -317,6 +317,7 @@ export default function StudentProfilePage() {
       active="profile"
       schoolYearLabel={dashboard?.header.schoolYear ?? 'Loading...'}
       semesterLabel={dashboard?.header.semester ?? 'Loading...'}
+      notificationCount={dashboard?.stats.pendingRequestCount ?? 0}
     >
       <section className="student-profile-page">
         {sessionErrorMessage || errorMessage ? (
@@ -347,28 +348,28 @@ export default function StudentProfilePage() {
             </div>
 
             <div className="student-profile-contact-list">
-              <div className="student-profile-contact-row">
+              <div className="student-profile-contact-row student-profile-contact-row--email">
                 <span className="student-profile-contact-icon" aria-hidden="true">
                   <MailIcon />
                 </span>
                 <span>{isLoading ? 'Loading...' : email}</span>
               </div>
 
-              <div className="student-profile-contact-row">
+              <div className="student-profile-contact-row student-profile-contact-row--phone">
                 <span className="student-profile-contact-icon" aria-hidden="true">
                   <PhoneIcon />
                 </span>
                 <span>{isLoading ? 'Loading...' : phone}</span>
               </div>
 
-              <div className="student-profile-contact-row">
+              <div className="student-profile-contact-row student-profile-contact-row--address">
                 <span className="student-profile-contact-icon" aria-hidden="true">
                   <PinIcon />
                 </span>
                 <span>{isLoading ? 'Loading...' : address}</span>
               </div>
 
-              <div className="student-profile-contact-row">
+              <div className="student-profile-contact-row student-profile-contact-row--joined">
                 <span className="student-profile-contact-icon" aria-hidden="true">
                   <CalendarIcon />
                 </span>
@@ -407,10 +408,6 @@ export default function StudentProfilePage() {
             <article className="instructor-panel student-profile-card student-profile-card--security">
               <div className="student-profile-card-header">
                 <h3>Security</h3>
-                <button type="button" className="student-profile-solid-button">
-                  <LockIcon />
-                  <span>Change Password</span>
-                </button>
               </div>
 
               <div className="student-profile-security-row">
@@ -418,6 +415,13 @@ export default function StudentProfilePage() {
                   <PersonIcon />
                 </span>
                 <p>Manage your password and account security.</p>
+              </div>
+
+              <div className="student-profile-security-actions">
+                <button type="button" className="student-profile-solid-button">
+                  <LockIcon />
+                  <span>Change Password</span>
+                </button>
               </div>
             </article>
           </div>

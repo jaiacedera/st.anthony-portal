@@ -68,6 +68,25 @@ function RoomIcon() {
   )
 }
 
+function CalendarRangeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
+      <path d="M8 2.8v4" />
+      <path d="M16 2.8v4" />
+      <path d="M3 9.5h18" />
+    </svg>
+  )
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
 function MoreIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -173,6 +192,7 @@ export default function StudentDashboardPage() {
       active="dashboard"
       schoolYearLabel={dashboard?.header.schoolYear ?? 'Loading...'}
       semesterLabel={dashboard?.header.semester ?? 'Loading...'}
+      notificationCount={dashboard?.stats.pendingRequestCount ?? 0}
     >
       <div className="student-dashboard">
         {sessionErrorMessage || errorMessage ? (
@@ -182,6 +202,38 @@ export default function StudentDashboardPage() {
             </section>
           </div>
         ) : null}
+
+        <section className="student-mobile-filters" aria-label="Dashboard filters">
+          <article className="student-mobile-filter-card">
+            <span className="student-mobile-filter-icon" aria-hidden="true">
+              <CalendarRangeIcon />
+            </span>
+            <div className="student-mobile-filter-copy">
+              <span className="student-mobile-filter-label">School Year</span>
+              <strong className="student-mobile-filter-value">
+                {dashboard?.header.schoolYear ?? 'Loading...'}
+              </strong>
+            </div>
+            <span className="student-mobile-filter-chevron" aria-hidden="true">
+              <ChevronDownIcon />
+            </span>
+          </article>
+
+          <article className="student-mobile-filter-card">
+            <span className="student-mobile-filter-icon" aria-hidden="true">
+              <BookIcon />
+            </span>
+            <div className="student-mobile-filter-copy">
+              <span className="student-mobile-filter-label">Semester</span>
+              <strong className="student-mobile-filter-value">
+                {dashboard?.header.semester ?? 'Loading...'}
+              </strong>
+            </div>
+            <span className="student-mobile-filter-chevron" aria-hidden="true">
+              <ChevronDownIcon />
+            </span>
+          </article>
+        </section>
 
         <section className="student-dashboard-stats" aria-label="Student dashboard overview">
           {overviewCards.map((card) => (
@@ -205,7 +257,72 @@ export default function StudentDashboardPage() {
               <h2>My Subjects</h2>
               <span className="student-panel-underline"></span>
             </div>
+            <span className="student-subjects-view-all">View All</span>
           </header>
+
+          <div className="student-mobile-subjects-list">
+            {hasStudentIdentity && isLoading ? (
+              <div className="student-dashboard-empty">Loading student subjects...</div>
+            ) : dashboard?.subjects.length ? (
+              dashboard.subjects.map((subject, index) => (
+                <article key={`${subject.subjectId}-mobile`} className="student-mobile-subject-card">
+                  <div className="student-mobile-subject-top">
+                    <div className="student-mobile-subject-main">
+                      <span
+                        className={
+                          index % 3 === 0
+                            ? 'student-subject-swatch student-subject-swatch--rose'
+                            : index % 3 === 1
+                              ? 'student-subject-swatch student-subject-swatch--mint'
+                              : 'student-subject-swatch student-subject-swatch--slate'
+                        }
+                        aria-hidden="true"
+                      ></span>
+
+                      <div className="student-mobile-subject-copy">
+                        <strong>{subject.subjectCode}</strong>
+                        <span>{subject.subjectName}</span>
+                        <small>{subject.instructorName}</small>
+                      </div>
+                    </div>
+
+                    <div className="student-mobile-grade">
+                      <span
+                        className={
+                          subject.hasPostedGrade
+                            ? 'student-grade-pill'
+                            : 'student-grade-pill student-grade-pill--muted'
+                        }
+                      >
+                        {subject.grade}
+                      </span>
+                      <span className="student-grade-label">{subject.gradeLabel}</span>
+                    </div>
+                  </div>
+
+                  <div className="student-mobile-subject-footer">
+                    <span className="student-inline-meta">
+                      <ClockIcon />
+                      <span>{subject.schedule}</span>
+                    </span>
+
+                    <span className="student-inline-meta">
+                      <RoomIcon />
+                      <span>{subject.room}</span>
+                    </span>
+
+                    <button type="button" className="student-row-action" aria-label={`More actions for ${subject.subjectCode}`}>
+                      <MoreIcon />
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="student-dashboard-empty">
+                No enrolled subjects found for this student yet.
+              </div>
+            )}
+          </div>
 
           <div className="student-subjects-table">
             <div className="student-subjects-table-head">

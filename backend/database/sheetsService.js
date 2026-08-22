@@ -53,10 +53,12 @@ function buildRowValues(headers, record) {
 async function getSheetMatrix(sheetName) {
   const sheets = createSheetsClient()
   const spreadsheetId = getSpreadsheetId()
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: getSheetRange(sheetName, 'A:ZZ'),
-  })
+  const response = await runSheetsRequest(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: getSheetRange(sheetName, 'A:ZZ'),
+    }),
+  )
 
   return {
     sheets,
@@ -92,10 +94,12 @@ async function getSheetRowState(sheetName, idColumn, id) {
 async function getSheetPropertiesByName(sheetName) {
   const sheets = createSheetsClient()
   const spreadsheetId = getSpreadsheetId()
-  const response = await sheets.spreadsheets.get({
-    spreadsheetId,
-    fields: 'sheets.properties',
-  })
+  const response = await runSheetsRequest(() =>
+    sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties',
+    }),
+  )
 
   return (response.data.sheets ?? []).find(
     (sheet) => sheet.properties?.title === sheetName,
@@ -105,6 +109,38 @@ async function getSheetPropertiesByName(sheetName) {
 function assertRecordExists(record, message) {
   if (!record) {
     throw new Error(message)
+  }
+}
+
+function toGoogleSheetsServiceError(error) {
+  const responseMessage =
+    error &&
+    typeof error === 'object' &&
+    'response' in error &&
+    error.response &&
+    typeof error.response === 'object' &&
+    'data' in error.response &&
+    error.response.data &&
+    typeof error.response.data === 'object' &&
+    'error' in error.response.data &&
+    error.response.data.error &&
+    typeof error.response.data.error === 'object' &&
+    'message' in error.response.data.error
+      ? String(error.response.data.error.message ?? '').trim()
+      : ''
+  const fallbackMessage =
+    error instanceof Error ? error.message.trim() : 'Unable to reach Google Sheets.'
+  const nextError = new Error(responseMessage || fallbackMessage || 'Unable to reach Google Sheets.')
+  nextError.statusCode = 503
+  nextError.expose = true
+  return nextError
+}
+
+async function runSheetsRequest(request) {
+  try {
+    return await request()
+  } catch (error) {
+    throw toGoogleSheetsServiceError(error)
   }
 }
 
@@ -145,15 +181,17 @@ export async function appendRow(sheetName, record) {
   const spreadsheetId = getSpreadsheetId()
   const rowValues = buildRowValues(headers, record)
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range: getSheetRange(sheetName, 'A:ZZ'),
-    valueInputOption: 'RAW',
-    insertDataOption: 'INSERT_ROWS',
-    requestBody: {
-      values: [rowValues],
-    },
-  })
+  await runSheetsRequest(() =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: getSheetRange(sheetName, 'A:ZZ'),
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [rowValues],
+      },
+    }),
+  )
 
   return toRowObject(headers, rowValues)
 }
@@ -175,17 +213,19 @@ export async function updateRowById(sheetName, idColumn, id, updates) {
   }
   const lastColumn = columnNumberToName(rowState.headers.length)
 
-  await rowState.sheets.spreadsheets.values.update({
-    spreadsheetId: rowState.spreadsheetId,
-    range: getSheetRange(
-      sheetName,
-      `A${rowState.rowNumber}:${lastColumn}${rowState.rowNumber}`,
-    ),
-    valueInputOption: 'RAW',
-    requestBody: {
-      values: [buildRowValues(rowState.headers, nextRecord)],
-    },
-  })
+  await runSheetsRequest(() =>
+    rowState.sheets.spreadsheets.values.update({
+      spreadsheetId: rowState.spreadsheetId,
+      range: getSheetRange(
+        sheetName,
+        `A${rowState.rowNumber}:${lastColumn}${rowState.rowNumber}`,
+      ),
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [buildRowValues(rowState.headers, nextRecord)],
+      },
+    }),
+  )
 
   return nextRecord
 }
@@ -203,23 +243,25 @@ export async function deleteRowById(sheetName, idColumn, id) {
     throw new Error(`Unable to resolve sheet id for "${sheetName}"`)
   }
 
-  await rowState.sheets.spreadsheets.batchUpdate({
-    spreadsheetId: rowState.spreadsheetId,
-    requestBody: {
-      requests: [
-        {
-          deleteDimension: {
-            range: {
-              sheetId: sheetProperties.sheetId,
-              dimension: 'ROWS',
-              startIndex: rowState.rowNumber - 1,
-              endIndex: rowState.rowNumber,
+  await runSheetsRequest(() =>
+    rowState.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: rowState.spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: sheetProperties.sheetId,
+                dimension: 'ROWS',
+                startIndex: rowState.rowNumber - 1,
+                endIndex: rowState.rowNumber,
+              },
             },
           },
-        },
-      ],
-    },
-  })
+        ],
+      },
+    }),
+  )
 
   return true
 }

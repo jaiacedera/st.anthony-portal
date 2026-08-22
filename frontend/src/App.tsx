@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import InstructorAuthPage from './pages/instructor/instructor-auth-page'
 import DashboardPage from './pages/instructor/dashboard-page'
 import GradesPage from './pages/instructor/grades-page'
@@ -10,6 +11,7 @@ import StudentRequestPage from './pages/student/request-page'
 import StudentAuthPage from './pages/student/student-auth-page'
 import StudentProfilePage from './pages/student/student-profile'
 import { readInstructorAuth } from './utils/instructorAuth'
+import { APP_NAVIGATE_EVENT, navigateTo } from './utils/navigation'
 import { readStudentAuth } from './utils/studentAuth'
 
 function getInstructorAuth() {
@@ -21,27 +23,41 @@ function getStudentAuth() {
 }
 
 function App() {
-  const pathname = window.location.pathname.replace(/\/+$/, '') || '/'
+  const [pathname, setPathname] = useState(() => window.location.pathname.replace(/\/+$/, '') || '/')
   const isInstructorSignedIn = Boolean(getInstructorAuth())
   const isStudentSignedIn = Boolean(getStudentAuth())
 
+  useEffect(() => {
+    function syncPathname() {
+      setPathname(window.location.pathname.replace(/\/+$/, '') || '/')
+    }
+
+    window.addEventListener('popstate', syncPathname)
+    window.addEventListener(APP_NAVIGATE_EVENT, syncPathname)
+
+    return () => {
+      window.removeEventListener('popstate', syncPathname)
+      window.removeEventListener(APP_NAVIGATE_EVENT, syncPathname)
+    }
+  }, [])
+
   if (pathname.startsWith('/instructor/') && pathname !== '/instructor' && !isInstructorSignedIn) {
-    window.location.replace('/instructor')
+    navigateTo('/instructor', { replace: true })
     return null
   }
 
   if (pathname === '/instructor' && isInstructorSignedIn) {
-    window.location.replace('/instructor/dashboard')
+    navigateTo('/instructor/dashboard', { replace: true })
     return null
   }
 
   if (pathname.startsWith('/student/') && pathname !== '/student' && !isStudentSignedIn) {
-    window.location.replace('/student')
+    navigateTo('/student', { replace: true })
     return null
   }
 
   if (pathname === '/student' && isStudentSignedIn) {
-    window.location.replace('/student/dashboard')
+    navigateTo('/student/dashboard', { replace: true })
     return null
   }
 

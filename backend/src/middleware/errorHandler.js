@@ -1,5 +1,21 @@
 import { sendJson } from '../utils/http.js'
 
+function getPublicErrorMessage(error, statusCode) {
+  if (typeof error?.publicMessage === 'string' && error.publicMessage.trim()) {
+    return error.publicMessage.trim()
+  }
+
+  if (error?.expose && typeof error?.message === 'string' && error.message.trim()) {
+    return error.message.trim()
+  }
+
+  if (statusCode !== 500 && typeof error?.message === 'string' && error.message.trim()) {
+    return error.message.trim()
+  }
+
+  return 'Internal server error'
+}
+
 export function handleServerError(res, error) {
   console.error(error)
 
@@ -7,10 +23,7 @@ export function handleServerError(res, error) {
     typeof error?.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 600
       ? error.statusCode
       : 500
-  const message =
-    statusCode === 500
-      ? 'Internal server error'
-      : error?.message || 'Request failed'
+  const message = getPublicErrorMessage(error, statusCode)
 
   sendJson(res, statusCode, {
     status: 'error',

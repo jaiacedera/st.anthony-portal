@@ -1,4 +1,6 @@
+import type { MouseEvent } from 'react'
 import logoImage from '../assets/student/logo.png'
+import { navigateTo } from '../utils/navigation'
 
 export type InstructorSection =
   | 'dashboard'
@@ -141,9 +143,16 @@ function renderIcon(section: InstructorSection) {
 }
 
 export function SideBar({ active }: SideBarProps) {
-  function handleLogout() {
+  function handleNavigate(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    event.preventDefault()
+    navigateTo(href)
+  }
+
+  function handleLogout(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault()
     window.localStorage.removeItem('instructor-auth')
     window.sessionStorage.removeItem('instructor-auth')
+    navigateTo('/instructor', { replace: true })
   }
 
   return (
@@ -162,6 +171,7 @@ export function SideBar({ active }: SideBarProps) {
             key={item.key}
             className={item.key === active ? 'instructor-nav-link active' : 'instructor-nav-link'}
             href={item.href}
+            onClick={(event) => handleNavigate(event, item.href)}
           >
             <span className="instructor-nav-icon">{renderIcon(item.key)}</span>
             <span>{item.label}</span>

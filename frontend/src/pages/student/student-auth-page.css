@@ -92,7 +92,7 @@
   box-sizing: border-box;
   position: absolute;
   width: 464px;
-  height: 606px;
+  height: 648px;
   left: calc(50% + 27px);
   top: calc(50% + 2px);
   transform: translate(-50%, -50%);
@@ -224,7 +224,7 @@
   width: 400px;
   height: 50px;
   left: 50%;
-  bottom: 158px;
+  top: 398px;
   transform: translateX(-50%);
   background: var(--brand-red);
   border: none;
@@ -244,7 +244,7 @@
 .auth-error-message {
   position: absolute;
   left: 32px;
-  top: 398px;
+  top: 458px;
   width: 400px;
   margin: 0;
   font-family: 'Inter', sans-serif;
@@ -253,10 +253,18 @@
   color: #8f1111;
 }
 
-.remember-row {
+.remember-actions {
   position: absolute;
   left: 40px;
-  top: 467px;
+  right: 32px;
+  top: 510px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.remember-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -294,9 +302,6 @@
 }
 
 .forgot-password {
-  position: absolute;
-  right: 32px;
-  top: 467px;
   font-family: 'Inter', sans-serif;
   font-size: 16px;
   line-height: 130%;
@@ -309,7 +314,7 @@
   position: absolute;
   width: 400px;
   left: 50%;
-  top: 522px;
+  top: 564px;
   transform: translateX(-50%);
   border: 0;
   border-top: 2px solid #e6e6e6;
@@ -319,7 +324,7 @@
 .register-text {
   position: absolute;
   width: 100%;
-  top: 549px;
+  top: 592px;
   margin: 0;
   text-align: center;
   font-family: 'Inter', sans-serif;

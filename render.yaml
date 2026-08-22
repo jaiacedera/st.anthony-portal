@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: st-anthony-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start:backend
+    envVars:
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: GOOGLE_PROJECT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_EMAIL
+        sync: false
+      - key: GOOGLE_PRIVATE_KEY
+        sync: false
+      - key: GOOGLE_SHEET_ID
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: St. Anthony College
+
+  - type: web
+    name: st-anthony-frontend
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from '../utils/apiBaseUrl'
+
 export type InstructorDashboardSubjectPreview = {
   subjectId: string
   subjectCode: string
@@ -147,7 +149,7 @@ export type CreateInstructorStudentPayload = {
   message?: string
 }
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+const apiBaseUrl = getApiBaseUrl()
 
 export async function fetchInstructorDashboard(
   username: string,

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import logoImage from '../assets/student/logo.png'
 import '../pages/student/student-auth-page.css'
+import { getApiBaseUrl } from '../utils/apiBaseUrl'
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+const apiBaseUrl = getApiBaseUrl()
 
 type AuthPortalPageProps = {
   portalLabel: 'STUDENT' | 'INSTRUCTOR'
@@ -191,8 +192,8 @@ export function AuthPortalPage({
     } catch {
       setErrorMessage(
         isInstructorPortal
-          ? 'Instructor login is unavailable. Make sure the backend server is running on port 3000.'
-          : 'Student login is unavailable. Make sure the backend server is running on port 3000.',
+          ? 'Instructor login is unavailable. Check that the backend service is running and the API URL is configured correctly.'
+          : 'Student login is unavailable. Check that the backend service is running and the API URL is configured correctly.',
       )
     } finally {
       setIsSubmitting(false)

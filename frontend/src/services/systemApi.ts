@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from '../utils/apiBaseUrl'
+
 export type SystemModule = {
   name: string
   path: string
@@ -11,7 +13,7 @@ export type SystemHealth = {
   modules: SystemModule[]
 }
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+const apiBaseUrl = getApiBaseUrl()
 
 export async function fetchSystemHealth(
   signal?: AbortSignal,

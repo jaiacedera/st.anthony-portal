@@ -221,6 +221,9 @@ export default function DashboardPage() {
         'This instructor account still needs to be linked to a Google Sheets instructor record.'
       : '',
   ].filter(Boolean)
+  const isSubjectsEmpty = !isLoading && !dashboard?.previews.subjects.length
+  const isGradePostingEmpty = !isLoading && !dashboard?.previews.gradePosting.length
+  const isBreakdownEmpty = !isLoading && !dashboard?.previews.pendingRequests.length
 
   return (
     <InstructorShell
@@ -279,7 +282,7 @@ export default function DashboardPage() {
                 <span>Actions</span>
               </div>
 
-              <div className="dashboard-panel-content">
+              <div className={isSubjectsEmpty ? 'dashboard-panel-content is-empty' : 'dashboard-panel-content'}>
                 {isLoading ? (
                   <div className="dashboard-loading-block">
                     <div className="dashboard-loading-row" />
@@ -349,7 +352,7 @@ export default function DashboardPage() {
                   <span>Action</span>
                 </div>
 
-                <div className="dashboard-panel-content">
+                <div className={isGradePostingEmpty ? 'dashboard-panel-content is-empty' : 'dashboard-panel-content'}>
                   {isLoading ? (
                     <div className="dashboard-loading-block">
                       <div className="dashboard-loading-row dashboard-loading-row--compact" />
@@ -394,7 +397,7 @@ export default function DashboardPage() {
                   <span>Action</span>
                 </div>
 
-                <div className="dashboard-panel-content">
+                <div className={isBreakdownEmpty ? 'dashboard-panel-content is-empty' : 'dashboard-panel-content'}>
                   {isLoading ? (
                     <div className="dashboard-loading-block">
                       <div className="dashboard-loading-row dashboard-loading-row--compact" />

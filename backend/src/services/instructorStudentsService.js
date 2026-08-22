@@ -1,9 +1,9 @@
 import {
   createStudentAccount,
+  deleteStudentAccountByStudentId,
   getAuthAccounts,
   getInstructorAccountByUsername,
   getStudentAccountByStudentId,
-  updateStudentAccountByStudentId,
 } from '../../database/authStore.js'
 import { randomBytes } from 'node:crypto'
 import { SHEET_NAMES, SHEET_ID_COLUMNS } from '../../database/sheetsSchema.js'
@@ -11,6 +11,7 @@ import { sendStudentWelcomeEmail } from './emailService.js'
 import {
   addStudentToSubject,
   createStudent,
+  deleteRowById,
   findRows,
   getAllRows,
   getInstructorSubjects,
@@ -509,36 +510,49 @@ export async function deleteInstructorStudentAccount({
     throw error
   }
 
-  const subjectLinks = await findRows(SHEET_NAMES.SUBJECT_STUDENTS, {
-    student_id: studentId,
-    status: 'ACTIVE',
-  })
+  const [subjectLinks, grades, gradeRequests] = await Promise.all([
+    findRows(SHEET_NAMES.SUBJECT_STUDENTS, {
+      student_id: studentId,
+    }),
+    findRows(SHEET_NAMES.GRADES, {
+      student_id: studentId,
+    }),
+    findRows(SHEET_NAMES.GRADE_REQUESTS, {
+      student_id: studentId,
+    }),
+  ])
 
   for (const link of subjectLinks) {
-    await updateRowById(
+    await deleteRowById(
       SHEET_NAMES.SUBJECT_STUDENTS,
       SHEET_ID_COLUMNS[SHEET_NAMES.SUBJECT_STUDENTS],
       link.subject_student_id,
-      {
-        status: 'INACTIVE',
-      },
     )
   }
 
-  await updateRowById(
+  for (const grade of grades) {
+    await deleteRowById(
+      SHEET_NAMES.GRADES,
+      SHEET_ID_COLUMNS[SHEET_NAMES.GRADES],
+      grade.grade_id,
+    )
+  }
+
+  for (const request of gradeRequests) {
+    await deleteRowById(
+      SHEET_NAMES.GRADE_REQUESTS,
+      SHEET_ID_COLUMNS[SHEET_NAMES.GRADE_REQUESTS],
+      request.request_id,
+    )
+  }
+
+  await deleteRowById(
     SHEET_NAMES.STUDENTS,
     SHEET_ID_COLUMNS[SHEET_NAMES.STUDENTS],
     studentId,
-    {
-      status: 'INACTIVE',
-      updated_at: new Date().toISOString(),
-    },
   )
 
-  updateStudentAccountByStudentId(studentId, {
-    status: 'INACTIVE',
-    updated_at: new Date().toISOString(),
-  })
+  deleteStudentAccountByStudentId(studentId)
 
   return {
     success: true,

@@ -23,6 +23,10 @@ function normalizeForComparison(value) {
   return toCellValue(value).trim()
 }
 
+function isActiveStatus(value) {
+  return normalizeForComparison(value).toUpperCase() !== 'INACTIVE'
+}
+
 function toRowObject(headers, row = []) {
   return headers.reduce(
     (record, header, index) => ({
@@ -325,7 +329,7 @@ export async function createStudent({
       student_number: studentNumber.trim(),
     })
 
-    if (duplicateStudentNumber.length > 0) {
+    if (duplicateStudentNumber.some((student) => isActiveStatus(student.status))) {
       throw new Error('A student with this student number already exists.')
     }
   }
@@ -334,7 +338,7 @@ export async function createStudent({
     email: email.trim(),
   })
 
-  if (duplicateEmail.length > 0) {
+  if (duplicateEmail.some((student) => isActiveStatus(student.status))) {
     throw new Error('A student with this email already exists.')
   }
 

@@ -159,3 +159,27 @@ export function updateStudentAccountByStudentId(studentId, updates) {
 
   return nextAccount
 }
+
+export function deleteStudentAccountByStudentId(studentId) {
+  const normalizedStudentId = String(studentId ?? '').trim()
+
+  if (!normalizedStudentId) {
+    return false
+  }
+
+  const accounts = getAuthAccounts()
+  const nextAccounts = accounts.filter(
+    (account) =>
+      !(
+        account.role === 'STUDENT' &&
+        String(account.student_id ?? '').trim() === normalizedStudentId
+      ),
+  )
+
+  if (nextAccounts.length === accounts.length) {
+    return false
+  }
+
+  saveAuthAccounts(nextAccounts)
+  return true
+}

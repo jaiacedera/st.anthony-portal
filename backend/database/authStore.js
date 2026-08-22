@@ -136,6 +136,40 @@ export function createStudentAccount({
   }
 }
 
+export function setStudentAccountPasswordByStudentId(studentId, password) {
+  const normalizedStudentId = String(studentId ?? '').trim()
+
+  if (!normalizedStudentId) {
+    return null
+  }
+
+  const accounts = getAuthAccounts()
+  const accountIndex = accounts.findIndex(
+    (account) =>
+      account.role === 'STUDENT' &&
+      String(account.student_id ?? '').trim() === normalizedStudentId,
+  )
+
+  if (accountIndex < 0) {
+    return null
+  }
+
+  const passwordSalt = randomBytes(16).toString('hex')
+  const passwordHash = scryptSync(password, passwordSalt, 64).toString('hex')
+  const nextAccount = {
+    ...accounts[accountIndex],
+    password_salt: passwordSalt,
+    password_hash: passwordHash,
+    status: 'ACTIVE',
+    updated_at: new Date().toISOString(),
+  }
+
+  accounts[accountIndex] = nextAccount
+  saveAuthAccounts(accounts)
+
+  return nextAccount
+}
+
 export function getStudentAccountByStudentId(studentId) {
   const normalizedStudentId = String(studentId ?? '').trim()
 

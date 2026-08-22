@@ -6,6 +6,7 @@ import {
   getInstructorAccountByUsername,
   getStudentAccountsByEmail,
   getStudentAccountByStudentId,
+  setStudentAccountPasswordByStudentId,
 } from '../../database/authStore.js'
 import { randomBytes } from 'node:crypto'
 import { SHEET_NAMES, SHEET_ID_COLUMNS } from '../../database/sheetsSchema.js'
@@ -442,6 +443,8 @@ export async function createInstructorStudentForUser({
 
     throw error
   }
+
+  setStudentAccountPasswordByStudentId(student.student_id, defaultPassword)
 
   const subjectLabels = []
   const createdSubjects = []

@@ -149,6 +149,16 @@ export type CreateInstructorStudentPayload = {
   message?: string
 }
 
+export type DeleteInstructorStudentInput = {
+  username: string
+  studentId: string
+}
+
+export type DeleteInstructorStudentPayload = {
+  success: boolean
+  message?: string
+}
+
 const apiBaseUrl = getApiBaseUrl()
 
 export async function fetchInstructorDashboard(
@@ -279,6 +289,29 @@ export async function createInstructorStudent(
   })
 
   const payload = (await response.json()) as CreateInstructorStudentPayload & {
+    message?: string
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? `Backend request failed with ${response.status}`)
+  }
+
+  return payload
+}
+
+export async function deleteInstructorStudent(
+  input: DeleteInstructorStudentInput,
+): Promise<DeleteInstructorStudentPayload> {
+  const response = await fetch(`${apiBaseUrl}/api/instructor/students/delete`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  })
+
+  const payload = (await response.json()) as DeleteInstructorStudentPayload & {
     message?: string
   }
 

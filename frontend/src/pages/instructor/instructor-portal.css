@@ -1068,6 +1068,14 @@
   background: #f8f3f3;
 }
 
+.student-action-menu-item--danger {
+  color: #b51616;
+}
+
+.student-action-menu-item--danger:not(:disabled):hover {
+  background: #fff1f1;
+}
+
 .instructor-placeholder-grid {
   padding: 37px 30px 32px;
 }
@@ -1949,6 +1957,12 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.subject-detail-action--danger {
+  border-color: #b51616;
+  background: #b51616;
+  color: #ffffff;
 }
 
 .instructor-placeholder-card {

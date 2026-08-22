@@ -1,5 +1,10 @@
-import { getInstructorAccountByUsername } from '../../database/authStore.js'
-import { createStudentAccount, getAuthAccounts } from '../../database/authStore.js'
+import {
+  createStudentAccount,
+  getAuthAccounts,
+  getInstructorAccountByUsername,
+  getStudentAccountByStudentId,
+  updateStudentAccountByStudentId,
+} from '../../database/authStore.js'
 import { randomBytes } from 'node:crypto'
 import { SHEET_NAMES, SHEET_ID_COLUMNS } from '../../database/sheetsSchema.js'
 import { sendStudentWelcomeEmail } from './emailService.js'
@@ -9,6 +14,7 @@ import {
   findRows,
   getAllRows,
   getInstructorSubjects,
+  getRowById,
   updateRowById,
 } from '../../database/sheetsService.js'
 
@@ -454,6 +460,89 @@ export async function createInstructorStudentForUser({
       : normalizedSubjectIds.length
         ? `Student created successfully and added to the selected subjects, but the default password email was not sent. ${emailResult.reason}`
         : `Student created successfully, but the default password email was not sent. ${emailResult.reason}`,
+  }
+}
+
+export async function deleteInstructorStudentAccount({
+  username,
+  studentId,
+}) {
+  const { instructorId } = await resolveInstructorContext(username)
+
+  if (!instructorId) {
+    const error = new Error(
+      'Instructor account is authenticated but not linked to a Google Sheets instructor record yet.',
+    )
+    error.statusCode = 409
+    throw error
+  }
+
+  if (!studentId?.trim()) {
+    const error = new Error('Student id is required.')
+    error.statusCode = 400
+    throw error
+  }
+
+  const student = await getRowById(
+    SHEET_NAMES.STUDENTS,
+    SHEET_ID_COLUMNS[SHEET_NAMES.STUDENTS],
+    studentId,
+  )
+
+  if (!student || !isActiveStatus(student.status)) {
+    const error = new Error('Student account was not found.')
+    error.statusCode = 404
+    throw error
+  }
+
+  const studentAccount = getStudentAccountByStudentId(studentId)
+
+  if (!studentAccount || studentAccount.status !== 'ACTIVE') {
+    const error = new Error('Student auth account was not found.')
+    error.statusCode = 404
+    throw error
+  }
+
+  if (String(studentAccount.created_by_instructor_id ?? '').trim() !== instructorId) {
+    const error = new Error('Only students created by your account can be deleted.')
+    error.statusCode = 403
+    throw error
+  }
+
+  const subjectLinks = await findRows(SHEET_NAMES.SUBJECT_STUDENTS, {
+    student_id: studentId,
+    status: 'ACTIVE',
+  })
+
+  for (const link of subjectLinks) {
+    await updateRowById(
+      SHEET_NAMES.SUBJECT_STUDENTS,
+      SHEET_ID_COLUMNS[SHEET_NAMES.SUBJECT_STUDENTS],
+      link.subject_student_id,
+      {
+        status: 'INACTIVE',
+      },
+    )
+  }
+
+  await updateRowById(
+    SHEET_NAMES.STUDENTS,
+    SHEET_ID_COLUMNS[SHEET_NAMES.STUDENTS],
+    studentId,
+    {
+      status: 'INACTIVE',
+      updated_at: new Date().toISOString(),
+    },
+  )
+
+  updateStudentAccountByStudentId(studentId, {
+    status: 'INACTIVE',
+    updated_at: new Date().toISOString(),
+  })
+
+  return {
+    success: true,
+    message: 'Student account deleted successfully.',
   }
 }
 

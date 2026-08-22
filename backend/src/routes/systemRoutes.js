@@ -16,6 +16,7 @@ import {
 import {
   getInstructorStudentsData,
   postInstructorStudent,
+  postInstructorStudentDelete,
   postInstructorStudentEnrollment,
 } from '../controllers/instructorStudentsController.js'
 import {
@@ -72,6 +73,11 @@ const routes = [
     method: 'POST',
     pathname: '/api/instructor/students',
     handler: postInstructorStudent,
+  },
+  {
+    method: 'POST',
+    pathname: '/api/instructor/students/delete',
+    handler: postInstructorStudentDelete,
   },
   {
     method: 'POST',

@@ -8,6 +8,7 @@ import {
 import { InstructorShell } from '../../components/instructor-shell'
 import {
   createInstructorStudent,
+  deleteInstructorStudent,
   fetchInstructorStudents,
   updateInstructorStudentEnrollment,
   type InstructorRosterSubject,
@@ -26,6 +27,10 @@ type CreateStudentFormState = {
   email: string
   subjectIds: string[]
 }
+
+type DeleteDialogState = {
+  studentId: string
+} | null
 
 function createDefaultStudentForm(subjectIds: string[] = []): CreateStudentFormState {
   return {
@@ -135,12 +140,14 @@ export default function StudentsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isUpdatingEnrollment, setIsUpdatingEnrollment] = useState(false)
   const [isCreatingStudent, setIsCreatingStudent] = useState(false)
+  const [isDeletingStudent, setIsDeletingStudent] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [bindingMessage, setBindingMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [viewStudentId, setViewStudentId] = useState('')
   const [openMenuStudentId, setOpenMenuStudentId] = useState('')
   const [enrollmentDialog, setEnrollmentDialog] = useState<EnrollmentDialogState>(null)
+  const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>(null)
   const [isCreateStudentOpen, setIsCreateStudentOpen] = useState(false)
   const [createStudentForm, setCreateStudentForm] = useState<CreateStudentFormState>(
     createDefaultStudentForm(),
@@ -231,14 +238,15 @@ export default function StudentsPage() {
   }, [openMenuStudentId])
 
   useEffect(() => {
-    if (!viewStudentId && !enrollmentDialog && !isCreateStudentOpen) {
+    if (!viewStudentId && !enrollmentDialog && !deleteDialog && !isCreateStudentOpen) {
       return undefined
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !isUpdatingEnrollment && !isCreatingStudent) {
+      if (event.key === 'Escape' && !isUpdatingEnrollment && !isCreatingStudent && !isDeletingStudent) {
         setViewStudentId('')
         setEnrollmentDialog(null)
+        setDeleteDialog(null)
         setIsCreateStudentOpen(false)
       }
     }
@@ -248,7 +256,15 @@ export default function StudentsPage() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [enrollmentDialog, isCreateStudentOpen, isCreatingStudent, isUpdatingEnrollment, viewStudentId])
+  }, [
+    deleteDialog,
+    enrollmentDialog,
+    isCreateStudentOpen,
+    isCreatingStudent,
+    isDeletingStudent,
+    isUpdatingEnrollment,
+    viewStudentId,
+  ])
 
   const filteredStudents = useMemo(() => {
     const normalizedQuery = deferredSearchValue.trim().toLowerCase()
@@ -281,6 +297,8 @@ export default function StudentsPage() {
 
   const enrollmentStudent =
     students.find((student) => student.id === enrollmentDialog?.studentId) ?? null
+  const deleteStudentRecord =
+    students.find((student) => student.id === deleteDialog?.studentId) ?? null
 
   const enrollmentSubjectChoices = useMemo(() => {
     if (!enrollmentDialog || !enrollmentStudent) {
@@ -394,6 +412,36 @@ export default function StudentsPage() {
     }
   }
 
+  async function handleDeleteStudent() {
+    if (!deleteDialog) {
+      return
+    }
+
+    setIsDeletingStudent(true)
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    try {
+      const payload = await deleteInstructorStudent({
+        username,
+        studentId: deleteDialog.studentId,
+      })
+
+      await loadStudents()
+      setDeleteDialog(null)
+      setViewStudentId('')
+      setSuccessMessage(payload.message ?? 'Student account deleted successfully.')
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to delete student account.',
+      )
+    } finally {
+      setIsDeletingStudent(false)
+    }
+  }
+
   function renderStudentTableRow(student: InstructorStudentRecord) {
     const canAddToSubject = student.subjects.length < subjects.length
     const canRemoveFromSubject = student.subjects.length > 0
@@ -471,6 +519,18 @@ export default function StudentsPage() {
                   }}
                 >
                   Remove from Subject
+                </button>
+                <button
+                  type="button"
+                  className="student-action-menu-item student-action-menu-item--danger"
+                  onClick={() => {
+                    setOpenMenuStudentId('')
+                    setDeleteDialog({
+                      studentId: student.id,
+                    })
+                  }}
+                >
+                  Delete Student
                 </button>
               </div>
             ) : null}
@@ -663,6 +723,66 @@ export default function StudentsPage() {
                   This student is not currently enrolled in any subject handled by this instructor.
                 </p>
               )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteDialog && deleteStudentRecord ? (
+        <div
+          className="student-modal-backdrop"
+          onClick={() => {
+            if (!isDeletingStudent) {
+              setDeleteDialog(null)
+            }
+          }}
+        >
+          <div
+            className="student-modal student-modal--compact"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-student-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="student-modal-header">
+              <div>
+                <h2 id="delete-student-title">Delete Student</h2>
+                <p>{deleteStudentRecord.fullName}</p>
+              </div>
+
+              <button
+                type="button"
+                className="student-modal-close"
+                onClick={() => setDeleteDialog(null)}
+                disabled={isDeletingStudent}
+                aria-label="Close delete student popup"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <p className="student-modal-empty">
+              This will disable the student account, remove active subject enrollments, and prevent
+              the student from signing in. This action cannot be undone from the portal.
+            </p>
+
+            <div className="student-modal-actions">
+              <button
+                type="button"
+                className="subject-detail-action subject-detail-action--solid subject-detail-action--danger"
+                onClick={handleDeleteStudent}
+                disabled={isDeletingStudent}
+              >
+                <span>{isDeletingStudent ? 'Deleting...' : 'Delete Student'}</span>
+              </button>
+              <button
+                type="button"
+                className="subject-detail-action"
+                onClick={() => setDeleteDialog(null)}
+                disabled={isDeletingStudent}
+              >
+                <span>Cancel</span>
+              </button>
             </div>
           </div>
         </div>

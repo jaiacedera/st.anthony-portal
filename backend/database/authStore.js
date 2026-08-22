@@ -114,3 +114,48 @@ export function createStudentAccount({
     email: normalizedEmail,
   }
 }
+
+export function getStudentAccountByStudentId(studentId) {
+  const normalizedStudentId = String(studentId ?? '').trim()
+
+  if (!normalizedStudentId) {
+    return null
+  }
+
+  return (
+    getAuthAccounts().find(
+      (account) =>
+        account.role === 'STUDENT' &&
+        String(account.student_id ?? '').trim() === normalizedStudentId,
+    ) ?? null
+  )
+}
+
+export function updateStudentAccountByStudentId(studentId, updates) {
+  const normalizedStudentId = String(studentId ?? '').trim()
+
+  if (!normalizedStudentId) {
+    return null
+  }
+
+  const accounts = getAuthAccounts()
+  const accountIndex = accounts.findIndex(
+    (account) =>
+      account.role === 'STUDENT' &&
+      String(account.student_id ?? '').trim() === normalizedStudentId,
+  )
+
+  if (accountIndex < 0) {
+    return null
+  }
+
+  const nextAccount = {
+    ...accounts[accountIndex],
+    ...updates,
+  }
+
+  accounts[accountIndex] = nextAccount
+  saveAuthAccounts(accounts)
+
+  return nextAccount
+}

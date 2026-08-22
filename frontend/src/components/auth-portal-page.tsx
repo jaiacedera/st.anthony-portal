@@ -10,7 +10,6 @@ type AuthPortalPageProps = {
   firstFieldName: string
   firstFieldPlaceholder: string
   forgotPasswordHref: string
-  registerHref?: string
 }
 
 function FirstFieldIcon() {
@@ -106,7 +105,6 @@ export function AuthPortalPage({
   firstFieldName,
   firstFieldPlaceholder,
   forgotPasswordHref,
-  registerHref,
 }: AuthPortalPageProps) {
   const [credential, setCredential] = useState('')
   const [password, setPassword] = useState('')
@@ -296,14 +294,6 @@ export function AuthPortalPage({
                 Forgot password?
               </a>
             </div>
-
-            {registerHref ? (
-              <div className="auth-footer">
-                <p className="register-text">
-                  Don&apos;t have an account? <a href={registerHref}>Register</a>
-                </p>
-              </div>
-            ) : null}
           </form>
         </section>
       </div>

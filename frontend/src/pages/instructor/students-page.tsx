@@ -58,6 +58,15 @@ function SearchIcon() {
   )
 }
 
+function MailIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <path d="m4 7 8 6 8-6" />
+    </svg>
+  )
+}
+
 function EyeIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -90,6 +99,17 @@ function ChevronDownIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
+function StudentAddIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="8" r="3.4" />
+      <path d="M3.5 19a6 6 0 0 1 11 0" />
+      <path d="M17 8v8" />
+      <path d="M13 12h8" />
     </svg>
   )
 }
@@ -383,6 +403,11 @@ export default function StudentsPage() {
         .map((subject) => subject.label),
     [createStudentForm.subjectIds, subjects],
   )
+
+  const selectedCreateSubject =
+    createStudentForm.subjectIds.length === 1
+      ? subjects.find((subject) => subject.id === createStudentForm.subjectIds[0]) ?? null
+      : null
 
   function openCreateStudentDialog() {
     setErrorMessage('')
@@ -951,7 +976,7 @@ export default function StudentsPage() {
 
       {isCreateStudentOpen ? (
         <div
-          className="student-modal-backdrop"
+          className="student-modal-backdrop create-student-overlay"
           onClick={() => {
             if (!isCreatingStudent) {
               closeCreateStudentDialog()
@@ -959,165 +984,208 @@ export default function StudentsPage() {
           }}
         >
           <div
-            className="student-modal"
+            className="student-modal create-student-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-student-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="student-modal-header">
-              <div>
-                <h2 id="create-student-title">Create Student</h2>
-                <p>Add a new student and place them into one of your handled subjects.</p>
+            <button
+              type="button"
+              className="student-modal-close create-student-close"
+              onClick={closeCreateStudentDialog}
+              disabled={isCreatingStudent}
+              aria-label="Close create student popup"
+            >
+              <CloseIcon />
+            </button>
+
+            <div className="create-student-modal-content">
+              <div className="create-student-heading">
+                <span className="create-student-heading-icon" aria-hidden="true">
+                  <StudentAddIcon />
+                </span>
+                <div>
+                  <h2 id="create-student-title" className="create-student-title">Create Student</h2>
+                  <p className="create-student-subtitle">
+                    Add a new student and place them into one of your handled subjects.
+                  </p>
+                </div>
               </div>
 
-              <button
-                type="button"
-                className="student-modal-close"
-                onClick={closeCreateStudentDialog}
-                disabled={isCreatingStudent}
-                aria-label="Close create student popup"
-              >
-                <CloseIcon />
-              </button>
-            </div>
+              <form className="student-create-form create-student-form" onSubmit={handleCreateStudent}>
+                {!subjects.length ? (
+                  <p className="student-modal-empty create-student-inline-note">
+                    You can create the student now and assign subjects later.
+                  </p>
+                ) : null}
 
-            <form className="student-create-form" onSubmit={handleCreateStudent}>
-              {!subjects.length ? (
-                <p className="student-modal-empty">
-                  You can create the student now and assign subjects later.
-                </p>
-              ) : null}
-
-              <div className="student-create-grid">
-                <label className="student-create-field student-create-field--wide">
-                  <span>Email</span>
-                  <input
-                    type="email"
-                    value={createStudentForm.email}
-                    onChange={(event) =>
-                      setCreateStudentForm((current) => ({
-                        ...current,
-                        email: event.target.value,
-                      }))}
-                    placeholder="student@email.com"
-                    required
-                  />
-                </label>
-
-                <label className="student-create-field student-create-field--wide">
-                  <span>Assign Subjects (Optional)</span>
-                  <div className="student-subject-multiselect" ref={subjectPickerRef}>
-                    <button
-                      type="button"
-                      className="student-subject-multiselect-trigger"
-                      onClick={() => setSubjectPickerOpen((current) => !current)}
-                      aria-expanded={subjectPickerOpen}
-                      aria-controls="student-subject-multiselect-menu"
-                    >
-                      <span className="student-subject-multiselect-value">
-                        {getSubjectTriggerLabel()}
+                <div className="student-create-grid">
+                  <label className="student-create-field student-create-field--wide create-student-form-group">
+                    <span className="create-student-label">Email</span>
+                    <span className="create-student-input-wrapper">
+                      <span className="create-student-input-icon" aria-hidden="true">
+                        <MailIcon />
                       </span>
-                      <span
-                        className={
-                          subjectPickerOpen
-                            ? 'student-subject-multiselect-chevron is-open'
-                            : 'student-subject-multiselect-chevron'
-                        }
-                        aria-hidden="true"
+                      <input
+                        type="email"
+                        className="create-student-email"
+                        value={createStudentForm.email}
+                        onChange={(event) =>
+                          setCreateStudentForm((current) => ({
+                            ...current,
+                            email: event.target.value,
+                          }))}
+                        placeholder="student@email.com"
+                        required
+                      />
+                    </span>
+                  </label>
+
+                  <label className="student-create-field student-create-field--wide create-student-form-group">
+                    <span className="create-student-label">Assign Subjects (Optional)</span>
+                    <div className="student-subject-multiselect subject-multiselect" ref={subjectPickerRef}>
+                      <button
+                        type="button"
+                        className="student-subject-multiselect-trigger subject-multiselect-trigger"
+                        onClick={() => setSubjectPickerOpen((current) => !current)}
+                        aria-expanded={subjectPickerOpen}
+                        aria-controls="student-subject-multiselect-menu"
                       >
-                        <ChevronDownIcon />
-                      </span>
-                    </button>
-
-                    {subjectPickerOpen ? (
-                      <div
-                        id="student-subject-multiselect-menu"
-                        className="student-subject-multiselect-menu"
-                        role="listbox"
-                        aria-multiselectable="true"
-                      >
-                        {subjects.length ? (
-                          <>
-                            <input
-                              type="search"
-                              className="student-subject-search"
-                              value={subjectSearchValue}
-                              onChange={(event) => setSubjectSearchValue(event.target.value)}
-                              placeholder="Search subjects..."
-                            />
-
-                            <div className="student-subject-options">
-                              {filteredCreateSubjects.length ? (
-                                filteredCreateSubjects.map((subject) => {
-                                  const isSelected = createStudentForm.subjectIds.includes(subject.id)
-
-                                  return (
-                                    <label key={subject.id} className="student-subject-option">
-                                      <input
-                                        type="checkbox"
-                                        className="student-subject-checkbox"
-                                        checked={isSelected}
-                                        onChange={() => toggleCreateStudentSubject(subject.id)}
-                                      />
-                                      <span>{subject.label}</span>
-                                    </label>
-                                  )
-                                })
-                              ) : (
-                                <div className="student-subject-option student-subject-option--empty">
-                                  <span>No subjects matched your search.</span>
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        ) : isLoading ? (
-                          <div className="student-subject-option student-subject-option--empty">
-                            <span>Loading subjects...</span>
-                          </div>
-                        ) : errorMessage ? (
-                          <div className="student-subject-option student-subject-option--empty">
-                            <span>Unable to load subjects.</span>
-                          </div>
-                        ) : (
-                          <div className="student-subject-option student-subject-option--empty">
-                            <span>No subjects available.</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-
-                    {selectedCreateSubjectLabels.length ? (
-                      <div className="student-selected-subject-chips">
-                        {selectedCreateSubjectLabels.map((label) => (
-                          <span key={label} className="student-selected-subject-chip">
-                            {label}
+                        {selectedCreateSubject ? (
+                          <span className="student-selected-subject-chip selected-subject-chip">
+                            <span className="selected-subject-chip-text">
+                              {selectedCreateSubject.label}
+                            </span>
+                            <span
+                              className="selected-subject-chip-remove"
+                              role="button"
+                              tabIndex={0}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                toggleCreateStudentSubject(selectedCreateSubject.id)
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+                                  toggleCreateStudentSubject(selectedCreateSubject.id)
+                                }
+                              }}
+                              aria-label={`Remove ${selectedCreateSubject.label}`}
+                            >
+                              <CloseIcon />
+                            </span>
                           </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </label>
-              </div>
+                        ) : (
+                          <span className="student-subject-multiselect-value">
+                            {getSubjectTriggerLabel()}
+                          </span>
+                        )}
 
-              <div className="student-modal-actions">
-                <button
-                  type="submit"
-                  className="subject-detail-action subject-detail-action--solid"
-                  disabled={isCreatingStudent}
-                >
-                  <span>{isCreatingStudent ? 'Creating...' : 'Save Student'}</span>
-                </button>
-                <button
-                  type="button"
-                  className="subject-detail-action"
-                  onClick={closeCreateStudentDialog}
-                  disabled={isCreatingStudent}
-                >
-                  <span>Cancel</span>
-                </button>
-              </div>
-            </form>
+                        <span
+                          className={
+                            subjectPickerOpen
+                              ? 'student-subject-multiselect-chevron is-open'
+                              : 'student-subject-multiselect-chevron'
+                          }
+                          aria-hidden="true"
+                        >
+                          <ChevronDownIcon />
+                        </span>
+                      </button>
+
+                      {subjectPickerOpen ? (
+                        <div
+                          id="student-subject-multiselect-menu"
+                          className="student-subject-multiselect-menu subject-multiselect-menu"
+                          role="listbox"
+                          aria-multiselectable="true"
+                        >
+                          {subjects.length ? (
+                            <>
+                              <div className="subject-dropdown-search-wrapper">
+                                <span className="subject-dropdown-search-icon" aria-hidden="true">
+                                  <SearchIcon />
+                                </span>
+                                <input
+                                  type="search"
+                                  className="student-subject-search subject-dropdown-search"
+                                  value={subjectSearchValue}
+                                  onChange={(event) => setSubjectSearchValue(event.target.value)}
+                                  placeholder="Search subjects..."
+                                />
+                              </div>
+
+                              <div className="student-subject-options">
+                                {filteredCreateSubjects.length ? (
+                                  filteredCreateSubjects.map((subject) => {
+                                    const isSelected = createStudentForm.subjectIds.includes(subject.id)
+
+                                    return (
+                                      <label
+                                        key={subject.id}
+                                        className={
+                                          isSelected
+                                            ? 'student-subject-option subject-option is-selected'
+                                            : 'student-subject-option subject-option'
+                                        }
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          className="student-subject-checkbox subject-option-checkbox"
+                                          checked={isSelected}
+                                          onChange={() => toggleCreateStudentSubject(subject.id)}
+                                        />
+                                        <span className="subject-option-text">{subject.label}</span>
+                                      </label>
+                                    )
+                                  })
+                                ) : (
+                                  <div className="student-subject-option student-subject-option--empty">
+                                    <span>No subjects found.</span>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          ) : isLoading ? (
+                            <div className="student-subject-option student-subject-option--empty create-student-menu-state">
+                              <span>Loading subjects...</span>
+                            </div>
+                          ) : errorMessage ? (
+                            <div className="student-subject-option student-subject-option--empty create-student-menu-state">
+                              <span>Unable to load subjects.</span>
+                            </div>
+                          ) : (
+                            <div className="student-subject-option student-subject-option--empty create-student-menu-state">
+                              <span>No subjects available.</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  </label>
+                </div>
+
+                <div className="student-modal-actions create-student-footer">
+                  <button
+                    type="button"
+                    className="subject-detail-action create-student-cancel"
+                    onClick={closeCreateStudentDialog}
+                    disabled={isCreatingStudent}
+                  >
+                    <span>Cancel</span>
+                  </button>
+                  <button
+                    type="submit"
+                    className="subject-detail-action subject-detail-action--solid create-student-save"
+                    disabled={isCreatingStudent}
+                  >
+                    <span>{isCreatingStudent ? 'Creating...' : 'Save Student'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       ) : null}

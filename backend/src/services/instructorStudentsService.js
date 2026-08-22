@@ -42,6 +42,33 @@ function getEmailLocalPart(value) {
   return normalized.slice(0, separatorIndex)
 }
 
+function buildInstructorOwnershipKeys({ account, instructorId, instructorRecord }) {
+  return new Set(
+    [
+      instructorId,
+      account?.instructor_id,
+      account?.username,
+      account?.email,
+      getEmailLocalPart(account?.email),
+      instructorRecord?.instructor_id,
+      instructorRecord?.email,
+      getEmailLocalPart(instructorRecord?.email),
+    ]
+      .map((value) => normalizeValue(value))
+      .filter(Boolean),
+  )
+}
+
+function isOwnedByInstructor(ownerValue, context) {
+  const normalizedOwnerValue = normalizeValue(ownerValue)
+
+  if (!normalizedOwnerValue) {
+    return false
+  }
+
+  return buildInstructorOwnershipKeys(context).has(normalizedOwnerValue)
+}
+
 function getDisplayValue(value, fallback = 'Not set') {
   const normalized = String(value ?? '').trim()
   return normalized || fallback
@@ -221,11 +248,16 @@ export async function getInstructorStudentsPayload(username) {
   const activeStudents = students.filter((student) => isActiveStatus(student.status))
   const subjectById = new Map(activeSubjects.map((subject) => [subject.subject_id, subject]))
   const studentById = new Map(activeStudents.map((student) => [student.student_id, student]))
+  const ownershipContext = {
+    account,
+    instructorId,
+    instructorRecord,
+  }
   const studentAccounts = getAuthAccounts().filter(
     (account) =>
       account.role === 'STUDENT' &&
       account.status === 'ACTIVE' &&
-      String(account.created_by_instructor_id ?? '').trim() === instructorId,
+      isOwnedByInstructor(account.created_by_instructor_id, ownershipContext),
   )
   const linksByStudentId = new Map()
   const gradesByStudentId = new Map()
@@ -508,7 +540,7 @@ export async function deleteInstructorStudentAccount({
   username,
   studentId,
 }) {
-  const { instructorId } = await resolveInstructorContext(username)
+  const { account, instructorId, instructorRecord } = await resolveInstructorContext(username)
 
   if (!instructorId) {
     const error = new Error(
@@ -544,7 +576,13 @@ export async function deleteInstructorStudentAccount({
     throw error
   }
 
-  if (String(studentAccount.created_by_instructor_id ?? '').trim() !== instructorId) {
+  if (
+    !isOwnedByInstructor(studentAccount.created_by_instructor_id, {
+      account,
+      instructorId,
+      instructorRecord,
+    })
+  ) {
     const error = new Error('Only students created by your account can be deleted.')
     error.statusCode = 403
     throw error

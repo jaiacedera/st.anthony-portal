@@ -21,6 +21,11 @@
   font-family: 'Lato', 'Segoe UI', sans-serif;
 }
 
+.instructor-portal-page--students {
+  --sidebar-width: 320px;
+  --header-height: 92px;
+}
+
 .instructor-portal-page * {
   box-sizing: border-box;
 }
@@ -29,6 +34,10 @@
   .instructor-portal-page {
     --header-height: 96px;
     --dashboard-gap: 20px;
+  }
+
+  .instructor-portal-page--students {
+    --header-height: 92px;
   }
 }
 
@@ -64,6 +73,11 @@
   object-fit: contain;
 }
 
+.instructor-portal-page--students .instructor-sidebar-logo {
+  width: 105px;
+  height: 105px;
+}
+
 .instructor-sidebar-title {
   margin-top: 18px;
 }
@@ -79,6 +93,10 @@
   font-size: 22px;
   font-weight: 400;
   line-height: 1;
+}
+
+.instructor-portal-page--students .instructor-sidebar-title h1 {
+  font-size: 21px;
 }
 
 .instructor-sidebar-title p {
@@ -114,6 +132,11 @@
   font-weight: 400;
 }
 
+.instructor-portal-page--students .instructor-nav-link {
+  min-height: 56px;
+  font-size: 18px;
+}
+
 .instructor-nav-link.active {
   background: var(--portal-active);
 }
@@ -133,6 +156,12 @@
   width: 23px;
   height: 23px;
   flex: none;
+}
+
+.instructor-portal-page--students .instructor-nav-icon,
+.instructor-portal-page--students .instructor-nav-icon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .instructor-nav-icon svg {
@@ -180,6 +209,11 @@
   background: var(--portal-surface);
 }
 
+.instructor-portal-page--students .instructor-header {
+  height: 92px;
+  max-height: 92px;
+}
+
 .instructor-toolbar {
   display: flex;
   align-items: center;
@@ -196,6 +230,11 @@
   border: 0.5px solid #aea9a9;
   border-radius: 7px;
   background: #ffffff;
+}
+
+.instructor-portal-page--students .instructor-filter-card {
+  width: 160px;
+  height: 46px;
 }
 
 .instructor-filter-icon {
@@ -247,6 +286,11 @@
   height: 27px;
 }
 
+.instructor-portal-page--students .instructor-toolbar-button svg {
+  width: 26px;
+  height: 26px;
+}
+
 .instructor-toolbar-profile {
   width: 40px;
   height: 40px;
@@ -256,6 +300,16 @@
 .instructor-toolbar-profile svg {
   width: 40px;
   height: 40px;
+}
+
+.instructor-portal-page--students .instructor-toolbar-profile {
+  width: 38px;
+  height: 38px;
+}
+
+.instructor-portal-page--students .instructor-toolbar-profile svg {
+  width: 38px;
+  height: 38px;
 }
 
 .instructor-main-content {
@@ -514,8 +568,8 @@
 }
 
 .table-layout--students {
-  grid-template-columns: minmax(260px, 1.4fr) minmax(230px, 1.1fr) 170px 96px;
-  column-gap: 24px;
+  grid-template-columns: minmax(300px, 1.4fr) minmax(300px, 1.1fr) 180px 110px;
+  column-gap: 20px;
 }
 
 .instructor-table-row {
@@ -716,16 +770,38 @@
   display: flex;
   height: calc(100vh - var(--header-height));
   min-height: 0;
-  padding: 30px 32px 32px;
+  padding: 24px 28px 28px;
+  overflow: hidden;
 }
 
 .students-management-card {
   width: 100%;
-  min-height: 620px;
+  height: 100%;
+  min-height: 0;
   border-radius: 14px;
 }
 
+.student-panel-heading {
+  min-height: 64px;
+  padding: 16px 24px;
+}
+
+.student-panel-heading .instructor-panel-lead {
+  gap: 4px;
+}
+
+.student-panel-heading .instructor-panel-lead svg {
+  width: 30px;
+  height: 30px;
+}
+
+.student-panel-heading .instructor-panel-underline {
+  width: 24px;
+}
+
 .student-panel-heading h2 {
+  font-size: 20px;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
@@ -735,27 +811,28 @@
 
 .students-management-toolbar {
   display: flex;
-  align-items: flex-end;
+  min-height: 60px;
+  align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 10px 24px 0;
+  padding: 0 24px;
 }
 
 .student-tab-list {
   display: inline-flex;
   align-items: center;
-  gap: 36px;
+  gap: 30px;
   border-bottom: 1px solid #eadede;
 }
 
 .student-tab {
   position: relative;
   min-height: 58px;
-  padding: 0 2px;
+  padding: 0;
   border: none;
   background: transparent;
   color: #a6a4a4;
-  font: 700 26px/1 'Lato', sans-serif;
+  font: 600 17px/1 'Lato', sans-serif;
   cursor: pointer;
 }
 
@@ -777,7 +854,7 @@
 .students-filter-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .students-subject-filter {
@@ -800,7 +877,7 @@
 
 .students-subject-filter select,
 .students-search-field {
-  min-height: 44px;
+  min-height: 40px;
   border: 1px solid #d7d2d2;
   border-radius: 8px;
   background: #ffffff;
@@ -819,7 +896,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  width: min(100%, 380px);
+  width: 270px;
   padding: 0 16px;
 }
 
@@ -842,7 +919,7 @@
   outline: none;
   background: transparent;
   color: #141414;
-  font: 400 16px/1.2 'Lato', sans-serif;
+  font: 400 14px/1.2 'Lato', sans-serif;
 }
 
 .students-search-field input::placeholder {
@@ -854,30 +931,32 @@
   flex: 1;
   min-height: 0;
   flex-direction: column;
-  margin-top: 18px;
+  margin-top: 12px;
   overflow: hidden;
 }
 
 .student-table-header {
-  min-height: 56px;
+  min-height: 48px;
 }
 
 .students-table-body {
+  min-height: 0;
   overflow-y: auto;
 }
 
 .student-roster-row {
-  min-height: 92px;
+  min-height: 72px;
+  padding: 10px 24px;
 }
 
 .student-loading-row {
-  height: 92px;
+  height: 72px;
 }
 
 .student-name-cell {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   min-width: 0;
 }
 
@@ -885,34 +964,38 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: #dfdfdf;
   color: #141414;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   flex: none;
 }
 
 .student-name-copy {
   display: grid;
-  gap: 6px;
+  gap: 2px;
   min-width: 0;
 }
 
 .student-name-copy strong {
   color: #141414;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.2;
 }
 
-.student-name-copy span,
-.student-email-cell,
-.student-enrollment-cell {
+.student-name-copy span {
+  color: #707070;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.student-email-cell {
   color: #5f5a5a;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.35;
 }
 
@@ -922,17 +1005,25 @@
 
 .student-enrollment-cell {
   color: #141414;
+  font-size: 14px;
   font-weight: 600;
+  line-height: 1.35;
 }
 
 .student-table-actions {
   position: relative;
+  gap: 8px;
 }
 
 .student-action-button {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
+}
+
+.student-action-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .student-action-menu-shell {
@@ -1923,6 +2014,11 @@
   .subjects-page-content {
     height: calc(100dvh - var(--header-height));
   }
+
+  .students-page,
+  .students-page-content {
+    height: calc(100dvh - var(--header-height));
+  }
 }
 
 @media (max-width: 1700px) {
@@ -1991,6 +2087,7 @@
   .students-page-content {
     height: auto;
     min-height: 0;
+    overflow: visible;
   }
 
   .subjects-management-card,

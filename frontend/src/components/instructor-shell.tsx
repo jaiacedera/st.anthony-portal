@@ -101,14 +101,17 @@ export function InstructorShell({
   children,
 }: InstructorShellProps) {
   const isDashboard = active === 'dashboard'
+  const isStudents = active === 'students'
 
   return (
     <main
-      className={
-        isDashboard
-          ? 'instructor-portal-page instructor-portal-page--dashboard'
-          : 'instructor-portal-page'
-      }
+      className={[
+        'instructor-portal-page',
+        isDashboard ? 'instructor-portal-page--dashboard' : '',
+        isStudents ? 'instructor-portal-page--students' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       <SideBar active={active} />
       <section

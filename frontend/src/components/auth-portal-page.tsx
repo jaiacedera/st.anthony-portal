@@ -222,91 +222,91 @@ export function AuthPortalPage({
         </div>
       </header>
 
-      <section className="login-container" aria-label={`${portalLabel.toLowerCase()} portal sign in`}>
-        <img
-          className="portal-logo"
-          src={logoImage}
-          alt="St. Anthony College Calapan City crest"
-        />
+      <div className="login-card-wrapper">
+        <section className="login-container" aria-label={`${portalLabel.toLowerCase()} portal sign in`}>
+          <img
+            className="portal-logo"
+            src={logoImage}
+            alt="St. Anthony College Calapan City crest"
+          />
 
-        <h2 className={headingClassName}>
-          <strong>{portalLabel}</strong> <span>PORTAL</span>
-        </h2>
+          <h2 className={headingClassName}>
+            <strong>{portalLabel}</strong> <span>PORTAL</span>
+          </h2>
 
-        <form className="student-auth-form" onSubmit={handleSubmit}>
-          <label className="student-number-field">
-            <span className="field-shell">
-              <span className="field-icon" aria-hidden="true">
-                <FirstFieldIcon />
+          <form className="student-auth-form" onSubmit={handleSubmit}>
+            <label className="student-number-field">
+              <span className="field-shell">
+                <span className="field-icon" aria-hidden="true">
+                  <FirstFieldIcon />
+                </span>
+                <input
+                  type="text"
+                  name={firstFieldName}
+                  placeholder={firstFieldPlaceholder}
+                  value={credential}
+                  onChange={(event) => setCredential(event.target.value)}
+                />
               </span>
-              <input
-                type="text"
-                name={firstFieldName}
-                placeholder={firstFieldPlaceholder}
-                value={credential}
-                onChange={(event) => setCredential(event.target.value)}
-              />
-            </span>
-          </label>
-
-          <label className="password-field">
-            <span className="field-shell">
-              <span className="field-icon" aria-hidden="true">
-                <LockIcon />
-              </span>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                placeholder="Password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-              <button
-                className="field-visibility"
-                type="button"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                onClick={() => setShowPassword((current) => !current)}
-              >
-                <EyeIcon open={showPassword} />
-              </button>
-            </span>
-          </label>
-
-          <button className="login-button" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'SIGNING IN...' : 'LOG IN'}
-          </button>
-
-          {errorMessage ? <p className="auth-error-message">{errorMessage}</p> : null}
-
-          <div className="remember-actions">
-            <label className="remember-row">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(event) => setRememberMe(event.target.checked)}
-              />
-              <span className="remember-checkbox" aria-hidden="true">
-                <CheckIcon />
-              </span>
-              <span>Remember me</span>
             </label>
 
-            <a className="forgot-password" href={forgotPasswordHref}>
-              Forgot password?
-            </a>
-          </div>
+            <label className="password-field">
+              <span className="field-shell">
+                <span className="field-icon" aria-hidden="true">
+                  <LockIcon />
+                </span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+                <button
+                  className="field-visibility"
+                  type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword((current) => !current)}
+                >
+                  <EyeIcon open={showPassword} />
+                </button>
+              </span>
+            </label>
 
-          {registerHref ? (
-            <>
-              <hr className="divider" />
+            <button className="login-button" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'SIGNING IN...' : 'LOG IN'}
+            </button>
 
-              <p className="register-text">
-                Don&apos;t have an account? <a href={registerHref}>Register</a>
-              </p>
-            </>
-          ) : null}
-        </form>
-      </section>
+            {errorMessage ? <p className="auth-error-message">{errorMessage}</p> : null}
+
+            <div className="remember-actions">
+              <label className="remember-row">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(event) => setRememberMe(event.target.checked)}
+                />
+                <span className="remember-checkbox" aria-hidden="true">
+                  <CheckIcon />
+                </span>
+                <span>Remember me</span>
+              </label>
+
+              <a className="forgot-password" href={forgotPasswordHref}>
+                Forgot password?
+              </a>
+            </div>
+
+            {registerHref ? (
+              <div className="auth-footer">
+                <p className="register-text">
+                  Don&apos;t have an account? <a href={registerHref}>Register</a>
+                </p>
+              </div>
+            ) : null}
+          </form>
+        </section>
+      </div>
     </main>
   )
 }

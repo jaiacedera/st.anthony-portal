@@ -27,3 +27,22 @@ export function readStudentAuth(): StudentAuthSession | null {
     return null
   }
 }
+
+export function clearStudentAuth() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.removeItem('student-auth')
+  window.sessionStorage.removeItem('student-auth')
+}
+
+export function isInvalidStudentSessionMessage(message: string) {
+  const normalizedMessage = String(message ?? '').trim()
+
+  return (
+    normalizedMessage === 'Student session is no longer available. Please sign in again.' ||
+    normalizedMessage === 'Student record was not found.' ||
+    normalizedMessage === 'Student account was not found.'
+  )
+}

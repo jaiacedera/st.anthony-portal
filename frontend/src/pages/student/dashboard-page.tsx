@@ -4,7 +4,12 @@ import {
   fetchStudentDashboard,
   type StudentDashboardPayload,
 } from '../../services/studentApi'
-import { readStudentAuth } from '../../utils/studentAuth'
+import { navigateTo } from '../../utils/navigation'
+import {
+  clearStudentAuth,
+  isInvalidStudentSessionMessage,
+  readStudentAuth,
+} from '../../utils/studentAuth'
 
 function BookIcon() {
   return (
@@ -102,6 +107,12 @@ export default function StudentDashboardPage() {
       })
       .catch((error: unknown) => {
         if (abortController.signal.aborted) {
+          return
+        }
+
+        if (error instanceof Error && isInvalidStudentSessionMessage(error.message)) {
+          clearStudentAuth()
+          navigateTo('/student', { replace: true })
           return
         }
 

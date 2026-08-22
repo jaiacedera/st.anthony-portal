@@ -27,6 +27,17 @@ function isActiveStatus(value) {
   return normalizeForComparison(value).toUpperCase() !== 'INACTIVE'
 }
 
+function resolveSheetHeaders(sheetName, values = []) {
+  const schemaHeaders = getSheetHeaders(sheetName)
+  const actualHeaders = Array.isArray(values[0])
+    ? values[0]
+        .map((header) => normalizeForComparison(header))
+        .filter(Boolean)
+    : []
+
+  return actualHeaders.length ? actualHeaders : schemaHeaders
+}
+
 function toRowObject(headers, row = []) {
   return headers.reduce(
     (record, header, index) => ({
@@ -72,14 +83,14 @@ async function getSheetMatrix(sheetName) {
 }
 
 async function getSheetRowState(sheetName, idColumn, id) {
-  const headers = getSheetHeaders(sheetName)
+  const { sheets, spreadsheetId, values } = await getSheetMatrix(sheetName)
+  const headers = resolveSheetHeaders(sheetName, values)
   const idColumnIndex = headers.indexOf(idColumn)
 
   if (idColumnIndex < 0) {
     throw new Error(`Unknown id column "${idColumn}" for sheet "${sheetName}"`)
   }
 
-  const { sheets, spreadsheetId, values } = await getSheetMatrix(sheetName)
   const dataRows = values.slice(1)
   const rowIndex = dataRows.findIndex(
     (row) => normalizeForComparison(row[idColumnIndex]) === normalizeForComparison(id),
@@ -149,8 +160,8 @@ async function runSheetsRequest(request) {
 }
 
 export async function getAllRows(sheetName) {
-  const headers = getSheetHeaders(sheetName)
   const { values } = await getSheetMatrix(sheetName)
+  const headers = resolveSheetHeaders(sheetName, values)
 
   return values.slice(1).map((row) => toRowObject(headers, row))
 }
@@ -180,9 +191,8 @@ export async function findRows(sheetName, filters = {}) {
 }
 
 export async function appendRow(sheetName, record) {
-  const headers = getSheetHeaders(sheetName)
-  const sheets = createSheetsClient()
-  const spreadsheetId = getSpreadsheetId()
+  const { sheets, spreadsheetId, values } = await getSheetMatrix(sheetName)
+  const headers = resolveSheetHeaders(sheetName, values)
   const rowValues = buildRowValues(headers, record)
 
   await runSheetsRequest(() =>

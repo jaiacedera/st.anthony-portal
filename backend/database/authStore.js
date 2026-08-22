@@ -29,16 +29,37 @@ export function getInstructorAccountByUsername(username) {
   return findInstructorAccountByUsername(username)
 }
 
-export function findStudentAccountByEmail(email) {
-  return (
-    getAuthAccounts().find(
+function compareIsoDatesDescending(leftValue, rightValue) {
+  const leftTime = Date.parse(String(leftValue ?? '').trim() || '1970-01-01T00:00:00.000Z')
+  const rightTime = Date.parse(String(rightValue ?? '').trim() || '1970-01-01T00:00:00.000Z')
+
+  return rightTime - leftTime
+}
+
+export function getStudentAccountsByEmail(email) {
+  const normalizedEmail = String(email ?? '').trim().toLowerCase()
+
+  if (!normalizedEmail) {
+    return []
+  }
+
+  return getAuthAccounts()
+    .filter(
       (account) =>
         account.role === 'STUDENT' &&
         account.status === 'ACTIVE' &&
-        String(account.email ?? account.username ?? '').trim().toLowerCase() ===
-          String(email ?? '').trim().toLowerCase(),
-    ) ?? null
-  )
+        String(account.email ?? account.username ?? '').trim().toLowerCase() === normalizedEmail,
+    )
+    .sort((left, right) =>
+      compareIsoDatesDescending(
+        left.updated_at ?? left.created_at,
+        right.updated_at ?? right.created_at,
+      ),
+    )
+}
+
+export function findStudentAccountByEmail(email) {
+  return getStudentAccountsByEmail(email)[0] ?? null
 }
 
 export function verifyInstructorPassword(username, password) {
@@ -61,7 +82,7 @@ export function verifyStudentPassword(email, password) {
   return verifyAccountPassword(account, password)
 }
 
-function verifyAccountPassword(account, password) {
+export function verifyAccountPassword(account, password) {
   const candidateHash = scryptSync(password, account.password_salt, 64)
   const storedHash = Buffer.from(account.password_hash, 'hex')
 
@@ -174,6 +195,26 @@ export function deleteStudentAccountByStudentId(studentId) {
         account.role === 'STUDENT' &&
         String(account.student_id ?? '').trim() === normalizedStudentId
       ),
+  )
+
+  if (nextAccounts.length === accounts.length) {
+    return false
+  }
+
+  saveAuthAccounts(nextAccounts)
+  return true
+}
+
+export function deleteAccountByAccountId(accountId) {
+  const normalizedAccountId = String(accountId ?? '').trim()
+
+  if (!normalizedAccountId) {
+    return false
+  }
+
+  const accounts = getAuthAccounts()
+  const nextAccounts = accounts.filter(
+    (account) => String(account.account_id ?? '').trim() !== normalizedAccountId,
   )
 
   if (nextAccounts.length === accounts.length) {

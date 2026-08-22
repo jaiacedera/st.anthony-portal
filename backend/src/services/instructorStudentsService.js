@@ -1,8 +1,10 @@
 import {
   createStudentAccount,
+  deleteAccountByAccountId,
   deleteStudentAccountByStudentId,
   getAuthAccounts,
   getInstructorAccountByUsername,
+  getStudentAccountsByEmail,
   getStudentAccountByStudentId,
 } from '../../database/authStore.js'
 import { randomBytes } from 'node:crypto'
@@ -126,6 +128,24 @@ async function resolveInstructorContext(username) {
     account,
     instructorId,
     instructorRecord,
+  }
+}
+
+async function purgeStaleStudentAccountsByEmail(email) {
+  const studentAccounts = getStudentAccountsByEmail(email)
+
+  for (const account of studentAccounts) {
+    const student = account.student_id
+      ? await getRowById(
+          SHEET_NAMES.STUDENTS,
+          SHEET_ID_COLUMNS[SHEET_NAMES.STUDENTS],
+          account.student_id,
+        )
+      : null
+
+    if (!student || !isActiveStatus(student.status)) {
+      deleteAccountByAccountId(account.account_id)
+    }
   }
 }
 
@@ -384,6 +404,8 @@ export async function createInstructorStudentForUser({
     error.statusCode = 400
     throw error
   }
+
+  await purgeStaleStudentAccountsByEmail(email)
 
   let student
 

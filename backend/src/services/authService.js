@@ -1,9 +1,16 @@
 import {
+  deleteAccountByAccountId,
   findInstructorAccountByUsername,
-  findStudentAccountByEmail,
+  getStudentAccountsByEmail,
   verifyInstructorPassword,
-  verifyStudentPassword,
+  verifyAccountPassword,
 } from '../../database/authStore.js'
+import { SHEET_ID_COLUMNS, SHEET_NAMES } from '../../database/sheetsSchema.js'
+import { getRowById } from '../../database/sheetsService.js'
+
+function isActiveStatus(value) {
+  return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
+}
 
 export async function authenticateInstructor(username, password) {
   const normalizedUsername = username.trim()
@@ -46,25 +53,42 @@ export async function authenticateStudent(email, password) {
     }
   }
 
-  const account = findStudentAccountByEmail(normalizedEmail)
+  const accounts = getStudentAccountsByEmail(normalizedEmail)
 
-  if (!account || !verifyStudentPassword(normalizedEmail, password)) {
+  for (const account of accounts) {
+    if (!verifyAccountPassword(account, password)) {
+      continue
+    }
+
+    const student = account.student_id
+      ? await getRowById(
+          SHEET_NAMES.STUDENTS,
+          SHEET_ID_COLUMNS[SHEET_NAMES.STUDENTS],
+          account.student_id,
+        )
+      : null
+
+    if (!student || !isActiveStatus(student.status)) {
+      deleteAccountByAccountId(account.account_id)
+      continue
+    }
+
     return {
-      success: false,
-      message: 'Invalid email or password.',
+      success: true,
+      message: 'Student login successful.',
+      account: {
+        accountId: account.account_id,
+        role: account.role,
+        email: account.email ?? account.username,
+        username: account.username,
+        studentId: account.student_id,
+        status: account.status,
+      },
     }
   }
 
   return {
-    success: true,
-    message: 'Student login successful.',
-    account: {
-      accountId: account.account_id,
-      role: account.role,
-      email: account.email ?? account.username,
-      username: account.username,
-      studentId: account.student_id,
-      status: account.status,
-    },
+    success: false,
+    message: 'Invalid email or password.',
   }
 }

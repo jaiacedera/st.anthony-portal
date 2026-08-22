@@ -78,9 +78,13 @@ async function resolveStudentRecord({ studentId, email }) {
       normalizedStudentId,
     )
 
-    if (student) {
+    if (student && isActiveStatus(student.status)) {
       return student
     }
+
+    const error = new Error('Student session is no longer available. Please sign in again.')
+    error.statusCode = 401
+    throw error
   }
 
   const normalizedEmail = String(email ?? '').trim().toLowerCase()
@@ -105,7 +109,7 @@ async function resolveStudentRecord({ studentId, email }) {
     account.student_id,
   )
 
-  if (!student) {
+  if (!student || !isActiveStatus(student.status)) {
     const error = new Error('Student record was not found.')
     error.statusCode = 404
     throw error

@@ -1711,42 +1711,97 @@
   }
 
   .student-requests-page {
-    padding: 22px 16px 120px;
-    gap: 18px;
+    padding: 18px 16px 96px;
+    gap: 16px;
   }
 
   .student-requests-header {
-    align-items: stretch;
-    gap: 14px;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
   }
 
   .student-requests-header h2 {
-    font-size: 28px;
+    font-size: 24px;
+    line-height: 1.08;
   }
 
   .student-requests-header p {
-    font-size: 16px;
+    margin-top: 6px;
+    font-size: 14px;
+    line-height: 1.45;
   }
 
   .student-requests-primary-button {
-    min-width: 158px;
-    height: 52px;
-    padding: 0 18px;
-    border-radius: 12px;
-    font-size: 15px;
+    min-width: 135px;
+    height: 46px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-size: 14px;
     align-self: flex-start;
   }
 
   .student-requests-filters {
-    grid-template-columns: minmax(0, 1fr) 160px;
+    grid-template-columns: minmax(0, 1.2fr) minmax(130px, 0.9fr);
+    gap: 12px;
+  }
+
+  .student-requests-search,
+  .student-requests-select {
+    min-height: 46px;
+    border-radius: 10px;
+  }
+
+  .student-requests-search input,
+  .student-requests-select select {
+    min-height: 46px;
+    font: 500 14px/1.4 'Lato', 'Segoe UI', sans-serif;
+  }
+
+  .student-requests-search input {
+    padding: 0 14px 0 42px;
+  }
+
+  .student-requests-select select {
+    padding: 0 40px 0 14px;
+  }
+
+  .student-requests-search-icon {
+    left: 14px;
+  }
+
+  .student-requests-select-icon {
+    right: 14px;
+  }
+
+  .student-requests-search-icon svg,
+  .student-requests-select-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .student-request-list {
     gap: 12px;
   }
 
   .student-request-card {
     grid-template-columns: 58px minmax(0, 1fr);
     gap: 14px;
-    padding: 18px 16px;
-    border-radius: 18px;
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .student-request-card--empty {
+    min-height: 150px;
+    padding: 24px 18px;
+    place-items: center;
+    text-align: center;
+  }
+
+  .student-request-card--empty p {
+    max-width: 250px;
+    font-size: 14px;
+    line-height: 1.45;
   }
 
   .student-request-icon {
@@ -1760,24 +1815,48 @@
     height: 26px;
   }
 
+  .student-request-copy {
+    gap: 14px;
+  }
+
+  .student-request-topline {
+    gap: 12px;
+  }
+
   .student-request-heading strong {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .student-request-heading span {
     font-size: 14px;
   }
 
-  .student-request-heading small,
-  .student-request-meta,
-  .student-requests-footer {
-    font-size: 14px;
+  .student-request-heading small {
+    font-size: 13px;
   }
 
   .student-request-status {
-    min-width: 94px;
-    min-height: 36px;
-    font-size: 14px;
+    min-width: 92px;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 13px;
+  }
+
+  .student-request-meta {
+    gap: 8px;
+    padding-top: 14px;
+    font-size: 13px;
+  }
+
+  .student-request-meta svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .student-requests-footer {
+    font-size: 13px;
+    line-height: 1.45;
   }
 
   .student-profile-page {
@@ -1983,15 +2062,21 @@
   }
 
   .student-requests-page {
-    padding-inline: 12px;
+    padding: 16px 12px 92px;
+    gap: 14px;
   }
 
   .student-requests-header {
-    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
   .student-requests-primary-button {
-    width: 100%;
+    min-width: 120px;
+    height: 44px;
+    padding: 0 14px;
+    font-size: 13px;
   }
 
   .student-requests-filters {

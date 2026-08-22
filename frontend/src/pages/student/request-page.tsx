@@ -93,7 +93,7 @@ function formatRequestedAt(value: string) {
     minute: '2-digit',
   }).format(parsed)
 
-  return `${datePart} • ${timePart}`
+  return `${datePart} - ${timePart}`
 }
 
 function getStatusTone(status: string) {
@@ -193,6 +193,13 @@ export default function StudentRequestPage() {
     })
   }, [dashboard?.requests, searchText, statusFilter])
 
+  const totalRequests = dashboard?.requests.length ?? 0
+  const hasFilteredRequests = filteredRequests.length > 0
+  const emptyStateMessage =
+    totalRequests === 0
+      ? 'No requests to display.'
+      : 'No requests matched your current filters.'
+
   return (
     <StudentShell
       active="requests"
@@ -255,7 +262,7 @@ export default function StudentRequestPage() {
             <article className="student-request-card student-request-card--empty">
               <p>Loading your requests...</p>
             </article>
-          ) : filteredRequests.length ? (
+          ) : hasFilteredRequests ? (
             filteredRequests.map((request) => {
               const tone = getStatusTone(request.status)
               const leadingIcon =
@@ -295,16 +302,16 @@ export default function StudentRequestPage() {
             })
           ) : (
             <article className="student-request-card student-request-card--empty">
-              <p>No requests matched your current filters.</p>
+              <p>{emptyStateMessage}</p>
             </article>
           )}
         </div>
 
-        <p className="student-requests-footer">
-          {filteredRequests.length
-            ? `Showing 1 to ${filteredRequests.length} of ${filteredRequests.length} requests`
-            : 'No requests to display'}
-        </p>
+        {hasFilteredRequests ? (
+          <p className="student-requests-footer">
+            {`Showing 1 to ${filteredRequests.length} of ${filteredRequests.length} requests`}
+          </p>
+        ) : null}
       </section>
     </StudentShell>
   )

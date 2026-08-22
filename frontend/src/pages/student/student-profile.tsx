@@ -343,38 +343,46 @@ export default function StudentProfilePage() {
 
             <div className="student-profile-summary-content">
               <div className="student-profile-heading">
-                <h2>{isLoading ? 'Loading...' : fullName}</h2>
+                <h2 className="student-profile-summary-title">{isLoading ? 'Loading...' : fullName}</h2>
                 <p>{isLoading ? 'Loading...' : courseYear}</p>
                 <span>{isLoading ? 'Loading...' : studentNumber}</span>
               </div>
 
-              <div className="student-profile-contact-list">
-                <div className="student-profile-contact-row student-profile-contact-row--email">
+              <div className="student-profile-contact-list student-profile-summary-meta">
+                <div className="student-profile-contact-row student-profile-contact-row--email student-profile-summary-meta-row">
                   <span className="student-profile-contact-icon" aria-hidden="true">
                     <MailIcon />
                   </span>
-                  <span>{isLoading ? 'Loading...' : email}</span>
+                  <span className="student-profile-contact-value student-profile-summary-meta-value">
+                    {isLoading ? 'Loading...' : email}
+                  </span>
                 </div>
 
-                <div className="student-profile-contact-row student-profile-contact-row--phone">
+                <div className="student-profile-contact-row student-profile-contact-row--phone student-profile-summary-meta-row">
                   <span className="student-profile-contact-icon" aria-hidden="true">
                     <PhoneIcon />
                   </span>
-                  <span>{isLoading ? 'Loading...' : phone}</span>
+                  <span className="student-profile-contact-value student-profile-summary-meta-value">
+                    {isLoading ? 'Loading...' : phone}
+                  </span>
                 </div>
 
-                <div className="student-profile-contact-row student-profile-contact-row--address">
+                <div className="student-profile-contact-row student-profile-contact-row--address student-profile-summary-meta-row">
                   <span className="student-profile-contact-icon" aria-hidden="true">
                     <PinIcon />
                   </span>
-                  <span>{isLoading ? 'Loading...' : address}</span>
+                  <span className="student-profile-contact-value student-profile-summary-meta-value">
+                    {isLoading ? 'Loading...' : address}
+                  </span>
                 </div>
 
-                <div className="student-profile-contact-row student-profile-contact-row--joined">
+                <div className="student-profile-contact-row student-profile-contact-row--joined student-profile-summary-meta-row">
                   <span className="student-profile-contact-icon" aria-hidden="true">
                     <CalendarIcon />
                   </span>
-                  <span>{isLoading ? 'Loading...' : joinedAt}</span>
+                  <span className="student-profile-contact-value student-profile-summary-meta-value">
+                    {isLoading ? 'Loading...' : joinedAt}
+                  </span>
                 </div>
               </div>
             </div>

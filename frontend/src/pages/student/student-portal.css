@@ -1874,52 +1874,54 @@
 
   .student-profile-summary {
     display: grid;
-    grid-template-columns: 190px minmax(0, 1fr);
-    column-gap: 34px;
+    grid-template-columns: 105px minmax(0, 1fr);
+    column-gap: 18px;
     align-items: center;
-    min-height: 265px;
+    min-height: 190px;
     margin: 0 18px;
-    padding: 26px 30px;
-    border: 1px solid #e8e8e8;
+    padding: 20px 18px;
+    border: 1px solid #e6e6e6;
     border-radius: 18px;
+    box-sizing: border-box;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   }
 
   .student-profile-avatar-shell {
-    width: 170px;
-    height: 170px;
+    width: 104px;
+    height: 104px;
   }
 
   .student-profile-avatar-ring {
-    width: 170px;
-    height: 170px;
-    background: #fff4f4;
-    border-color: #efcaca;
+    width: 104px;
+    height: 104px;
+    background: #fff3f3;
+    border-color: #efcccc;
   }
 
   .student-profile-avatar-core {
-    width: 138px;
-    height: 138px;
-    background: #990000;
-    font-size: 46px;
+    width: 84px;
+    height: 84px;
+    background: #9e0000;
+    font-size: 28px;
   }
 
   .student-profile-avatar-chip {
-    width: 44px;
-    height: 44px;
+    width: 30px;
+    height: 30px;
     right: 0;
-    bottom: 10px;
-    border-color: #dedede;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    bottom: 2px;
+    border-color: #ddd;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.07);
   }
 
   .student-profile-avatar-chip svg {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
   }
 
   .student-profile-summary-content {
     min-width: 0;
+    width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -1930,11 +1932,13 @@
     text-align: left;
   }
 
-  .student-profile-heading h2 {
+  .student-profile-summary-title {
     margin: 0;
     color: #111827;
-    font-size: 22px;
+    font-size: 16px;
     line-height: 1.25;
+    font-weight: 700;
+    white-space: normal;
   }
 
   .student-profile-heading p,
@@ -1942,21 +1946,24 @@
     display: none;
   }
 
-  .student-profile-contact-list {
-    margin-top: 26px;
+  .student-profile-summary-meta {
+    width: 100%;
+    margin-top: 14px;
     border-top: none;
     display: flex;
     min-width: 0;
     flex-direction: column;
-    gap: 22px;
+    gap: 10px;
   }
 
-  .student-profile-contact-row {
+  .student-profile-summary-meta-row {
+    width: 100%;
     min-height: 0;
-    display: flex;
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
     align-items: center;
-    gap: 16px;
-    font-size: 16px;
+    column-gap: 10px;
+    font-size: 12px;
     line-height: 1.3;
     color: #4b5563;
     border-bottom: none;
@@ -1967,16 +1974,19 @@
     display: none;
   }
 
-  .student-profile-contact-icon svg {
-    width: 24px;
-    height: 24px;
+  .student-profile-summary-meta-row .student-profile-contact-icon svg {
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
-    color: #990000;
+    color: #a40808;
   }
 
-  .student-profile-contact-row span:last-child {
+  .student-profile-summary-meta-value {
     min-width: 0;
-    overflow-wrap: anywhere;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .student-profile-main {
@@ -2145,29 +2155,29 @@
   }
 
   .student-profile-summary {
-    grid-template-columns: 120px minmax(0, 1fr);
-    column-gap: 18px;
-    min-height: 0;
+    grid-template-columns: 105px minmax(0, 1fr);
+    column-gap: 14px;
+    min-height: 190px;
     margin: 0 12px;
-    padding: 22px 18px;
+    padding: 18px 14px;
   }
 
   .student-profile-avatar-shell,
   .student-profile-avatar-ring {
-    width: 116px;
-    height: 116px;
+    width: 104px;
+    height: 104px;
   }
 
   .student-profile-avatar-core {
-    width: 94px;
-    height: 94px;
-    font-size: 30px;
+    width: 84px;
+    height: 84px;
+    font-size: 28px;
   }
 
   .student-profile-avatar-chip {
-    width: 34px;
-    height: 34px;
-    bottom: 8px;
+    width: 30px;
+    height: 30px;
+    bottom: 2px;
   }
 
   .student-profile-avatar-chip svg {
@@ -2179,23 +2189,23 @@
     text-align: left;
   }
 
-  .student-profile-heading h2 {
-    font-size: 17px;
+  .student-profile-summary-title {
+    font-size: 16px;
   }
 
-  .student-profile-contact-list {
-    margin-top: 18px;
-    gap: 14px;
-  }
-
-  .student-profile-contact-row {
+  .student-profile-summary-meta {
+    margin-top: 12px;
     gap: 10px;
-    font-size: 13px;
   }
 
-  .student-profile-contact-icon svg {
-    width: 18px;
-    height: 18px;
+  .student-profile-summary-meta-row {
+    gap: 10px;
+    font-size: 12px;
+  }
+
+  .student-profile-summary-meta-row .student-profile-contact-icon svg {
+    width: 16px;
+    height: 16px;
   }
 
   .student-profile-card-header {

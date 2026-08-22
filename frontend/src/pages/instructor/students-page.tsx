@@ -3,6 +3,7 @@ import {
   useDeferredValue,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import { InstructorShell } from '../../components/instructor-shell'
@@ -85,6 +86,14 @@ function CloseIcon() {
   )
 }
 
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
 function PanelLead() {
   return (
     <span className="instructor-panel-lead" aria-hidden="true">
@@ -156,7 +165,11 @@ export default function StudentsPage() {
   const [createStudentForm, setCreateStudentForm] = useState<CreateStudentFormState>(
     createDefaultStudentForm(),
   )
+  const [subjectPickerOpen, setSubjectPickerOpen] = useState(false)
+  const [subjectSearchValue, setSubjectSearchValue] = useState('')
   const deferredSearchValue = useDeferredValue(searchValue)
+  const deferredSubjectSearchValue = useDeferredValue(subjectSearchValue)
+  const subjectPickerRef = useRef<HTMLDivElement | null>(null)
 
   async function loadStudents(signal?: AbortSignal) {
     const payload = await fetchInstructorStudents(username, signal)
@@ -247,6 +260,11 @@ export default function StudentsPage() {
     }
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && subjectPickerOpen) {
+        setSubjectPickerOpen(false)
+        return
+      }
+
       if (event.key === 'Escape' && !isUpdatingEnrollment && !isCreatingStudent && !isDeletingStudent) {
         setViewStudentId('')
         setEnrollmentDialog(null)
@@ -267,8 +285,27 @@ export default function StudentsPage() {
     isCreatingStudent,
     isDeletingStudent,
     isUpdatingEnrollment,
+    subjectPickerOpen,
     viewStudentId,
   ])
+
+  useEffect(() => {
+    if (!isCreateStudentOpen || !subjectPickerOpen) {
+      return undefined
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!subjectPickerRef.current?.contains(event.target as Node)) {
+        setSubjectPickerOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+    }
+  }, [isCreateStudentOpen, subjectPickerOpen])
 
   const filteredStudents = useMemo(() => {
     const normalizedQuery = deferredSearchValue.trim().toLowerCase()
@@ -327,10 +364,32 @@ export default function StudentsPage() {
 
   const alerts = [errorMessage, bindingMessage, successMessage].filter(Boolean)
 
+  const filteredCreateSubjects = useMemo(() => {
+    const normalizedSearch = deferredSubjectSearchValue.trim().toLowerCase()
+
+    if (!normalizedSearch) {
+      return subjects
+    }
+
+    return subjects.filter((subject) =>
+      subject.label.toLowerCase().includes(normalizedSearch),
+    )
+  }, [deferredSubjectSearchValue, subjects])
+
+  const selectedCreateSubjectLabels = useMemo(
+    () =>
+      subjects
+        .filter((subject) => createStudentForm.subjectIds.includes(subject.id))
+        .map((subject) => subject.label),
+    [createStudentForm.subjectIds, subjects],
+  )
+
   function openCreateStudentDialog() {
     setErrorMessage('')
     setSuccessMessage('')
     setIsCreateStudentOpen(true)
+    setSubjectPickerOpen(false)
+    setSubjectSearchValue('')
     setCreateStudentForm(
       createDefaultStudentForm(
         selectedSubjectId
@@ -344,6 +403,8 @@ export default function StudentsPage() {
 
   function closeCreateStudentDialog() {
     setIsCreateStudentOpen(false)
+    setSubjectPickerOpen(false)
+    setSubjectSearchValue('')
     setCreateStudentForm(
       createDefaultStudentForm(
         selectedSubjectId
@@ -413,6 +474,8 @@ export default function StudentsPage() {
       setSelectedSubjectId(createStudentForm.subjectIds[0] ?? '')
       setActiveTab(createStudentForm.subjectIds.length ? 'subject' : 'all')
       setIsCreateStudentOpen(false)
+      setSubjectPickerOpen(false)
+      setSubjectSearchValue('')
       setCreateStudentForm(createDefaultStudentForm(createStudentForm.subjectIds))
       setSuccessMessage(payload.message ?? 'Student created successfully.')
     } catch (error: unknown) {
@@ -424,6 +487,27 @@ export default function StudentsPage() {
     } finally {
       setIsCreatingStudent(false)
     }
+  }
+
+  function toggleCreateStudentSubject(subjectId: string) {
+    setCreateStudentForm((current) => ({
+      ...current,
+      subjectIds: current.subjectIds.includes(subjectId)
+        ? current.subjectIds.filter((currentId) => currentId !== subjectId)
+        : [...current.subjectIds, subjectId],
+    }))
+  }
+
+  function getSubjectTriggerLabel() {
+    if (!selectedCreateSubjectLabels.length) {
+      return 'Select subject(s)'
+    }
+
+    if (selectedCreateSubjectLabels.length === 1) {
+      return selectedCreateSubjectLabels[0]
+    }
+
+    return `${selectedCreateSubjectLabels.length} subjects selected`
   }
 
   async function handleDeleteStudent() {
@@ -923,34 +1007,95 @@ export default function StudentsPage() {
 
                 <label className="student-create-field student-create-field--wide">
                   <span>Assign Subjects (Optional)</span>
-                  <div className="student-subject-picker">
-                    {subjects.length ? (
-                      subjects.map((subject) => {
-                        const isSelected = createStudentForm.subjectIds.includes(subject.id)
+                  <div className="student-subject-multiselect" ref={subjectPickerRef}>
+                    <button
+                      type="button"
+                      className="student-subject-multiselect-trigger"
+                      onClick={() => setSubjectPickerOpen((current) => !current)}
+                      aria-expanded={subjectPickerOpen}
+                      aria-controls="student-subject-multiselect-menu"
+                    >
+                      <span className="student-subject-multiselect-value">
+                        {getSubjectTriggerLabel()}
+                      </span>
+                      <span
+                        className={
+                          subjectPickerOpen
+                            ? 'student-subject-multiselect-chevron is-open'
+                            : 'student-subject-multiselect-chevron'
+                        }
+                        aria-hidden="true"
+                      >
+                        <ChevronDownIcon />
+                      </span>
+                    </button>
 
-                        return (
-                          <label key={subject.id} className="student-subject-option">
+                    {subjectPickerOpen ? (
+                      <div
+                        id="student-subject-multiselect-menu"
+                        className="student-subject-multiselect-menu"
+                        role="listbox"
+                        aria-multiselectable="true"
+                      >
+                        {subjects.length ? (
+                          <>
                             <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(event) =>
-                                setCreateStudentForm((current) => ({
-                                  ...current,
-                                  subjectIds: event.target.checked
-                                    ? [...current.subjectIds, subject.id]
-                                    : current.subjectIds.filter((currentId) => currentId !== subject.id),
-                                }))}
-                              disabled={!subjects.length}
+                              type="search"
+                              className="student-subject-search"
+                              value={subjectSearchValue}
+                              onChange={(event) => setSubjectSearchValue(event.target.value)}
+                              placeholder="Search subjects..."
                             />
-                            <span>{subject.label}</span>
-                          </label>
-                        )
-                      })
-                    ) : (
-                      <div className="student-subject-option student-subject-option--empty">
-                        <span>No subjects available</span>
+
+                            <div className="student-subject-options">
+                              {filteredCreateSubjects.length ? (
+                                filteredCreateSubjects.map((subject) => {
+                                  const isSelected = createStudentForm.subjectIds.includes(subject.id)
+
+                                  return (
+                                    <label key={subject.id} className="student-subject-option">
+                                      <input
+                                        type="checkbox"
+                                        className="student-subject-checkbox"
+                                        checked={isSelected}
+                                        onChange={() => toggleCreateStudentSubject(subject.id)}
+                                      />
+                                      <span>{subject.label}</span>
+                                    </label>
+                                  )
+                                })
+                              ) : (
+                                <div className="student-subject-option student-subject-option--empty">
+                                  <span>No subjects matched your search.</span>
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        ) : isLoading ? (
+                          <div className="student-subject-option student-subject-option--empty">
+                            <span>Loading subjects...</span>
+                          </div>
+                        ) : errorMessage ? (
+                          <div className="student-subject-option student-subject-option--empty">
+                            <span>Unable to load subjects.</span>
+                          </div>
+                        ) : (
+                          <div className="student-subject-option student-subject-option--empty">
+                            <span>No subjects available.</span>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    ) : null}
+
+                    {selectedCreateSubjectLabels.length ? (
+                      <div className="student-selected-subject-chips">
+                        {selectedCreateSubjectLabels.map((label) => (
+                          <span key={label} className="student-selected-subject-chip">
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </label>
               </div>

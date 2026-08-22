@@ -29,6 +29,23 @@ function FirstFieldIcon() {
   )
 }
 
+function InstructorFieldIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5.5 19a6.5 6.5 0 0 1 13 0" />
+    </svg>
+  )
+}
+
 function LockIcon() {
   return (
     <svg
@@ -114,6 +131,7 @@ export function AuthPortalPage({
   const [errorMessage, setErrorMessage] = useState('')
 
   const isInstructorPortal = portalLabel === 'INSTRUCTOR'
+  const leadingFieldIcon = isInstructorPortal ? <InstructorFieldIcon /> : <FirstFieldIcon />
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -236,7 +254,7 @@ export function AuthPortalPage({
             <label className="student-number-field">
               <span className="field-shell">
                 <span className="field-icon" aria-hidden="true">
-                  <FirstFieldIcon />
+                  {leadingFieldIcon}
                 </span>
                 <input
                   type="text"

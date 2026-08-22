@@ -57,10 +57,10 @@
 
 .school-brand-logo {
   position: absolute;
-  width: 90px;
-  height: 90px;
-  left: 49px;
-  top: 30px;
+  width: 72px;
+  height: 72px;
+  left: 48px;
+  top: 28px;
   object-fit: contain;
   z-index: 2;
 }
@@ -79,11 +79,11 @@
   position: absolute;
   font-family: 'Marcellus SC', serif;
   font-weight: 400;
-  width: 330px;
-  height: 36px;
-  left: 157px;
-  top: 45px;
-  font-size: 36px;
+  width: 360px;
+  height: 28px;
+  left: 132px;
+  top: 40px;
+  font-size: 28px;
   line-height: 1;
   letter-spacing: -0.01em;
   white-space: nowrap;
@@ -92,13 +92,13 @@
 
 .school-location {
   position: absolute;
-  width: 187px;
-  height: 20px;
-  left: 157px;
-  top: 81px;
+  width: 220px;
+  height: 15px;
+  left: 132px;
+  top: 70px;
   font-family: 'Newsreader', serif;
   font-weight: 500;
-  font-size: 20px;
+  font-size: 15px;
   line-height: 1;
   letter-spacing: -0.01em;
   z-index: 2;
@@ -113,45 +113,45 @@
 .login-container {
   box-sizing: border-box;
   position: absolute;
-  width: 464px;
-  height: 555px;
-  left: calc(50% + 27px);
-  top: calc(50% - 23.5px);
+  width: 410px;
+  height: 490px;
+  left: calc(50% + 20px);
+  top: calc(50% - 18px);
   transform: translate(-50%, -50%);
   background: var(--card-bg);
   border: 2px solid var(--card-border);
-  border-radius: 30px;
+  border-radius: 26px;
   box-shadow: 0 20px 60px rgba(68, 17, 17, 0.12);
 }
 
 .portal-logo {
   position: absolute;
-  width: 181px;
-  height: 181px;
+  width: 145px;
+  height: 145px;
   left: 50%;
-  top: 30px;
+  top: 24px;
   transform: translateX(-50%);
   object-fit: contain;
 }
 
 .portal-heading {
   position: absolute;
-  width: 266px;
-  height: 42px;
+  width: 240px;
+  height: 32px;
   left: 50%;
-  top: 204px;
+  top: 178px;
   transform: translateX(-50%);
   margin: 0;
   font-family: 'Poppins', sans-serif;
-  font-size: 32px;
-  line-height: 130%;
+  font-size: 27px;
+  line-height: 1.2;
   text-align: center;
   color: var(--brand-red);
   white-space: nowrap;
 }
 
 .portal-heading--instructor {
-  width: 360px;
+  width: 310px;
 }
 
 .portal-heading strong {
@@ -170,42 +170,42 @@
 .student-number-field,
 .password-field {
   position: absolute;
-  width: 400px;
-  height: 44px;
-  left: 32px;
+  width: 352px;
+  height: 40px;
+  left: 29px;
 }
 
 .student-number-field {
-  top: 279px;
+  top: 242px;
 }
 
 .password-field {
-  top: 340px;
+  top: 296px;
 }
 
 .field-shell {
   position: relative;
-  width: 400px;
-  height: 44px;
+  width: 352px;
+  height: 40px;
 }
 
 .field-shell input {
   width: 100%;
-  height: 44px;
-  padding-left: 52px;
-  padding-right: 20px;
+  height: 40px;
+  padding-left: 46px;
+  padding-right: 44px;
   border: 1px solid var(--field-border);
-  border-radius: 30px;
+  border-radius: 22px;
   background: var(--field-bg);
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--field-text);
   outline: none;
 }
 
 .password-field .field-shell input {
-  padding-right: 52px;
+  padding-right: 44px;
 }
 
 .field-shell input::placeholder {
@@ -214,21 +214,22 @@
 
 .field-icon {
   position: absolute;
-  width: 20px;
-  height: 20px;
-  left: 21px;
-  top: 12px;
+  width: 17px;
+  height: 17px;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
   color: #707070;
   pointer-events: none;
 }
 
 .field-visibility {
   position: absolute;
-  right: 21px;
+  right: 18px;
   top: 50%;
   transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -239,23 +240,23 @@
 .field-visibility svg,
 .field-icon svg {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
 }
 
 .login-button {
   position: absolute;
-  width: 400px;
-  height: 50px;
+  width: 352px;
+  height: 44px;
   left: 50%;
-  bottom: 79px;
+  bottom: 70px;
   transform: translateX(-50%);
   background: var(--brand-red);
   border: none;
-  border-radius: 30px;
+  border-radius: 22px;
   font-family: 'Inter', sans-serif;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
   color: #ffffff;
   cursor: pointer;
 }
@@ -267,21 +268,21 @@
 
 .auth-error-message {
   position: absolute;
-  left: 32px;
-  top: 447px;
-  width: 400px;
+  left: 29px;
+  top: 404px;
+  width: 352px;
   margin: 0;
   font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.25;
   color: #8f1111;
 }
 
 .remember-actions {
   position: absolute;
-  left: 38px;
-  right: 32px;
-  top: 499px;
+  left: 34px;
+  right: 30px;
+  top: 441px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -291,9 +292,9 @@
 .remember-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
   color: #000000;
 }
@@ -305,8 +306,8 @@
 }
 
 .remember-checkbox {
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   border: 1.5px solid var(--brand-red);
   border-radius: 4px;
   display: inline-flex;
@@ -321,13 +322,13 @@
 }
 
 .remember-checkbox svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .forgot-password {
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 130%;
   font-weight: 400;
   color: var(--link-text);

@@ -1666,6 +1666,7 @@
   position: relative;
   width: min(680px, calc(100vw - 48px));
   max-height: calc(100dvh - 48px);
+  display: block;
   padding: 0;
   border: 1px solid #e4e4e4;
   border-radius: 16px;
@@ -1847,6 +1848,7 @@
 }
 
 .create-student-modal-content {
+  position: relative;
   padding: 24px 26px 22px;
 }
 
@@ -2235,6 +2237,10 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
   }
+
+  .create-student-footer .subject-detail-action {
+    width: 100%;
+  }
 }
 
 .subject-detail-action--danger {
@@ -2557,7 +2563,7 @@
     font-size: 24px;
   }
 
-  .student-modal {
+  .student-modal:not(.create-student-modal) {
     width: 100%;
     max-height: calc(100vh - 32px);
     padding: 20px;
@@ -2646,7 +2652,7 @@
     padding: 16px;
   }
 
-  .student-modal {
+  .student-modal:not(.create-student-modal) {
     max-height: calc(100vh - 24px);
     padding: 18px 16px;
   }

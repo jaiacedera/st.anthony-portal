@@ -7,6 +7,7 @@ import {
   postDatabaseInitialization,
 } from '../controllers/databaseController.js'
 import { getInstructorDashboardData } from '../controllers/instructorDashboardController.js'
+import { postStudentProfile } from '../controllers/studentProfileController.js'
 import { getStudentDashboardData } from '../controllers/studentDashboardController.js'
 import {
   getInstructorSubjectsData,
@@ -46,6 +47,11 @@ const routes = [
     method: 'GET',
     pathname: '/api/student/dashboard',
     handler: getStudentDashboardData,
+  },
+  {
+    method: 'POST',
+    pathname: '/api/student/profile',
+    handler: postStudentProfile,
   },
   {
     method: 'GET',

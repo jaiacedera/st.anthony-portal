@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { StudentShell } from '../../components/student-shell'
 import {
   fetchStudentDashboard,
+  updateStudentProfile,
   type StudentDashboardPayload,
 } from '../../services/studentApi'
 import { readStudentAuth } from '../../utils/studentAuth'
@@ -79,6 +80,18 @@ function PersonIcon() {
   )
 }
 
+type StudentProfileFormState = {
+  studentNumber: string
+  firstName: string
+  middleName: string
+  lastName: string
+  yearLevel: string
+  phone: string
+  address: string
+  dateOfBirth: string
+  gender: string
+}
+
 function formatValue(value: string) {
   return value.trim() || 'Not set'
 }
@@ -133,6 +146,20 @@ function getInitials(fullName: string) {
   return initials || 'ST'
 }
 
+function createProfileFormState(student?: StudentDashboardPayload['student'] | null): StudentProfileFormState {
+  return {
+    studentNumber: student?.studentNumber ?? '',
+    firstName: student?.firstName ?? '',
+    middleName: student?.middleName ?? '',
+    lastName: student?.lastName ?? '',
+    yearLevel: student?.yearLevel ?? '',
+    phone: student?.phone ?? '',
+    address: student?.address ?? '',
+    dateOfBirth: student?.dateOfBirth ?? '',
+    gender: student?.gender ?? '',
+  }
+}
+
 function ProfileInfoRow({
   label,
   value,
@@ -157,6 +184,12 @@ export default function StudentProfilePage() {
   const [dashboard, setDashboard] = useState<StudentDashboardPayload | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
+  const [profileForm, setProfileForm] = useState<StudentProfileFormState>(
+    createProfileFormState(),
+  )
 
   useEffect(() => {
     if (!hasStudentIdentity) {
@@ -198,6 +231,13 @@ export default function StudentProfilePage() {
   }, [auth?.email, auth?.studentId, auth?.username, hasStudentIdentity])
 
   const profile = dashboard?.student
+
+  useEffect(() => {
+    if (!isEditing) {
+      setProfileForm(createProfileFormState(profile))
+    }
+  }, [isEditing, profile])
+
   const fullName = formatValue(profile?.fullName ?? '')
   const studentNumber = formatValue(profile?.studentNumber ?? '')
   const courseYear = formatValue(profile?.yearLevel ?? '')
@@ -207,6 +247,59 @@ export default function StudentProfilePage() {
   const dateOfBirth = formatFullDate(profile?.dateOfBirth ?? '')
   const gender = formatValue(profile?.gender ?? '')
   const joinedAt = formatJoinedDate(profile?.createdAt ?? '')
+
+  function handleEditOpen() {
+    setProfileForm(createProfileFormState(profile))
+    setSaveMessage('')
+    setIsEditing(true)
+  }
+
+  function handleEditClose() {
+    setIsEditing(false)
+    setSaveMessage('')
+    setProfileForm(createProfileFormState(profile))
+  }
+
+  function handleFormChange(
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) {
+    const { name, value } = event.target
+    setProfileForm((current) => ({
+      ...current,
+      [name]: value,
+    }))
+  }
+
+  async function handleProfileSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setIsSaving(true)
+    setSaveMessage('')
+
+    try {
+      const payload = await updateStudentProfile({
+        studentId: auth?.studentId,
+        email: auth?.email ?? auth?.username,
+        ...profileForm,
+      })
+
+      setDashboard((current) =>
+        current
+          ? {
+              ...current,
+              student: payload.student,
+            }
+          : current,
+      )
+      setSaveMessage(payload.message ?? 'Student profile updated successfully.')
+      setIsEditing(false)
+    } catch (error) {
+      setSaveMessage(
+        error instanceof Error ? error.message : 'Unable to update student profile.',
+      )
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   return (
     <StudentShell
@@ -277,7 +370,12 @@ export default function StudentProfilePage() {
             <article className="instructor-panel student-profile-card">
               <div className="student-profile-card-header">
                 <h3>Personal Information</h3>
-                <button type="button" className="student-profile-outline-button">
+                <button
+                  type="button"
+                  className="student-profile-outline-button"
+                  onClick={handleEditOpen}
+                  disabled={isLoading}
+                >
                   <EditIcon />
                   <span>Edit</span>
                 </button>
@@ -313,6 +411,158 @@ export default function StudentProfilePage() {
             </article>
           </div>
         </div>
+
+        {isEditing ? (
+          <div className="student-profile-modal-backdrop" role="presentation">
+            <div
+              className="student-profile-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="student-profile-edit-title"
+            >
+              <div className="student-profile-modal-header">
+                <div>
+                  <h3 id="student-profile-edit-title">Edit Profile</h3>
+                  <p>Update your personal information.</p>
+                </div>
+                <button
+                  type="button"
+                  className="student-profile-outline-button"
+                  onClick={handleEditClose}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <form className="student-profile-form" onSubmit={handleProfileSave}>
+                <label className="student-profile-form-field">
+                  <span>Email</span>
+                  <input type="email" value={profile?.email ?? ''} disabled />
+                </label>
+
+                <label className="student-profile-form-field">
+                  <span>Student ID</span>
+                  <input
+                    type="text"
+                    name="studentNumber"
+                    value={profileForm.studentNumber}
+                    onChange={handleFormChange}
+                  />
+                </label>
+
+                <div className="student-profile-form-grid">
+                  <label className="student-profile-form-field">
+                    <span>First Name</span>
+                    <input
+                      type="text"
+                      name="firstName"
+                      value={profileForm.firstName}
+                      onChange={handleFormChange}
+                    />
+                  </label>
+
+                  <label className="student-profile-form-field">
+                    <span>Middle Name</span>
+                    <input
+                      type="text"
+                      name="middleName"
+                      value={profileForm.middleName}
+                      onChange={handleFormChange}
+                    />
+                  </label>
+                </div>
+
+                <label className="student-profile-form-field">
+                  <span>Last Name</span>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={profileForm.lastName}
+                    onChange={handleFormChange}
+                  />
+                </label>
+
+                <label className="student-profile-form-field">
+                  <span>Course &amp; Year</span>
+                  <input
+                    type="text"
+                    name="yearLevel"
+                    value={profileForm.yearLevel}
+                    onChange={handleFormChange}
+                  />
+                </label>
+
+                <div className="student-profile-form-grid">
+                  <label className="student-profile-form-field">
+                    <span>Phone</span>
+                    <input
+                      type="text"
+                      name="phone"
+                      value={profileForm.phone}
+                      onChange={handleFormChange}
+                    />
+                  </label>
+
+                  <label className="student-profile-form-field">
+                    <span>Gender</span>
+                    <select
+                      name="gender"
+                      value={profileForm.gender}
+                      onChange={handleFormChange}
+                    >
+                      <option value="">Select gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Prefer not to say">Prefer not to say</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="student-profile-form-grid">
+                  <label className="student-profile-form-field">
+                    <span>Date of Birth</span>
+                    <input
+                      type="date"
+                      name="dateOfBirth"
+                      value={profileForm.dateOfBirth}
+                      onChange={handleFormChange}
+                    />
+                  </label>
+                </div>
+
+                <label className="student-profile-form-field">
+                  <span>Address</span>
+                  <textarea
+                    name="address"
+                    rows={3}
+                    value={profileForm.address}
+                    onChange={handleFormChange}
+                  />
+                </label>
+
+                {saveMessage ? (
+                  <p className="student-profile-form-message">{saveMessage}</p>
+                ) : null}
+
+                <div className="student-profile-form-actions">
+                  <button
+                    type="button"
+                    className="student-profile-outline-button"
+                    onClick={handleEditClose}
+                    disabled={isSaving}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="student-profile-solid-button" disabled={isSaving}>
+                    <EditIcon />
+                    <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        ) : null}
       </section>
     </StudentShell>
   )

@@ -1,6 +1,11 @@
 import { findStudentAccountByEmail } from '../../database/authStore.js'
 import { SHEET_ID_COLUMNS, SHEET_NAMES } from '../../database/sheetsSchema.js'
-import { getAllRows, getRowById } from '../../database/sheetsService.js'
+import {
+  findRows,
+  getAllRows,
+  getRowById,
+  updateRowById,
+} from '../../database/sheetsService.js'
 
 function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
@@ -172,6 +177,9 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
       id: student.student_id,
       studentNumber: getDisplayValue(student.student_number),
       fullName: buildPersonName(student) || 'Student profile incomplete',
+      firstName: getOptionalValue(student.first_name),
+      middleName: getOptionalValue(student.middle_name),
+      lastName: getOptionalValue(student.last_name),
       email: getDisplayValue(student.email),
       yearLevel: getDisplayValue(student.year_level),
       phone: getOptionalValue(student.phone),
@@ -211,5 +219,86 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
       subjectId: String(request.subject_id ?? '').trim(),
       status: getDisplayValue(request.status, 'PENDING'),
     })),
+  }
+}
+
+function getTrimmedValue(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+export async function updateStudentProfile({
+  studentId = '',
+  email = '',
+  studentNumber = '',
+  firstName = '',
+  middleName = '',
+  lastName = '',
+  yearLevel = '',
+  phone = '',
+  address = '',
+  dateOfBirth = '',
+  gender = '',
+}) {
+  const student = await resolveStudentRecord({ studentId, email })
+  const normalizedStudentNumber = getTrimmedValue(studentNumber)
+
+  if (normalizedStudentNumber) {
+    const duplicates = await findRows(SHEET_NAMES.STUDENTS, {
+      student_number: normalizedStudentNumber,
+    })
+    const hasDuplicate = duplicates.some(
+      (record) =>
+        String(record.student_id ?? '').trim() !== String(student.student_id ?? '').trim(),
+    )
+
+    if (hasDuplicate) {
+      const error = new Error('This student ID is already assigned to another account.')
+      error.statusCode = 409
+      throw error
+    }
+  }
+
+  const updatedRecord = await updateRowById(
+    SHEET_NAMES.STUDENTS,
+    SHEET_ID_COLUMNS[SHEET_NAMES.STUDENTS],
+    student.student_id,
+    {
+      student_number: normalizedStudentNumber,
+      first_name: getTrimmedValue(firstName),
+      middle_name: getTrimmedValue(middleName),
+      last_name: getTrimmedValue(lastName),
+      year_level: getTrimmedValue(yearLevel),
+      phone: getTrimmedValue(phone),
+      address: getTrimmedValue(address),
+      date_of_birth: getTrimmedValue(dateOfBirth),
+      gender: getTrimmedValue(gender),
+      updated_at: new Date().toISOString(),
+    },
+  )
+
+  if (!updatedRecord) {
+    const error = new Error('Student record was not found.')
+    error.statusCode = 404
+    throw error
+  }
+
+  return {
+    success: true,
+    message: 'Student profile updated successfully.',
+    student: {
+      id: updatedRecord.student_id,
+      studentNumber: getDisplayValue(updatedRecord.student_number),
+      fullName: buildPersonName(updatedRecord) || 'Student profile incomplete',
+      firstName: getOptionalValue(updatedRecord.first_name),
+      middleName: getOptionalValue(updatedRecord.middle_name),
+      lastName: getOptionalValue(updatedRecord.last_name),
+      email: getDisplayValue(updatedRecord.email),
+      yearLevel: getDisplayValue(updatedRecord.year_level),
+      phone: getOptionalValue(updatedRecord.phone),
+      address: getOptionalValue(updatedRecord.address),
+      dateOfBirth: getOptionalValue(updatedRecord.date_of_birth),
+      gender: getOptionalValue(updatedRecord.gender),
+      createdAt: getOptionalValue(updatedRecord.created_at),
+    },
   }
 }

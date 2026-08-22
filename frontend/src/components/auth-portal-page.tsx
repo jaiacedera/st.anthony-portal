@@ -289,12 +289,6 @@ export function AuthPortalPage({
               </span>
             </label>
 
-            <button className="login-button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'SIGNING IN...' : 'LOG IN'}
-            </button>
-
-            {errorMessage ? <p className="auth-error-message">{errorMessage}</p> : null}
-
             <div className="remember-actions">
               <label className="remember-row">
                 <input
@@ -312,6 +306,12 @@ export function AuthPortalPage({
                 Forgot password?
               </a>
             </div>
+
+            <button className="login-button" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'SIGNING IN...' : 'LOG IN'}
+            </button>
+
+            {errorMessage ? <p className="auth-error-message">{errorMessage}</p> : null}
           </form>
         </section>
       </div>

@@ -249,7 +249,7 @@
   width: 352px;
   height: 44px;
   left: 50%;
-  bottom: 70px;
+  top: 388px;
   transform: translateX(-50%);
   background: var(--brand-red);
   border: none;
@@ -269,7 +269,7 @@
 .auth-error-message {
   position: absolute;
   left: 29px;
-  top: 404px;
+  top: 440px;
   width: 352px;
   margin: 0;
   font-family: 'Inter', sans-serif;
@@ -282,7 +282,7 @@
   position: absolute;
   left: 34px;
   right: 30px;
-  top: 441px;
+  top: 350px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -461,15 +461,15 @@
     margin-top: 8px;
   }
 
+  .remember-actions {
+    width: 100%;
+    margin-top: 8px;
+    gap: 16px;
+  }
+
   .auth-error-message {
     width: 100%;
     margin-top: 14px;
-  }
-
-  .remember-actions {
-    width: 100%;
-    margin-top: 14px;
-    gap: 16px;
   }
 }
 

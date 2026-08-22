@@ -131,9 +131,78 @@ export function createStudentAccount({
   saveAuthAccounts(accounts)
 
   return {
+    accountId: accounts[accounts.length - 1].account_id,
     username: normalizedEmail,
     email: normalizedEmail,
   }
+}
+
+export function upsertStudentAccount({
+  email,
+  studentId,
+  defaultPassword,
+  createdByInstructorId = '',
+}) {
+  const normalizedEmail = String(email ?? '').trim().toLowerCase()
+  const normalizedStudentId = String(studentId ?? '').trim()
+
+  if (!normalizedEmail) {
+    throw new Error('Student email is required.')
+  }
+
+  if (!normalizedStudentId) {
+    throw new Error('Student id is required.')
+  }
+
+  const accounts = getAuthAccounts()
+  const existingIndex = accounts.findIndex(
+    (account) =>
+      account.role === 'STUDENT' &&
+      (
+        String(account.email ?? account.username ?? '').trim().toLowerCase() === normalizedEmail ||
+        String(account.student_id ?? '').trim() === normalizedStudentId
+      ),
+  )
+  const passwordSalt = randomBytes(16).toString('hex')
+  const passwordHash = scryptSync(defaultPassword, passwordSalt, 64).toString('hex')
+  const timestamp = new Date().toISOString()
+
+  if (existingIndex >= 0) {
+    const nextAccount = {
+      ...accounts[existingIndex],
+      role: 'STUDENT',
+      username: normalizedEmail,
+      email: normalizedEmail,
+      student_id: normalizedStudentId,
+      created_by_instructor_id: createdByInstructorId,
+      password_salt: passwordSalt,
+      password_hash: passwordHash,
+      status: 'ACTIVE',
+      updated_at: timestamp,
+    }
+
+    accounts[existingIndex] = nextAccount
+    saveAuthAccounts(accounts)
+    return nextAccount
+  }
+
+  const nextAccount = {
+    account_id: randomBytes(16).toString('hex'),
+    role: 'STUDENT',
+    username: normalizedEmail,
+    email: normalizedEmail,
+    student_id: normalizedStudentId,
+    created_by_instructor_id: createdByInstructorId,
+    password_salt: passwordSalt,
+    password_hash: passwordHash,
+    status: 'ACTIVE',
+    created_at: timestamp,
+    updated_at: timestamp,
+  }
+
+  accounts.push(nextAccount)
+  saveAuthAccounts(accounts)
+  return nextAccount
 }
 
 export function setStudentAccountPasswordByStudentId(studentId, password) {

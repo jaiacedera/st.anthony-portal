@@ -6,7 +6,8 @@ import {
   getInstructorAccountByUsername,
   getStudentAccountsByEmail,
   getStudentAccountByStudentId,
-  setStudentAccountPasswordByStudentId,
+  upsertStudentAccount,
+  verifyAccountPassword,
 } from '../../database/authStore.js'
 import { randomBytes } from 'node:crypto'
 import { SHEET_NAMES, SHEET_ID_COLUMNS } from '../../database/sheetsSchema.js'
@@ -428,9 +429,10 @@ export async function createInstructorStudentForUser({
   }
 
   const defaultPassword = `SACC-${randomPasswordSuffix()}`
+  let studentAccount
 
   try {
-    createStudentAccount({
+    studentAccount = upsertStudentAccount({
       email,
       studentId: student.student_id,
       defaultPassword,
@@ -444,7 +446,13 @@ export async function createInstructorStudentForUser({
     throw error
   }
 
-  setStudentAccountPasswordByStudentId(student.student_id, defaultPassword)
+  if (!studentAccount || !verifyAccountPassword(studentAccount, defaultPassword)) {
+    const error = new Error(
+      'Student login credentials could not be finalized. Please try creating the account again.',
+    )
+    error.statusCode = 500
+    throw error
+  }
 
   const subjectLabels = []
   const createdSubjects = []

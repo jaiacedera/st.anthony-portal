@@ -250,6 +250,8 @@ export function AuthPortalPage({
             <strong>{portalLabel}</strong> <span>PORTAL</span>
           </h2>
 
+          <p className="auth-subtitle">Welcome back! Please log in to continue.</p>
+
           <form className="student-auth-form" onSubmit={handleSubmit}>
             <label className="student-number-field">
               <span className="field-shell">

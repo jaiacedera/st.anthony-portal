@@ -1,5 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Marcellus+SC&family=Newsreader:opsz,wght@6..72,500&family=Poppins:wght@400;600&display=swap');
 
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .student-auth-page {
   --brand-red: #800a09;
   --card-bg: #f5f5f5;
@@ -160,6 +167,10 @@
 
 .portal-heading span {
   font-weight: 400;
+}
+
+.auth-subtitle {
+  display: none;
 }
 
 .student-auth-form {
@@ -335,33 +346,65 @@
   text-decoration: none;
 }
 
-@media (max-width: 900px), (max-height: 750px) {
-  .school-brand {
-    position: absolute;
-    top: 20px;
-    left: 20px;
+@media (max-width: 600px) {
+  .student-auth-page {
+    width: 100%;
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
     display: flex;
-    align-items: flex-start;
-    gap: 12px;
+    flex-direction: column;
+    align-items: center;
+    padding: 36px 16px 48px;
+  }
+
+  .login-background {
+    background-position: center top;
+  }
+
+  .login-overlay {
+    background:
+      url('../../assets/student/login-overlay.png') center top / cover no-repeat;
+    opacity: 0.9;
+  }
+
+  .school-brand {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 42px;
+    text-align: center;
+    z-index: 2;
   }
 
   .school-brand-logo {
     position: static;
-    width: 56px;
-    height: 56px;
+    width: 145px;
+    height: 145px;
+    margin-bottom: 18px;
   }
 
   .school-brand-text {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    align-items: center;
+    gap: 0;
   }
 
   .school-name {
     position: static;
-    width: auto;
+    width: 100%;
     height: auto;
-    font-size: 20px;
+    font-size: 28px;
+    line-height: 1.1;
+    white-space: nowrap;
+    text-align: center;
     z-index: auto;
   }
 
@@ -369,19 +412,35 @@
     position: static;
     width: auto;
     height: auto;
-    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 0;
+    font-size: 18px;
+    line-height: 1;
+    white-space: nowrap;
     z-index: auto;
   }
 
-  .student-auth-page {
-    overflow: auto;
+  .school-location::before,
+  .school-location::after {
+    content: '';
+    width: 72px;
+    height: 2px;
+    background: #f0c75e;
+    flex: none;
   }
 
   .login-card-wrapper {
+    position: relative;
+    inset: auto;
+    z-index: 2;
+    width: 100%;
+    max-width: 420px;
     display: flex;
-    align-items: flex-start;
     justify-content: center;
-    padding: 88px 16px 24px;
   }
 
   .login-container {
@@ -389,22 +448,21 @@
     left: auto;
     top: auto;
     transform: none;
-    width: min(430px, calc(100vw - 32px));
+    width: 100%;
+    max-width: 420px;
     height: auto;
-    min-height: auto;
+    min-height: 0;
     max-height: none;
-    padding: 24px;
+    padding: 36px 26px 28px;
     display: flex;
     flex-direction: column;
     align-items: center;
+    border-radius: 30px;
+    box-shadow: 0 18px 42px rgba(68, 17, 17, 0.16);
   }
 
   .portal-logo {
-    position: static;
-    width: 116px;
-    height: 116px;
-    transform: none;
-    margin-bottom: 12px;
+    display: none;
   }
 
   .portal-heading {
@@ -412,22 +470,32 @@
     width: auto;
     height: auto;
     transform: none;
-    font-size: 24px;
-    margin-bottom: 18px;
+    font-size: 27px;
+    line-height: 1.2;
+    margin-bottom: 0;
   }
 
   .portal-heading--instructor {
     width: auto;
   }
 
+  .auth-subtitle {
+    display: block;
+    margin: 12px 0 34px;
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    line-height: 1.4;
+    color: #707070;
+    text-align: center;
+  }
+
   .student-auth-form {
     position: static;
     inset: auto;
     width: 100%;
-    max-width: 400px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 0;
   }
 
   .student-number-field,
@@ -448,77 +516,110 @@
   .student-number-field,
   .password-field {
     width: 100%;
+    height: 56px;
+    margin-bottom: 18px;
   }
 
-  .field-shell,
+  .field-shell {
+    width: 100%;
+    height: 56px;
+  }
+
   .field-shell input {
     width: 100%;
+    height: 56px;
+    padding-left: 54px;
+    padding-right: 48px;
+    border-radius: 28px;
+    font-size: 17px;
+    min-width: 0;
+  }
+
+  .field-icon,
+  .field-visibility,
+  .field-icon svg,
+  .field-visibility svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .field-icon {
+    left: 18px;
+  }
+
+  .field-visibility {
+    right: 18px;
+  }
+
+  .remember-actions {
+    width: 100%;
+    margin-top: 18px;
+    margin-bottom: 24px;
+    gap: 14px;
+    flex-wrap: nowrap;
+  }
+
+  .remember-row,
+  .forgot-password {
+    font-size: 16px;
+  }
+
+  .remember-checkbox {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+  }
+
+  .remember-checkbox svg {
+    width: 16px;
+    height: 16px;
   }
 
   .login-button {
     width: 100%;
-    height: 50px;
-    margin-top: 8px;
-  }
-
-  .remember-actions {
-    width: 100%;
-    margin-top: 8px;
-    gap: 16px;
+    height: 58px;
+    margin-top: 0;
+    border-radius: 30px;
+    font-size: 17px;
   }
 
   .auth-error-message {
     width: 100%;
-    margin-top: 14px;
+    margin-top: 12px;
+    font-size: 12px;
   }
 }
 
-@media (max-width: 560px) {
-  .school-brand {
-    right: 16px;
-    gap: 10px;
-  }
-
-  .school-brand-logo {
-    width: 50px;
-    height: 50px;
-  }
-
-  .school-brand-text {
-    min-width: 0;
-  }
-
+@media (max-width: 390px) {
   .school-name {
-    font-size: 17px;
-    white-space: normal;
+    font-size: 24px;
   }
 
   .school-location {
-    font-size: 11px;
+    gap: 8px;
+    font-size: 16px;
   }
 
-  .login-card-wrapper {
-    padding: 84px 16px 24px;
+  .school-location::before,
+  .school-location::after {
+    width: 44px;
   }
 
   .login-container {
-    width: calc(100% - 32px);
-    padding: 24px 20px 28px;
-  }
-
-  .portal-logo {
-    width: 108px;
-    height: 108px;
-    margin: 0 auto 14px;
+    width: 100%;
+    padding: 32px 20px 26px;
   }
 
   .remember-actions {
-    flex-wrap: wrap;
-    margin-top: 18px;
+    gap: 10px;
   }
 
-  .forgot-password,
-  .remember-row {
+  .remember-row,
+  .forgot-password {
     font-size: 14px;
+  }
+
+  .field-shell input {
+    font-size: 16px;
   }
 }

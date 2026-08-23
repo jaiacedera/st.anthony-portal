@@ -396,18 +396,11 @@ export default function StudentsPage() {
     )
   }, [deferredSubjectSearchValue, subjects])
 
-  const selectedCreateSubjectLabels = useMemo(
+  const selectedCreateSubjects = useMemo(
     () =>
-      subjects
-        .filter((subject) => createStudentForm.subjectIds.includes(subject.id))
-        .map((subject) => subject.label),
+      subjects.filter((subject) => createStudentForm.subjectIds.includes(subject.id)),
     [createStudentForm.subjectIds, subjects],
   )
-
-  const selectedCreateSubject =
-    createStudentForm.subjectIds.length === 1
-      ? subjects.find((subject) => subject.id === createStudentForm.subjectIds[0]) ?? null
-      : null
 
   function openCreateStudentDialog() {
     setErrorMessage('')
@@ -521,18 +514,6 @@ export default function StudentsPage() {
         ? current.subjectIds.filter((currentId) => currentId !== subjectId)
         : [...current.subjectIds, subjectId],
     }))
-  }
-
-  function getSubjectTriggerLabel() {
-    if (!selectedCreateSubjectLabels.length) {
-      return 'Select subject(s)'
-    }
-
-    if (selectedCreateSubjectLabels.length === 1) {
-      return selectedCreateSubjectLabels[0]
-    }
-
-    return `${selectedCreateSubjectLabels.length} subjects selected`
   }
 
   async function handleDeleteStudent() {
@@ -1023,13 +1004,13 @@ export default function StudentsPage() {
                 <div className="student-create-grid">
                   <label className="student-create-field student-create-field--wide create-student-form-group">
                     <span className="create-student-label">Email</span>
-                    <span className="create-student-input-wrapper">
-                      <span className="create-student-input-icon" aria-hidden="true">
+                    <div className="create-student-email-wrapper">
+                      <span className="create-student-email-icon" aria-hidden="true">
                         <MailIcon />
                       </span>
                       <input
                         type="email"
-                        className="create-student-email"
+                        className="create-student-email-input"
                         value={createStudentForm.email}
                         onChange={(event) =>
                           setCreateStudentForm((current) => ({
@@ -1039,7 +1020,7 @@ export default function StudentsPage() {
                         placeholder="student@email.com"
                         required
                       />
-                    </span>
+                    </div>
                   </label>
 
                   <label className="student-create-field student-create-field--wide create-student-form-group">
@@ -1052,36 +1033,45 @@ export default function StudentsPage() {
                         aria-expanded={subjectPickerOpen}
                         aria-controls="student-subject-multiselect-menu"
                       >
-                        {selectedCreateSubject ? (
-                          <span className="student-selected-subject-chip selected-subject-chip">
-                            <span className="selected-subject-chip-text">
-                              {selectedCreateSubject.label}
+                        <span className="student-subject-multiselect-trigger-content">
+                          {selectedCreateSubjects.length ? (
+                            <span className="student-selected-subject-chip-list selected-subject-chip-list">
+                              {selectedCreateSubjects.map((subject) => (
+                                <span
+                                  key={subject.id}
+                                  className="student-selected-subject-chip selected-subject-chip"
+                                >
+                                  <span className="selected-subject-chip-text">
+                                    {subject.label}
+                                  </span>
+                                  <span
+                                    className="selected-subject-chip-remove"
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      toggleCreateStudentSubject(subject.id)
+                                    }}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault()
+                                        event.stopPropagation()
+                                        toggleCreateStudentSubject(subject.id)
+                                      }
+                                    }}
+                                    aria-label={`Remove ${subject.label}`}
+                                  >
+                                    <CloseIcon />
+                                  </span>
+                                </span>
+                              ))}
                             </span>
-                            <span
-                              className="selected-subject-chip-remove"
-                              role="button"
-                              tabIndex={0}
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                toggleCreateStudentSubject(selectedCreateSubject.id)
-                              }}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                  event.preventDefault()
-                                  event.stopPropagation()
-                                  toggleCreateStudentSubject(selectedCreateSubject.id)
-                                }
-                              }}
-                              aria-label={`Remove ${selectedCreateSubject.label}`}
-                            >
-                              <CloseIcon />
+                          ) : (
+                            <span className="student-subject-multiselect-value">
+                              Select subject(s)
                             </span>
-                          </span>
-                        ) : (
-                          <span className="student-subject-multiselect-value">
-                            {getSubjectTriggerLabel()}
-                          </span>
-                        )}
+                          )}
+                        </span>
 
                         <span
                           className={

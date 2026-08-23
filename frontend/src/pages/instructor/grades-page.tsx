@@ -1441,6 +1441,30 @@ export default function GradesPage() {
   const [isPostConfirmOpen, setIsPostConfirmOpen] = useState(false)
 
   useEffect(() => {
+    if (!successMessage) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setSuccessMessage('')
+    }, 7000)
+
+    return () => window.clearTimeout(timer)
+  }, [successMessage])
+
+  useEffect(() => {
+    if (!errorMessage) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setErrorMessage('')
+    }, 7000)
+
+    return () => window.clearTimeout(timer)
+  }, [errorMessage])
+
+  useEffect(() => {
     if (!username) {
       setIsLoading(false)
       setErrorMessage('No instructor session was found. Please sign in again.')

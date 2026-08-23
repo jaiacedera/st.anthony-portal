@@ -33,6 +33,22 @@ type DeleteDialogState = {
   studentId: string
 } | null
 
+function readStudentsPageIntent() {
+  if (typeof window === 'undefined') {
+    return {
+      subjectId: '',
+      openCreate: false,
+    }
+  }
+
+  const params = new URLSearchParams(window.location.search)
+
+  return {
+    subjectId: params.get('subjectId')?.trim() ?? '',
+    openCreate: params.get('open')?.trim().toLowerCase() === 'create',
+  }
+}
+
 function createDefaultStudentForm(subjectIds: string[] = []): CreateStudentFormState {
   return {
     email: '',
@@ -163,11 +179,12 @@ function StudentDetailRow({
 export default function StudentsPage() {
   const auth = readInstructorAuth()
   const username = auth?.username ?? ''
+  const pageIntent = readStudentsPageIntent()
   const [students, setStudents] = useState<InstructorStudentRecord[]>([])
   const [subjects, setSubjects] = useState<InstructorRosterSubject[]>([])
   const [searchValue, setSearchValue] = useState('')
-  const [activeTab, setActiveTab] = useState<TabKey>('all')
-  const [selectedSubjectId, setSelectedSubjectId] = useState('')
+  const [activeTab, setActiveTab] = useState<TabKey>(pageIntent.subjectId ? 'subject' : 'all')
+  const [selectedSubjectId, setSelectedSubjectId] = useState(pageIntent.subjectId)
   const [schoolYearLabel, setSchoolYearLabel] = useState('Not set')
   const [semesterLabel, setSemesterLabel] = useState('Not set')
   const [isLoading, setIsLoading] = useState(true)
@@ -190,6 +207,7 @@ export default function StudentsPage() {
   const deferredSearchValue = useDeferredValue(searchValue)
   const deferredSubjectSearchValue = useDeferredValue(subjectSearchValue)
   const subjectPickerRef = useRef<HTMLDivElement | null>(null)
+  const [hasAppliedPageIntent, setHasAppliedPageIntent] = useState(false)
 
   async function loadStudents(signal?: AbortSignal) {
     const payload = await fetchInstructorStudents(username, signal)
@@ -326,6 +344,30 @@ export default function StudentsPage() {
       document.removeEventListener('mousedown', handlePointerDown)
     }
   }, [isCreateStudentOpen, subjectPickerOpen])
+
+  useEffect(() => {
+    if (hasAppliedPageIntent || !subjects.length) {
+      return
+    }
+
+    const requestedSubject = pageIntent.subjectId
+      ? subjects.find((subject) => subject.id === pageIntent.subjectId) ?? null
+      : null
+
+    if (requestedSubject) {
+      setSelectedSubjectId(requestedSubject.id)
+      setActiveTab('subject')
+
+      if (pageIntent.openCreate) {
+        setIsCreateStudentOpen(true)
+        setSubjectPickerOpen(false)
+        setSubjectSearchValue('')
+        setCreateStudentForm(createDefaultStudentForm([requestedSubject.id]))
+      }
+    }
+
+    setHasAppliedPageIntent(true)
+  }, [hasAppliedPageIntent, pageIntent.openCreate, pageIntent.subjectId, subjects])
 
   const filteredStudents = useMemo(() => {
     const normalizedQuery = deferredSearchValue.trim().toLowerCase()

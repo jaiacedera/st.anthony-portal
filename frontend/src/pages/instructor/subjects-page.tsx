@@ -11,9 +11,11 @@ import { InstructorShell } from '../../components/instructor-shell'
 import {
   createInstructorSubject,
   fetchInstructorSubjects,
+  updateInstructorSubject,
   type InstructorSubjectRecord,
 } from '../../services/instructorApi'
 import { readInstructorAuth } from '../../utils/instructorAuth'
+import { navigateTo } from '../../utils/navigation'
 
 type CreateSubjectFormState = {
   subjectCode: string
@@ -23,6 +25,8 @@ type CreateSubjectFormState = {
   semester: string
   schoolYear: string
 }
+
+type SubjectFormMode = 'create' | 'edit'
 
 const subjectColorClasses = [
   'subject-code-pill--ruby',
@@ -190,6 +194,39 @@ function CloseIcon() {
   )
 }
 
+function ActionStudentsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="8" r="2.5" />
+      <path d="M4.5 18.5a4.8 4.8 0 0 1 9 0" />
+      <path d="M17 8v8" />
+      <path d="M13 12h8" />
+    </svg>
+  )
+}
+
+function ActionClassListIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 6.5h11" />
+      <path d="M8 12h11" />
+      <path d="M8 17.5h11" />
+      <circle cx="4.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="17.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+function ActionEditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="m16.5 3.5 4 4L8 20H4v-4L16.5 3.5Z" />
+    </svg>
+  )
+}
+
 export default function SubjectsPage() {
   const auth = readInstructorAuth()
   const username = auth?.username ?? ''
@@ -203,6 +240,7 @@ export default function SubjectsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
+  const [subjectFormMode, setSubjectFormMode] = useState<SubjectFormMode>('create')
   const [errorMessage, setErrorMessage] = useState('')
   const [bindingMessage, setBindingMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -332,12 +370,34 @@ export default function SubjectsPage() {
   function openCreateForm() {
     setSuccessMessage('')
     setErrorMessage('')
+    setSubjectFormMode('create')
     setIsCreateFormOpen(true)
     setFormState(createDefaultSubjectForm(selectedSemester, schoolYearLabel))
   }
 
+  function openEditForm() {
+    if (!selectedSubject) {
+      return
+    }
+
+    setSuccessMessage('')
+    setErrorMessage('')
+    setSubjectFormMode('edit')
+    setIsCreateFormOpen(true)
+    setFormState({
+      subjectCode: selectedSubject.code,
+      subjectName: selectedSubject.title,
+      schedule: selectedSubject.schedule === 'Not set' ? '' : selectedSubject.schedule,
+      room: selectedSubject.room === 'Not set' ? '' : selectedSubject.room,
+      semester: selectedSubject.semester === 'Not set' ? selectedSemester : selectedSubject.semester,
+      schoolYear:
+        selectedSubject.schoolYear === 'Not set' ? schoolYearLabel : selectedSubject.schoolYear,
+    })
+  }
+
   function closeCreateForm() {
     setIsCreateFormOpen(false)
+    setSubjectFormMode('create')
     setFormState(createDefaultSubjectForm(selectedSemester, schoolYearLabel))
   }
 
@@ -354,21 +414,40 @@ export default function SubjectsPage() {
     setSuccessMessage('')
 
     try {
-      const payload = await createInstructorSubject({
-        username,
-        subjectCode: formState.subjectCode,
-        subjectName: formState.subjectName,
-        semester: formState.semester,
-        schoolYear: formState.schoolYear,
-        schedule: formState.schedule,
-        room: formState.room,
-      })
+      const payload =
+        subjectFormMode === 'edit' && selectedSubject
+          ? await updateInstructorSubject({
+              username,
+              subjectId: selectedSubject.id,
+              subjectCode: formState.subjectCode,
+              subjectName: formState.subjectName,
+              semester: formState.semester,
+              schoolYear: formState.schoolYear,
+              schedule: formState.schedule,
+              room: formState.room,
+            })
+          : await createInstructorSubject({
+              username,
+              subjectCode: formState.subjectCode,
+              subjectName: formState.subjectName,
+              semester: formState.semester,
+              schoolYear: formState.schoolYear,
+              schedule: formState.schedule,
+              room: formState.room,
+            })
 
       if (!payload.subject) {
-        throw new Error('The subject was created but no subject record was returned.')
+        throw new Error(
+          subjectFormMode === 'edit'
+            ? 'The subject was updated but no subject record was returned.'
+            : 'The subject was created but no subject record was returned.',
+        )
       }
 
-      const nextSubjects = sortSubjects([...subjects, payload.subject])
+      const nextSubjects = sortSubjects([
+        ...subjects.filter((subject) => subject.id !== payload.subject?.id),
+        payload.subject,
+      ])
 
       setSubjects(nextSubjects)
       setSelectedSemester(payload.subject.semester)
@@ -376,11 +455,21 @@ export default function SubjectsPage() {
       setSchoolYearLabel(payload.subject.schoolYear)
       setSelectedSubjectId(payload.subject.id)
       setIsCreateFormOpen(false)
+      setSubjectFormMode('create')
       setFormState(createDefaultSubjectForm(payload.subject.semester, payload.subject.schoolYear))
-      setSuccessMessage(payload.message ?? 'Subject created successfully.')
+      setSuccessMessage(
+        payload.message ??
+          (subjectFormMode === 'edit'
+            ? 'Subject updated successfully.'
+            : 'Subject created successfully.'),
+      )
     } catch (error: unknown) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'Unable to create subject.',
+        error instanceof Error
+          ? error.message
+          : subjectFormMode === 'edit'
+            ? 'Unable to update subject.'
+            : 'Unable to create subject.',
       )
     } finally {
       setIsSubmitting(false)
@@ -582,6 +671,51 @@ export default function SubjectsPage() {
                     <span className="selected-subject-detail-value subject-detail-value">{selectedSubject.schoolYear}</span>
                   </div>
                 </div>
+
+                <p className="selected-subject-description">
+                  This subject is currently active and open for student management and class monitoring.
+                </p>
+
+                <div className="selected-subject-action-list selected-subject-actions">
+                  <button
+                    type="button"
+                    className="subject-detail-action subject-detail-action--solid"
+                    onClick={() =>
+                      navigateTo(
+                        `/instructor/students?subjectId=${encodeURIComponent(selectedSubject.id)}&open=create`,
+                      )
+                    }
+                  >
+                    <span className="subject-detail-action-icon" aria-hidden="true">
+                      <ActionStudentsIcon />
+                    </span>
+                    <span>Add Students</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="subject-detail-action"
+                    onClick={() =>
+                      navigateTo(`/instructor/students?subjectId=${encodeURIComponent(selectedSubject.id)}`)
+                    }
+                  >
+                    <span className="subject-detail-action-icon" aria-hidden="true">
+                      <ActionClassListIcon />
+                    </span>
+                    <span>View Class List</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="subject-detail-action"
+                    onClick={openEditForm}
+                  >
+                    <span className="subject-detail-action-icon" aria-hidden="true">
+                      <ActionEditIcon />
+                    </span>
+                    <span>Edit Subject</span>
+                  </button>
+                </div>
               </>
             ) : (
               <div className="subjects-empty-state subjects-empty-state--detail">
@@ -619,8 +753,14 @@ export default function SubjectsPage() {
           >
             <div className="subject-modal-header">
               <div>
-                <h2 id="create-subject-title">Create Subject</h2>
-                <p>Add a new subject to your active teaching load.</p>
+                <h2 id="create-subject-title">
+                  {subjectFormMode === 'edit' ? 'Edit Subject' : 'Create Subject'}
+                </h2>
+                <p>
+                  {subjectFormMode === 'edit'
+                    ? 'Update the selected subject details for your teaching load.'
+                    : 'Add a new subject to your active teaching load.'}
+                </p>
               </div>
 
               <button
@@ -713,7 +853,15 @@ export default function SubjectsPage() {
                   className="subject-detail-action subject-detail-action--solid"
                   disabled={isSubmitting}
                 >
-                  <span>{isSubmitting ? 'Creating...' : 'Save Subject'}</span>
+                  <span>
+                    {isSubmitting
+                      ? subjectFormMode === 'edit'
+                        ? 'Saving...'
+                        : 'Creating...'
+                      : subjectFormMode === 'edit'
+                        ? 'Save Changes'
+                        : 'Save Subject'}
+                  </span>
                 </button>
                 <button
                   type="button"

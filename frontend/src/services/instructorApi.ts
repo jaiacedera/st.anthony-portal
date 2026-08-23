@@ -86,6 +86,25 @@ export type CreateInstructorSubjectPayload = {
   subject?: InstructorSubjectRecord
 }
 
+export type UpdateInstructorSubjectInput = {
+  username: string
+  subjectId: string
+  subjectCode: string
+  subjectName: string
+  semester: string
+  schoolYear: string
+  schedule: string
+  room: string
+}
+
+export type UpdateInstructorSubjectPayload = {
+  success: boolean
+  connected: boolean
+  needsBinding: boolean
+  message?: string
+  subject?: InstructorSubjectRecord
+}
+
 export type InstructorStudentSubjectRecord = {
   id: string
   code: string
@@ -246,6 +265,29 @@ export async function createInstructorSubject(
   })
 
   const payload = (await response.json()) as CreateInstructorSubjectPayload & {
+    message?: string
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? `Backend request failed with ${response.status}`)
+  }
+
+  return payload
+}
+
+export async function updateInstructorSubject(
+  input: UpdateInstructorSubjectInput,
+): Promise<UpdateInstructorSubjectPayload> {
+  const response = await fetch(`${apiBaseUrl}/api/instructor/subjects/update`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  })
+
+  const payload = (await response.json()) as UpdateInstructorSubjectPayload & {
     message?: string
   }
 

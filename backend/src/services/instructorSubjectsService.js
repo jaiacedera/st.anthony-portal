@@ -4,6 +4,7 @@ import {
   createSubject,
   getAllRows,
   getInstructorSubjects,
+  updateSubject,
 } from '../../database/sheetsService.js'
 
 function isActiveStatus(value) {
@@ -218,6 +219,56 @@ export async function createInstructorSubjectForUser({
     connected: true,
     needsBinding: false,
     message: 'Subject created successfully.',
+    subject: mapSubjectRecord(
+      subject,
+      new Map(),
+      formatInstructorName(instructorRecord, account.username),
+    ),
+  }
+}
+
+export async function updateInstructorSubjectForUser({
+  username,
+  subjectId,
+  subjectCode,
+  subjectName,
+  semester,
+  schoolYear,
+  schedule,
+  room,
+}) {
+  const { account, instructorId, instructorRecord } = await resolveInstructorContext(username)
+
+  if (!instructorId) {
+    const error = new Error(
+      'Instructor account is authenticated but not linked to a Google Sheets instructor record yet.',
+    )
+    error.statusCode = 409
+    throw error
+  }
+
+  if (!subjectId?.trim()) {
+    const error = new Error('Subject id is required.')
+    error.statusCode = 400
+    throw error
+  }
+
+  const subject = await updateSubject({
+    subjectId,
+    instructorId,
+    subjectCode,
+    subjectName,
+    semester,
+    schoolYear,
+    schedule,
+    room,
+  })
+
+  return {
+    success: true,
+    connected: true,
+    needsBinding: false,
+    message: 'Subject updated successfully.',
     subject: mapSubjectRecord(
       subject,
       new Map(),

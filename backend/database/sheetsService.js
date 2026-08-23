@@ -419,6 +419,52 @@ export async function createSubject({
   })
 }
 
+export async function updateSubject({
+  subjectId,
+  instructorId,
+  subjectCode,
+  subjectName,
+  semester,
+  schoolYear,
+  schedule,
+  room,
+}) {
+  const subject = await getRowById(
+    SHEET_NAMES.SUBJECTS,
+    SHEET_ID_COLUMNS[SHEET_NAMES.SUBJECTS],
+    subjectId,
+  )
+
+  assertRecordExists(subject, 'Subject does not exist.')
+
+  if (subject.instructor_id !== instructorId) {
+    throw new Error('Instructor does not own this subject.')
+  }
+
+  if (!subjectCode?.trim()) {
+    throw new Error('Subject code is required.')
+  }
+
+  if (!subjectName?.trim()) {
+    throw new Error('Subject name is required.')
+  }
+
+  return updateRowById(
+    SHEET_NAMES.SUBJECTS,
+    SHEET_ID_COLUMNS[SHEET_NAMES.SUBJECTS],
+    subjectId,
+    {
+      subject_code: subjectCode.trim(),
+      subject_name: subjectName.trim(),
+      semester: toCellValue(semester),
+      school_year: toCellValue(schoolYear),
+      schedule: toCellValue(schedule),
+      room: toCellValue(room),
+      updated_at: new Date().toISOString(),
+    },
+  )
+}
+
 export async function createStudent({
   studentNumber,
   email,

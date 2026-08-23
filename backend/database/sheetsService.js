@@ -7,6 +7,14 @@ import {
   getSheetHeaders,
 } from './sheetsSchema.js'
 
+const SHEET_CACHE_TTL_MS = 15_000
+const SHEET_INITIALIZATION_TTL_MS = 300_000
+
+const sheetMatrixCache = new Map()
+const sheetMatrixRequests = new Map()
+const sheetInitializationCache = new Map()
+const sheetInitializationRequests = new Map()
+
 function getSheetRange(sheetName, range) {
   return `'${sheetName}'!${range}`
 }
@@ -65,79 +73,90 @@ function buildRowValues(headers, record) {
   return headers.map((header) => toCellValue(record[header]))
 }
 
-async function ensureSheetInitialized(sheetName) {
-  const sheetProperties = await getSheetPropertiesByName(sheetName)
-  const headers = getSheetHeaders(sheetName)
-  const sheets = createSheetsClient()
-  const spreadsheetId = getSpreadsheetId()
+function invalidateSheetMatrixCache(sheetName) {
+  sheetMatrixCache.delete(sheetName)
+  sheetMatrixRequests.delete(sheetName)
+}
 
-  if (!sheetProperties) {
-    await runSheetsRequest(() =>
-      sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: [
-            {
-              addSheet: {
-                properties: {
-                  title: sheetName,
+function cacheSheetMatrix(sheetName, values) {
+  sheetMatrixCache.set(sheetName, {
+    expiresAt: Date.now() + SHEET_CACHE_TTL_MS,
+    values,
+  })
+}
+
+function getCachedSheetMatrix(sheetName) {
+  const cachedEntry = sheetMatrixCache.get(sheetName)
+
+  if (!cachedEntry) {
+    return null
+  }
+
+  if (cachedEntry.expiresAt <= Date.now()) {
+    sheetMatrixCache.delete(sheetName)
+    return null
+  }
+
+  return cachedEntry.values
+}
+
+function markSheetInitialized(sheetName) {
+  sheetInitializationCache.set(sheetName, {
+    expiresAt: Date.now() + SHEET_INITIALIZATION_TTL_MS,
+  })
+}
+
+function isSheetInitializationFresh(sheetName) {
+  const cachedEntry = sheetInitializationCache.get(sheetName)
+
+  if (!cachedEntry) {
+    return false
+  }
+
+  if (cachedEntry.expiresAt <= Date.now()) {
+    sheetInitializationCache.delete(sheetName)
+    return false
+  }
+
+  return true
+}
+
+async function ensureSheetInitialized(sheetName) {
+  if (isSheetInitializationFresh(sheetName)) {
+    return
+  }
+
+  const existingRequest = sheetInitializationRequests.get(sheetName)
+
+  if (existingRequest) {
+    await existingRequest
+    return
+  }
+
+  const initializationRequest = (async () => {
+    const sheetProperties = await getSheetPropertiesByName(sheetName)
+    const headers = getSheetHeaders(sheetName)
+    const sheets = createSheetsClient()
+    const spreadsheetId = getSpreadsheetId()
+
+    if (!sheetProperties) {
+      await runSheetsRequest(() =>
+        sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [
+              {
+                addSheet: {
+                  properties: {
+                    title: sheetName,
+                  },
                 },
               },
-            },
-          ],
-        },
-      }),
-    )
+            ],
+          },
+        }),
+      )
 
-    await runSheetsRequest(() =>
-      sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: getSheetRange(sheetName, 'A1'),
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [headers],
-        },
-      }),
-    )
-
-    return
-  }
-
-  const response = await runSheetsRequest(() =>
-    sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: getSheetRange(sheetName, '1:2'),
-    }),
-  )
-  const currentHeaderRow = response.data.values?.[0] ?? []
-  const firstDataRow = response.data.values?.[1] ?? []
-  const hasHeaderValues = currentHeaderRow.some(
-    (value) => String(value ?? '').trim() !== '',
-  )
-  const hasDataRows = firstDataRow.some((value) => String(value ?? '').trim() !== '')
-
-  if (!hasHeaderValues) {
-    await runSheetsRequest(() =>
-      sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: getSheetRange(sheetName, 'A1'),
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [headers],
-        },
-      }),
-    )
-
-    return
-  }
-
-  const headersMatch = headers.every(
-    (header, index) =>
-      normalizeForComparison(currentHeaderRow[index]) === normalizeForComparison(header),
-  )
-
-  if (!headersMatch) {
-    if (!hasDataRows) {
       await runSheetsRequest(() =>
         sheets.spreadsheets.values.update({
           spreadsheetId,
@@ -149,33 +168,135 @@ async function ensureSheetInitialized(sheetName) {
         }),
       )
 
+      invalidateSheetMatrixCache(sheetName)
+      markSheetInitialized(sheetName)
       return
     }
 
-    const error = new Error(
-      `Sheet "${sheetName}" has unexpected headers. Update the tab manually before continuing.`,
+    const response = await runSheetsRequest(() =>
+      sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: getSheetRange(sheetName, '1:2'),
+      }),
     )
-    error.statusCode = 409
-    error.expose = true
-    throw error
+    const currentHeaderRow = response.data.values?.[0] ?? []
+    const firstDataRow = response.data.values?.[1] ?? []
+    const hasHeaderValues = currentHeaderRow.some(
+      (value) => String(value ?? '').trim() !== '',
+    )
+    const hasDataRows = firstDataRow.some((value) => String(value ?? '').trim() !== '')
+
+    if (!hasHeaderValues) {
+      await runSheetsRequest(() =>
+        sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: getSheetRange(sheetName, 'A1'),
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [headers],
+          },
+        }),
+      )
+
+      invalidateSheetMatrixCache(sheetName)
+      markSheetInitialized(sheetName)
+      return
+    }
+
+    const headersMatch = headers.every(
+      (header, index) =>
+        normalizeForComparison(currentHeaderRow[index]) === normalizeForComparison(header),
+    )
+
+    if (!headersMatch) {
+      if (!hasDataRows) {
+        await runSheetsRequest(() =>
+          sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: getSheetRange(sheetName, 'A1'),
+            valueInputOption: 'RAW',
+            requestBody: {
+              values: [headers],
+            },
+          }),
+        )
+
+        invalidateSheetMatrixCache(sheetName)
+        markSheetInitialized(sheetName)
+        return
+      }
+
+      const error = new Error(
+        `Sheet "${sheetName}" has unexpected headers. Update the tab manually before continuing.`,
+      )
+      error.statusCode = 409
+      error.expose = true
+      throw error
+    }
+
+    markSheetInitialized(sheetName)
+  })()
+
+  sheetInitializationRequests.set(sheetName, initializationRequest)
+
+  try {
+    await initializationRequest
+  } finally {
+    sheetInitializationRequests.delete(sheetName)
   }
 }
 
 async function getSheetMatrix(sheetName) {
   await ensureSheetInitialized(sheetName)
+  const cachedValues = getCachedSheetMatrix(sheetName)
+
+  if (cachedValues) {
+    return {
+      sheets: createSheetsClient(),
+      spreadsheetId: getSpreadsheetId(),
+      values: cachedValues,
+    }
+  }
+
+  const existingRequest = sheetMatrixRequests.get(sheetName)
+
+  if (existingRequest) {
+    const values = await existingRequest
+
+    return {
+      sheets: createSheetsClient(),
+      spreadsheetId: getSpreadsheetId(),
+      values,
+    }
+  }
+
   const sheets = createSheetsClient()
   const spreadsheetId = getSpreadsheetId()
-  const response = await runSheetsRequest(() =>
+  const matrixRequest = runSheetsRequest(() =>
     sheets.spreadsheets.values.get({
       spreadsheetId,
       range: getSheetRange(sheetName, 'A:ZZ'),
     }),
-  )
+  ).then((response) => {
+    const values = response.data.values ?? []
+    cacheSheetMatrix(sheetName, values)
+    return values
+  })
+
+  sheetMatrixRequests.set(sheetName, matrixRequest)
+
+  let values
+
+  try {
+    values = await matrixRequest
+  } finally {
+    sheetMatrixRequests.delete(sheetName)
+  }
 
   return {
     sheets,
     spreadsheetId,
-    values: response.data.values ?? [],
+    values,
   }
 }
 
@@ -304,6 +425,8 @@ export async function appendRow(sheetName, record) {
     }),
   )
 
+  invalidateSheetMatrixCache(sheetName)
+
   return toRowObject(headers, rowValues)
 }
 
@@ -337,6 +460,8 @@ export async function updateRowById(sheetName, idColumn, id, updates) {
       },
     }),
   )
+
+  invalidateSheetMatrixCache(sheetName)
 
   return nextRecord
 }
@@ -373,6 +498,8 @@ export async function deleteRowById(sheetName, idColumn, id) {
       },
     }),
   )
+
+  invalidateSheetMatrixCache(sheetName)
 
   return true
 }

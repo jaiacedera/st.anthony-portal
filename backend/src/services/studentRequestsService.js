@@ -6,6 +6,11 @@ import {
 import { SHEET_ID_COLUMNS, SHEET_NAMES } from '../../database/sheetsSchema.js'
 import { getRowById } from '../../database/sheetsService.js'
 import { findStudentAccountByEmail } from '../../database/studentAuthStore.js'
+import {
+  GRADE_BREAKDOWN_REQUEST_TYPE,
+  normalizeGradeRequestType,
+  normalizeGradingPeriod,
+} from '../utils/gradeRequestMetadata.js'
 
 function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
@@ -82,13 +87,30 @@ export async function submitStudentBreakdownRequest({
   subjectId,
   studentId = '',
   email = '',
+  gradingPeriod = '',
+  requestType = GRADE_BREAKDOWN_REQUEST_TYPE,
   reason = '',
 }) {
   const student = await resolveStudentRecord({ studentId, email })
   const normalizedSubjectId = String(subjectId ?? '').trim()
+  const normalizedGradingPeriod = normalizeGradingPeriod(gradingPeriod)
+  const normalizedRequestType =
+    normalizeGradeRequestType(requestType) || GRADE_BREAKDOWN_REQUEST_TYPE
 
   if (!normalizedSubjectId) {
     const error = new Error('Subject ID is required.')
+    error.statusCode = 400
+    throw error
+  }
+
+  if (!normalizedGradingPeriod) {
+    const error = new Error('A valid grading period is required.')
+    error.statusCode = 400
+    throw error
+  }
+
+  if (normalizedRequestType !== GRADE_BREAKDOWN_REQUEST_TYPE) {
+    const error = new Error('Unsupported student request type.')
     error.statusCode = 400
     throw error
   }
@@ -110,6 +132,7 @@ export async function submitStudentBreakdownRequest({
     studentId: String(student.student_id ?? '').trim(),
     subjectId: normalizedSubjectId,
     gradeId: String(gradeRecord.grade_id ?? '').trim(),
+    gradingPeriod: normalizedGradingPeriod,
     reason,
   })
 

@@ -32,6 +32,8 @@ export async function postStudentBreakdownRequest(req, res) {
   const subjectId = body?.subjectId?.trim?.() ?? ''
   const studentId = body?.studentId?.trim?.() ?? ''
   const email = body?.email?.trim?.() ?? ''
+  const gradingPeriod = body?.gradingPeriod?.trim?.() ?? ''
+  const requestType = body?.requestType?.trim?.() ?? ''
   const reason = body?.reason?.trim?.() ?? ''
 
   if (!subjectId || (!studentId && !email)) {
@@ -46,6 +48,8 @@ export async function postStudentBreakdownRequest(req, res) {
     subjectId,
     studentId,
     email,
+    gradingPeriod,
+    requestType,
     reason,
   })
   sendJson(res, 200, payload)

@@ -10,6 +10,7 @@ export type StudentDashboardSubjectRecord = {
   grade: string
   gradeLabel: string
   hasPostedGrade: boolean
+  postedGradingPeriods: Array<'midterm' | 'final'>
 }
 
 export type StudentDashboardPayload = {
@@ -47,6 +48,8 @@ export type StudentDashboardPayload = {
     subjectCode: string
     subjectName: string
     requestType: string
+    gradingPeriod: string
+    message: string
     status: string
     requestedAt: string
   }>
@@ -113,6 +116,8 @@ export type UpdateStudentProfilePayload = {
 
 export type CreateStudentBreakdownRequestInput = {
   subjectId: string
+  gradingPeriod: 'midterm' | 'final'
+  requestType?: 'grade_breakdown'
   studentId?: string
   email?: string
   reason?: string

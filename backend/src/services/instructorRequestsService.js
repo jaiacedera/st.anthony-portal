@@ -7,6 +7,10 @@ import {
   upsertGradeBreakdownResponse,
 } from '../../database/sheetsService.js'
 import { SHEET_NAMES } from '../../database/sheetsSchema.js'
+import {
+  GRADE_BREAKDOWN_REQUEST_TYPE,
+  parseGradeRequestReason,
+} from '../utils/gradeRequestMetadata.js'
 
 function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
@@ -100,6 +104,14 @@ function normalizeRequestStatus(value) {
   }
 
   return 'PENDING'
+}
+
+function formatRequestTypeLabel(value) {
+  if (value === GRADE_BREAKDOWN_REQUEST_TYPE) {
+    return 'Grade Breakdown'
+  }
+
+  return 'Request'
 }
 
 function assertRestrictedBreakdownPayload(payload) {
@@ -209,6 +221,7 @@ export async function getInstructorRequests(username) {
         const student = studentById.get(String(request.student_id ?? '').trim())
         const reviewedBy = getOptionalValue(request.reviewed_by)
         const reviewedByRecord = reviewedBy ? instructorById.get(reviewedBy) : null
+        const requestMetadata = parseGradeRequestReason(request.reason)
 
         return {
           requestId: String(request.request_id ?? '').trim(),
@@ -217,8 +230,9 @@ export async function getInstructorRequests(username) {
           subjectId,
           subjectCode: getDisplayValue(subject?.subject_code, 'N/A'),
           subjectTitle: getDisplayValue(subject?.subject_name, 'Untitled Subject'),
-          requestType: 'Grade Breakdown',
-          message: getOptionalValue(request.reason),
+          requestType: formatRequestTypeLabel(requestMetadata.requestType),
+          gradingPeriod: requestMetadata.gradingPeriod,
+          message: requestMetadata.message,
           status: normalizeRequestStatus(request.status),
           requestedAt: getOptionalValue(request.requested_at),
           processedAt: getOptionalValue(request.reviewed_at),

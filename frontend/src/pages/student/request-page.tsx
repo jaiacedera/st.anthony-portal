@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { StudentCreateRequestModal } from '../../components/student-create-request-modal'
 import { StudentShell } from '../../components/student-shell'
 import {
+  createStudentBreakdownRequest,
   fetchStudentDashboard,
   fetchStudentRequestResponse,
   type StudentApprovedBreakdownResponse,
@@ -144,7 +146,7 @@ function formatRequestedDateTime(value: string) {
     minute: '2-digit',
   }).format(parsed)
 
-  return `${datePart} • ${timePart}`
+  return `${datePart} - ${timePart}`
 }
 
 function getStatusTone(status: string) {
@@ -168,7 +170,14 @@ function formatStatusLabel(status: string) {
 function buildRequestMessage(
   request: StudentDashboardPayload['requests'][number],
 ) {
-  return `Your ${request.requestType.toLowerCase()} request for ${request.subjectCode} (${request.subjectName}) is currently recorded in the portal.`
+  return (
+    request.message ||
+    `Your ${request.requestType.toLowerCase()} request for ${request.subjectCode} (${request.subjectName}) is currently recorded in the portal.`
+  )
+}
+
+function formatGradingPeriodLabel(value: string) {
+  return value.trim().toLowerCase() === 'final' ? 'Final' : 'Midterm'
 }
 
 const rowsPerPage = 8
@@ -182,12 +191,33 @@ export default function StudentRequestPage() {
   const [dashboard, setDashboard] = useState<StudentDashboardPayload | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedRequestId, setSelectedRequestId] = useState('')
   const [requestResponse, setRequestResponse] = useState<StudentApprovedBreakdownResponse | null>(null)
   const [isResponseLoading, setIsResponseLoading] = useState(false)
+  const [isCreateRequestOpen, setIsCreateRequestOpen] = useState(false)
+  const [isSubmittingCreateRequest, setIsSubmittingCreateRequest] = useState(false)
+  const [createRequestErrorMessage, setCreateRequestErrorMessage] = useState('')
+
+  async function reloadDashboard(signal?: AbortSignal) {
+    if (!hasStudentIdentity) {
+      return null
+    }
+
+    const payload = await fetchStudentDashboard(
+      {
+        studentId: auth?.studentId,
+        email: auth?.email ?? auth?.username,
+      },
+      signal,
+    )
+
+    setDashboard(payload)
+    return payload
+  }
 
   useEffect(() => {
     if (!hasStudentIdentity) {
@@ -196,16 +226,7 @@ export default function StudentRequestPage() {
 
     const abortController = new AbortController()
 
-    fetchStudentDashboard(
-      {
-        studentId: auth?.studentId,
-        email: auth?.email ?? auth?.username,
-      },
-      abortController.signal,
-    )
-      .then((payload) => {
-        setDashboard(payload)
-      })
+    reloadDashboard(abortController.signal)
       .catch((error: unknown) => {
         if (abortController.signal.aborted) {
           return
@@ -234,6 +255,18 @@ export default function StudentRequestPage() {
     }
   }, [auth?.email, auth?.studentId, auth?.username, hasStudentIdentity])
 
+  useEffect(() => {
+    if (!successMessage) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setSuccessMessage('')
+    }, 7000)
+
+    return () => window.clearTimeout(timer)
+  }, [successMessage])
+
   const filteredRequests = useMemo(() => {
     const requests = dashboard?.requests ?? []
     const normalizedSearch = searchText.trim().toLowerCase()
@@ -252,6 +285,7 @@ export default function StudentRequestPage() {
         request.requestType,
         request.subjectCode,
         request.subjectName,
+        request.gradingPeriod,
         request.status,
       ]
         .join(' ')
@@ -319,6 +353,43 @@ export default function StudentRequestPage() {
     }
   }
 
+  async function handleCreateRequest(input: {
+    requestType: 'grade_breakdown'
+    subjectId: string
+    gradingPeriod: 'midterm' | 'final'
+    message: string
+  }) {
+    setIsSubmittingCreateRequest(true)
+    setCreateRequestErrorMessage('')
+    setErrorMessage('')
+
+    try {
+      const payload = await createStudentBreakdownRequest({
+        subjectId: input.subjectId,
+        gradingPeriod: input.gradingPeriod,
+        requestType: input.requestType,
+        studentId: auth?.studentId,
+        email: auth?.email ?? auth?.username,
+        reason: input.message,
+      })
+
+      await reloadDashboard()
+      setSelectedRequestId(payload.requestId ?? '')
+      setSuccessMessage(
+        payload.message ?? 'Grade breakdown request submitted successfully.',
+      )
+      setIsCreateRequestOpen(false)
+    } catch (error: unknown) {
+      setCreateRequestErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to submit the grade breakdown request.',
+      )
+    } finally {
+      setIsSubmittingCreateRequest(false)
+    }
+  }
+
   return (
     <StudentShell
       active="requests"
@@ -327,10 +398,12 @@ export default function StudentRequestPage() {
       notificationCount={dashboard?.stats.pendingRequestCount ?? 0}
     >
       <section className="student-requests-page">
-        {sessionErrorMessage || errorMessage ? (
+        {sessionErrorMessage || errorMessage || successMessage ? (
           <div className="dashboard-alert-stack" aria-live="polite">
             <section className="dashboard-alert-row">
-              <div className="dashboard-alert">{sessionErrorMessage || errorMessage}</div>
+              <div className="dashboard-alert">
+                {sessionErrorMessage || errorMessage || successMessage}
+              </div>
             </section>
           </div>
         ) : null}
@@ -363,7 +436,14 @@ export default function StudentRequestPage() {
             </span>
           </label>
 
-          <button type="button" className="student-requests-primary-button">
+          <button
+            type="button"
+            className="student-requests-primary-button"
+            onClick={() => {
+              setCreateRequestErrorMessage('')
+              setIsCreateRequestOpen(true)
+            }}
+          >
             <PlusIcon />
             <span>New Request</span>
           </button>
@@ -513,7 +593,17 @@ export default function StudentRequestPage() {
                     </span>
                     <div>
                       <span className="student-request-details-label">Subject</span>
-                      <strong>{selectedRequest.subjectCode}</strong>
+                      <strong>{`${selectedRequest.subjectCode} - ${selectedRequest.subjectName}`}</strong>
+                    </div>
+                  </div>
+
+                  <div className="student-request-details-row">
+                    <span className="student-request-details-icon" aria-hidden="true">
+                      <CalendarIcon />
+                    </span>
+                    <div>
+                      <span className="student-request-details-label">Grading Period</span>
+                      <strong>{formatGradingPeriodLabel(selectedRequest.gradingPeriod)}</strong>
                     </div>
                   </div>
 
@@ -686,6 +776,22 @@ export default function StudentRequestPage() {
           </section>
         </div>
       ) : null}
+
+      <StudentCreateRequestModal
+        isOpen={isCreateRequestOpen}
+        subjects={dashboard?.subjects ?? []}
+        isSubmitting={isSubmittingCreateRequest}
+        submissionError={createRequestErrorMessage}
+        onClose={() => {
+          if (isSubmittingCreateRequest) {
+            return
+          }
+
+          setCreateRequestErrorMessage('')
+          setIsCreateRequestOpen(false)
+        }}
+        onSubmit={handleCreateRequest}
+      />
     </StudentShell>
   )
 }

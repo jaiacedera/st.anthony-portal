@@ -6,6 +6,11 @@ import {
   SHEET_NAMES,
   getSheetHeaders,
 } from './sheetsSchema.js'
+import {
+  buildGradeBreakdownReason,
+  normalizeGradingPeriod,
+  parseGradeRequestReason,
+} from '../src/utils/gradeRequestMetadata.js'
 
 const SHEET_CACHE_TTL_MS = 15_000
 const SHEET_INITIALIZATION_TTL_MS = 300_000
@@ -71,6 +76,29 @@ function columnNumberToName(columnNumber) {
 
 function buildRowValues(headers, record) {
   return headers.map((header) => toCellValue(record[header]))
+}
+
+async function generateGradeRequestId() {
+  const requests = await getAllRows(SHEET_NAMES.GRADE_REQUESTS)
+  const currentYear = new Date().getFullYear()
+  let nextSequence = 1
+
+  for (const request of requests) {
+    const normalizedRequestId = String(request.request_id ?? '').trim().toUpperCase()
+    const match = /^REQ-(\d{4})-(\d+)$/.exec(normalizedRequestId)
+
+    if (!match) {
+      continue
+    }
+
+    if (Number.parseInt(match[1], 10) !== currentYear) {
+      continue
+    }
+
+    nextSequence = Math.max(nextSequence, Number.parseInt(match[2], 10) + 1)
+  }
+
+  return `REQ-${currentYear}-${String(nextSequence).padStart(4, '0')}`
 }
 
 function invalidateSheetMatrixCache(sheetName) {
@@ -823,8 +851,17 @@ export async function createGradeBreakdownRequest({
   studentId,
   subjectId,
   gradeId,
+  gradingPeriod,
   reason,
 }) {
+  const normalizedGradingPeriod = normalizeGradingPeriod(gradingPeriod)
+
+  if (!normalizedGradingPeriod) {
+    const error = new Error('A valid grading period is required.')
+    error.statusCode = 400
+    throw error
+  }
+
   const [student, subject, grade] = await Promise.all([
     getRowById(
       SHEET_NAMES.STUDENTS,
@@ -847,6 +884,12 @@ export async function createGradeBreakdownRequest({
   assertRecordExists(subject, 'Subject does not exist.')
   assertRecordExists(grade, 'Grade does not exist.')
 
+  if (!normalizeForComparison(subject.instructor_id)) {
+    const error = new Error('This subject is not assigned to an instructor yet.')
+    error.statusCode = 409
+    throw error
+  }
+
   const subjectStudent = await findRows(SHEET_NAMES.SUBJECT_STUDENTS, {
     subject_id: subjectId,
     student_id: studentId,
@@ -859,6 +902,7 @@ export async function createGradeBreakdownRequest({
 
   const gradePublications = await findRows(SHEET_NAMES.GRADE_PUBLICATIONS, {
     subject_id: subjectId,
+    grading_period: normalizedGradingPeriod,
     is_posted: 'TRUE',
   })
 
@@ -871,25 +915,38 @@ export async function createGradeBreakdownRequest({
   const pendingRequests = await findRows(SHEET_NAMES.GRADE_REQUESTS, {
     student_id: studentId,
     subject_id: subjectId,
-    grade_id: gradeId,
     status: 'PENDING',
   })
 
-  if (pendingRequests.length > 0) {
+  const hasDuplicatePendingRequest = pendingRequests.some(
+    (request) =>
+      parseGradeRequestReason(request.reason).gradingPeriod === normalizedGradingPeriod,
+  )
+
+  if (hasDuplicatePendingRequest) {
     return {
       success: false,
-      message: 'A pending grade breakdown request already exists.',
+      message:
+        'You already have a pending breakdown request for this subject and grading period.',
     }
   }
+
+  const requestId = await generateGradeRequestId()
 
   return {
     success: true,
     record: await appendRow(SHEET_NAMES.GRADE_REQUESTS, {
-      request_id: randomUUID(),
+      request_id: requestId,
       student_id: studentId,
       subject_id: subjectId,
       grade_id: gradeId,
-      reason: toCellValue(reason),
+      reason: toCellValue(
+        buildGradeBreakdownReason({
+          gradingPeriod: normalizedGradingPeriod,
+          message: reason,
+          subjectCode: subject.subject_code,
+        }),
+      ),
       status: 'PENDING',
       requested_at: new Date().toISOString(),
       reviewed_at: '',

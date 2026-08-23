@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { StudentCreateRequestModal } from '../../components/student-create-request-modal'
 import { StudentShell } from '../../components/student-shell'
 import {
   createStudentBreakdownRequest,
@@ -155,6 +156,8 @@ export default function StudentDashboardPage() {
   const [successMessage, setSuccessMessage] = useState('')
   const [isSubmittingBreakdownRequest, setIsSubmittingBreakdownRequest] = useState(false)
   const [selectedSubject, setSelectedSubject] = useState<StudentDashboardModalSubject | null>(null)
+  const [requestModalSubject, setRequestModalSubject] = useState<StudentDashboardSubjectRecord | null>(null)
+  const [createRequestErrorMessage, setCreateRequestErrorMessage] = useState('')
 
   useEffect(() => {
     if (!hasStudentIdentity) {
@@ -256,29 +259,44 @@ export default function StudentDashboardPage() {
   }
 
   async function handleRequestBreakdown() {
-    if (!selectedSubject?.hasPostedGrade || isSubmittingBreakdownRequest) {
+    if (!selectedSubject?.hasPostedGrade) {
       return
     }
 
+    setCreateRequestErrorMessage('')
+    setErrorMessage('')
+    setRequestModalSubject(selectedSubject)
+    closeSubjectDetails()
+  }
+
+  async function handleSubmitBreakdownRequest(input: {
+    requestType: 'grade_breakdown'
+    subjectId: string
+    gradingPeriod: 'midterm' | 'final'
+    message: string
+  }) {
     setIsSubmittingBreakdownRequest(true)
+    setCreateRequestErrorMessage('')
     setErrorMessage('')
 
     try {
       const payload = await createStudentBreakdownRequest({
-        subjectId: selectedSubject.subjectId,
+        subjectId: input.subjectId,
+        gradingPeriod: input.gradingPeriod,
+        requestType: input.requestType,
         studentId: auth?.studentId,
         email: auth?.email ?? auth?.username,
-        reason: `Requested ${selectedSubject.subjectCode} grade breakdown from the student dashboard.`,
+        reason: input.message,
       })
 
       await reloadDashboard()
       setSuccessMessage(
         payload.message ||
-          `Grade breakdown requested for ${selectedSubject.subjectCode}.`,
+          `Grade breakdown requested for ${requestModalSubject?.subjectCode ?? 'the selected subject'}.`,
       )
-      closeSubjectDetails()
+      setRequestModalSubject(null)
     } catch (error: unknown) {
-      setErrorMessage(
+      setCreateRequestErrorMessage(
         error instanceof Error
           ? error.message
           : 'Unable to submit the grade breakdown request.',
@@ -629,19 +647,35 @@ export default function StudentDashboardPage() {
                   type="button"
                   className="request-breakdown-btn"
                   onClick={handleRequestBreakdown}
-                  disabled={!selectedSubject.hasPostedGrade || isSubmittingBreakdownRequest}
+                  disabled={!selectedSubject.hasPostedGrade}
                 >
                   <ClipboardIcon />
-                  <span>
-                    {isSubmittingBreakdownRequest
-                      ? 'Requesting...'
-                      : 'Request Breakdown'}
-                  </span>
+                  <span>Request Breakdown</span>
                 </button>
               </div>
             </section>
           </div>
         ) : null}
+
+        <StudentCreateRequestModal
+          isOpen={Boolean(requestModalSubject)}
+          subjects={dashboard?.subjects ?? []}
+          isSubmitting={isSubmittingBreakdownRequest}
+          submissionError={createRequestErrorMessage}
+          initialRequestType="grade_breakdown"
+          initialSubjectId={requestModalSubject?.subjectId ?? null}
+          lockRequestType
+          lockSubject
+          onClose={() => {
+            if (isSubmittingBreakdownRequest) {
+              return
+            }
+
+            setCreateRequestErrorMessage('')
+            setRequestModalSubject(null)
+          }}
+          onSubmit={handleSubmitBreakdownRequest}
+        />
       </div>
     </StudentShell>
   )

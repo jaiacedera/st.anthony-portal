@@ -6,6 +6,10 @@ import {
   getRowById,
   updateRowById,
 } from '../../database/sheetsService.js'
+import {
+  GRADE_BREAKDOWN_REQUEST_TYPE,
+  parseGradeRequestReason,
+} from '../utils/gradeRequestMetadata.js'
 
 function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
@@ -98,6 +102,14 @@ function formatAverage(values) {
 
   const total = values.reduce((sum, value) => sum + value, 0)
   return (total / values.length).toFixed(2)
+}
+
+function formatStudentRequestType(value) {
+  if (value === GRADE_BREAKDOWN_REQUEST_TYPE) {
+    return 'Grade Breakdown'
+  }
+
+  return 'Request'
 }
 
 async function resolveStudentRecord({ studentId, email }) {
@@ -271,6 +283,11 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
         const subjectId = String(subject.subject_id ?? '').trim()
         const grade = gradeBySubjectId.get(subjectId)
         const instructor = instructorById.get(String(subject.instructor_id ?? '').trim())
+        const postedGradingPeriods = ['midterm', 'final'].filter((gradingPeriod) =>
+          isPostedPublication(
+            publicationBySubjectPeriod.get(`${subjectId}::${gradingPeriod}`),
+          ),
+        )
         const visibleGrade = resolveVisibleGrade(
           grade,
           publicationBySubjectPeriod.get(`${subjectId}::final`),
@@ -286,7 +303,8 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
           room: getDisplayValue(subject.room),
           grade: visibleGrade.grade,
           gradeLabel: visibleGrade.gradeLabel,
-          hasPostedGrade: visibleGrade.hasPostedGrade,
+          hasPostedGrade: postedGradingPeriods.length > 0 && visibleGrade.hasPostedGrade,
+          postedGradingPeriods,
         }
       })
       .sort((left, right) => left.subjectCode.localeCompare(right.subjectCode)),
@@ -294,13 +312,16 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
       .map((request) => {
         const subjectId = String(request.subject_id ?? '').trim()
         const subject = subjectById.get(subjectId)
+        const requestMetadata = parseGradeRequestReason(request.reason)
 
         return {
           requestId: String(request.request_id ?? '').trim(),
           subjectId,
           subjectCode: getDisplayValue(subject?.subject_code, 'N/A'),
           subjectName: getDisplayValue(subject?.subject_name, 'Untitled Subject'),
-          requestType: 'Grade Breakdown',
+          requestType: formatStudentRequestType(requestMetadata.requestType),
+          gradingPeriod: requestMetadata.gradingPeriod,
+          message: requestMetadata.message,
           status: getDisplayValue(request.status, 'PENDING'),
           requestedAt: getOptionalValue(request.requested_at),
         }

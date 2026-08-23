@@ -2003,11 +2003,14 @@
     column-gap: 18px;
     align-items: center;
     min-height: 190px;
-    margin: 0 18px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
     padding: 20px 18px;
     border: 1px solid #e6e6e6;
     border-radius: 18px;
     box-sizing: border-box;
+    justify-self: center;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   }
 
@@ -2337,7 +2340,9 @@
     grid-template-columns: 105px minmax(0, 1fr);
     column-gap: 14px;
     min-height: 190px;
-    margin: 0 12px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
     padding: 18px 14px;
   }
 

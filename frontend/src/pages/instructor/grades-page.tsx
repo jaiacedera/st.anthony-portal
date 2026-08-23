@@ -16,7 +16,7 @@ import {
 import { readInstructorAuth } from '../../utils/instructorAuth'
 
 type GradebookTabKey = 'gradebook' | 'requests' | 'history'
-type GradingPeriodKey = 'prelim' | 'midterm' | 'final'
+type GradingPeriodKey = 'midterm' | 'final'
 type GradeCategoryKey = 'knowledge' | 'skills' | 'attitude'
 type GradeSectionKey = string
 type GradeAggregationType = 'average' | 'single'
@@ -114,7 +114,6 @@ type StoredGradebookConfig = {
 }
 
 const gradingPeriods: Array<{ key: GradingPeriodKey; label: string }> = [
-  { key: 'prelim', label: 'Prelim' },
   { key: 'midterm', label: 'Midterm' },
   { key: 'final', label: 'Final' },
 ]
@@ -135,7 +134,60 @@ const defaultSkillLabels = [
   'Case Pres.',
 ]
 
-function buildDefaultGradeSections(): GradeSectionConfig[] {
+function buildDefaultGradeSections(gradingPeriod: GradingPeriodKey): GradeSectionConfig[] {
+  if (gradingPeriod === 'midterm') {
+    return [
+      {
+        id: 'knowledge-quiz',
+        category: 'knowledge',
+        label: 'Quiz',
+        weight: 8,
+        aggregationType: 'average',
+        allowAssessments: true,
+        order: 1,
+        isDefault: true,
+        isActive: true,
+        isCustom: false,
+      },
+      {
+        id: 'knowledge-long-exam',
+        category: 'knowledge',
+        label: 'Long Exam',
+        weight: 12,
+        aggregationType: 'average',
+        allowAssessments: true,
+        order: 2,
+        isDefault: true,
+        isActive: true,
+        isCustom: false,
+      },
+      {
+        id: 'knowledge-midterm-exam',
+        category: 'knowledge',
+        label: 'Midterm Exam',
+        weight: 10,
+        aggregationType: 'average',
+        allowAssessments: true,
+        order: 3,
+        isDefault: true,
+        isActive: true,
+        isCustom: false,
+      },
+      {
+        id: 'skills-core',
+        category: 'skills',
+        label: 'Skills Components',
+        weight: 40,
+        aggregationType: 'average',
+        allowAssessments: true,
+        order: 1,
+        isDefault: true,
+        isActive: true,
+        isCustom: false,
+      },
+    ]
+  }
+
   return [
     {
       id: 'knowledge-quiz',
@@ -224,45 +276,86 @@ function buildDefaultGradeSections(): GradeSectionConfig[] {
   ]
 }
 
-function buildDefaultGradeComponents(): GradeComponentConfig[] {
+function buildDefaultGradeComponents(gradingPeriod: GradingPeriodKey): GradeComponentConfig[] {
+  const knowledgeDefaults =
+    gradingPeriod === 'midterm'
+      ? [
+          {
+            id: 'knowledge-quiz-1',
+            sectionId: 'knowledge-quiz',
+            label: 'Quiz 1',
+            order: 1,
+            isDefault: true,
+            isActive: true,
+            isCustom: false,
+          },
+          {
+            id: 'knowledge-long-exam-1',
+            sectionId: 'knowledge-long-exam',
+            label: 'Long Exam 1',
+            order: 1,
+            isDefault: true,
+            isActive: true,
+            isCustom: false,
+          },
+          {
+            id: 'knowledge-midterm-exam',
+            sectionId: 'knowledge-midterm-exam',
+            label: 'Midterm Exam',
+            order: 1,
+            isDefault: true,
+            isActive: true,
+            isCustom: false,
+          },
+        ]
+      : [
+          {
+            id: 'knowledge-quiz-1',
+            sectionId: 'knowledge-quiz',
+            label: 'Quiz 1',
+            order: 1,
+            isDefault: true,
+            isActive: true,
+            isCustom: false,
+          },
+          {
+            id: 'knowledge-long-exam-1',
+            sectionId: 'knowledge-long-exam',
+            label: 'Long Exam 1',
+            order: 1,
+            isDefault: true,
+            isActive: true,
+            isCustom: false,
+          },
+          {
+            id: 'knowledge-major-exam',
+            sectionId: 'knowledge-major-exam',
+            label: 'Major Exam',
+            order: 1,
+            isDefault: true,
+            isActive: true,
+            isCustom: false,
+            periodAware: true,
+          },
+        ]
+
+  const skillDefaults = defaultSkillLabels.map((label, index) => ({
+    id: `skills-core-${index + 1}`,
+    sectionId: 'skills-core',
+    label,
+    order: index + 1,
+    isDefault: true,
+    isActive: true,
+    isCustom: false,
+  }))
+
+  if (gradingPeriod === 'midterm') {
+    return [...knowledgeDefaults, ...skillDefaults]
+  }
+
   return [
-    {
-      id: 'knowledge-quiz-1',
-      sectionId: 'knowledge-quiz',
-      label: 'Quiz 1',
-      order: 1,
-      isDefault: true,
-      isActive: true,
-      isCustom: false,
-    },
-    {
-      id: 'knowledge-long-exam-1',
-      sectionId: 'knowledge-long-exam',
-      label: 'Long Exam 1',
-      order: 1,
-      isDefault: true,
-      isActive: true,
-      isCustom: false,
-    },
-    {
-      id: 'knowledge-major-exam',
-      sectionId: 'knowledge-major-exam',
-      label: 'Major Exam',
-      order: 1,
-      isDefault: true,
-      isActive: true,
-      isCustom: false,
-      periodAware: true,
-    },
-    ...defaultSkillLabels.map((label, index) => ({
-      id: `skills-core-${index + 1}`,
-      sectionId: 'skills-core',
-      label,
-      order: index + 1,
-      isDefault: true,
-      isActive: true,
-      isCustom: false,
-    })),
+    ...knowledgeDefaults,
+    ...skillDefaults,
     {
       id: 'attitude-character',
       sectionId: 'attitude-character',
@@ -433,8 +526,65 @@ function getCategoryWeight(categoryKey: GradeCategoryKey) {
   return gradeCategories.find((category) => category.key === categoryKey)?.weight ?? 0
 }
 
+function getConfiguredCategories(sections: GradeSectionConfig[]) {
+  const activeCategoryKeys = new Set(
+    sections.filter((section) => section.isActive).map((section) => section.category),
+  )
+
+  return gradeCategories.filter((category) => activeCategoryKeys.has(category.key))
+}
+
 function getGradingPeriodLabel(gradingPeriod: GradingPeriodKey) {
   return gradingPeriods.find((period) => period.key === gradingPeriod)?.label ?? 'Midterm'
+}
+
+function formatPercentageValue(value: number) {
+  return Number.isInteger(value) ? String(value) : formatScore(value, 2)
+}
+
+function getCategoryTotalWeight(sections: GradeSectionConfig[], categoryKey: GradeCategoryKey) {
+  return roundTo(
+    sections
+      .filter((section) => section.category === categoryKey && section.isActive)
+      .reduce((sum, section) => sum + section.weight, 0),
+    2,
+  )
+}
+
+function getCategoryValidationMessage(
+  sections: GradeSectionConfig[],
+  gradingPeriod: GradingPeriodKey,
+  categoryKey: GradeCategoryKey,
+) {
+  if (categoryKey === 'skills') {
+    return null
+  }
+
+  const currentTotal = getCategoryTotalWeight(sections, categoryKey)
+  const requiredTotal = getCategoryWeight(categoryKey)
+
+  if (currentTotal === requiredTotal) {
+    return null
+  }
+
+  const categoryLabel = gradeCategories.find((category) => category.key === categoryKey)?.label ?? 'Category'
+  const difference = roundTo(Math.abs(requiredTotal - currentTotal), 2)
+
+  if (currentTotal < requiredTotal) {
+    if (gradingPeriod === 'midterm' && categoryKey === 'knowledge') {
+      return `${categoryLabel} breakdown totals ${formatPercentageValue(
+        currentTotal,
+      )}%. Allocate the remaining ${formatPercentageValue(
+        difference,
+      )}% to reach the required ${formatPercentageValue(requiredTotal)}%.`
+    }
+
+    return `${categoryLabel} sub-grades must total exactly ${formatPercentageValue(requiredTotal)}%.`
+  }
+
+  return `${categoryLabel} breakdown totals ${formatPercentageValue(
+    currentTotal,
+  )}%. Reduce ${formatPercentageValue(difference)}% to reach ${formatPercentageValue(requiredTotal)}%.`
 }
 
 function getDisplayComponentLabel(
@@ -670,7 +820,7 @@ function getComponentBaseScore(
       : section?.category === 'skills'
         ? 2
         : -1
-  const periodOffset = gradingPeriod === 'prelim' ? -3 : gradingPeriod === 'final' ? 3 : 0
+  const periodOffset = gradingPeriod === 'final' ? 3 : 0
 
   return clampNumber(60 + (hash % 31) + categoryOffset + periodOffset, 45, 99)
 }
@@ -683,7 +833,7 @@ function buildStudentGradeSnapshot(
   components: GradeComponentConfig[],
   overrides: GradeOverrideMap,
 ): StudentGradeSnapshot {
-  const categories = gradeCategories.map((category) => {
+  const categories = getConfiguredCategories(sections).map((category) => {
     const categorySections = sections
       .filter((section) => section.category === category.key)
       .filter((section) => section.isActive)
@@ -743,10 +893,15 @@ function buildStudentGradeSnapshot(
       : null
     const total =
       weighted === null ? null : roundTo(weighted / (category.weight / 100), 2)
-    const isIncomplete = categorySections.some(
-      (section) =>
-        !section.components.length || section.average === null || section.hasMissingScores,
-    )
+    const hasConfigurationMismatch = category.key !== 'skills'
+      ? getCategoryTotalWeight(sections, category.key) !== category.weight
+      : false
+    const isIncomplete =
+      hasConfigurationMismatch ||
+      categorySections.some(
+        (section) =>
+          !section.components.length || section.average === null || section.hasMissingScores,
+      )
 
     return {
       ...category,
@@ -760,9 +915,14 @@ function buildStudentGradeSnapshot(
   const availableWeighted = categories
     .map((category) => category.weighted)
     .filter((value): value is number => value !== null)
-  const finalScore = availableWeighted.length
+  const weightedSum = availableWeighted.length
     ? roundTo(availableWeighted.reduce((sum, value) => sum + value, 0), 2)
     : null
+  const configuredWeightTotal = categories.reduce((sum, category) => sum + category.weight, 0)
+  const finalScore =
+    weightedSum === null || configuredWeightTotal === 0
+      ? null
+      : roundTo(weightedSum / (configuredWeightTotal / 100), 2)
   const isIncomplete = categories.some(
     (category) => category.isIncomplete || category.weighted === null,
   )
@@ -922,6 +1082,30 @@ function normalizeComponentOrders(components: GradeComponentConfig[], sections: 
   return nextComponents
 }
 
+function shouldMigrateToPeriodDefaults(
+  sections: GradeSectionConfig[],
+  gradingPeriod: GradingPeriodKey,
+) {
+  if (gradingPeriod !== 'midterm') {
+    return false
+  }
+
+  const activeSectionIds = sortSections(sections)
+    .filter((section) => section.isActive)
+    .map((section) => section.id)
+
+  return JSON.stringify(activeSectionIds) ===
+    JSON.stringify([
+      'knowledge-quiz',
+      'knowledge-long-exam',
+      'knowledge-major-exam',
+      'skills-core',
+      'attitude-character',
+      'attitude-attendance',
+      'attitude-uniform',
+    ])
+}
+
 function getGradeConfigStorageKey(
   username: string,
   subjectId: string,
@@ -930,7 +1114,10 @@ function getGradeConfigStorageKey(
   return `instructor-grade-config::${username}::${subjectId}::${gradingPeriod}`
 }
 
-function readStoredGradeConfig(storageKey: string): StoredGradebookConfig | null {
+function readStoredGradeConfig(
+  storageKey: string,
+  gradingPeriod: GradingPeriodKey,
+): StoredGradebookConfig | null {
   if (typeof window === 'undefined') {
     return null
   }
@@ -953,6 +1140,13 @@ function readStoredGradeConfig(storageKey: string): StoredGradebookConfig | null
       cloneComponents(parsed.components),
       normalizedSections,
     )
+
+    if (shouldMigrateToPeriodDefaults(normalizedSections, gradingPeriod)) {
+      return {
+        sections: cloneSections(buildDefaultGradeSections(gradingPeriod)),
+        components: cloneComponents(buildDefaultGradeComponents(gradingPeriod)),
+      }
+    }
 
     return {
       sections: normalizedSections,
@@ -981,8 +1175,8 @@ export default function GradesPage() {
   const auth = readInstructorAuth()
   const username = auth?.username ?? ''
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const initialSections = useMemo(() => buildDefaultGradeSections(), [])
-  const initialComponents = useMemo(() => buildDefaultGradeComponents(), [])
+  const initialSections = useMemo(() => buildDefaultGradeSections('midterm'), [])
+  const initialComponents = useMemo(() => buildDefaultGradeComponents('midterm'), [])
   const [students, setStudents] = useState<InstructorStudentRecord[]>([])
   const [subjects, setSubjects] = useState<InstructorRosterSubject[]>([])
   const [gradeSections, setGradeSections] = useState<GradeSectionConfig[]>(
@@ -1106,9 +1300,11 @@ export default function GradesPage() {
     }
 
     const storageKey = getGradeConfigStorageKey(username, selectedSubjectId, selectedGradingPeriod)
-    const storedConfig = readStoredGradeConfig(storageKey)
-    const nextSections = storedConfig?.sections ?? cloneSections(initialSections)
-    const nextComponents = storedConfig?.components ?? cloneComponents(initialComponents)
+    const storedConfig = readStoredGradeConfig(storageKey, selectedGradingPeriod)
+    const periodDefaultSections = buildDefaultGradeSections(selectedGradingPeriod)
+    const periodDefaultComponents = buildDefaultGradeComponents(selectedGradingPeriod)
+    const nextSections = storedConfig?.sections ?? cloneSections(periodDefaultSections)
+    const nextComponents = storedConfig?.components ?? cloneComponents(periodDefaultComponents)
 
     setGradeSections(nextSections)
     setSavedGradeSections(cloneSections(nextSections))
@@ -1122,7 +1318,7 @@ export default function GradesPage() {
         components: nextComponents,
       })
     }
-  }, [initialComponents, initialSections, selectedGradingPeriod, selectedSubjectId, username])
+  }, [selectedGradingPeriod, selectedSubjectId, username])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -1176,6 +1372,11 @@ export default function GradesPage() {
       .filter((student) => student.subjects.some((subject) => subject.id === selectedSubject.id))
       .sort((left, right) => left.fullName.localeCompare(right.fullName))
   }, [selectedSubject, students])
+
+  const activeGradeCategories = useMemo(
+    () => getConfiguredCategories(gradeSections),
+    [gradeSections],
+  )
 
   const hasUnsavedChanges = useMemo(() => {
     const allOverrideKeys = new Set([
@@ -1260,6 +1461,15 @@ export default function GradesPage() {
       ? gradeSnapshots.find((snapshot) => snapshot.student.id === editGradesState.studentId) ??
         null
       : null
+
+  const componentManagerValidationMessage =
+    componentManagerCategory === null
+      ? null
+      : getCategoryValidationMessage(
+          componentManagerDraftSections,
+          selectedGradingPeriod,
+          componentManagerCategory,
+        )
 
   useEffect(() => {
     if (!editSnapshot) {
@@ -1350,15 +1560,14 @@ export default function GradesPage() {
     )
     setComponentManagerDraftComponents((current) =>
       current.map((component) => {
-        const section = componentManagerDraftSections.find((currentSection) => currentSection.id === sectionId)
-
-        if (!section || section.category !== 'attitude' || component.sectionId !== sectionId) {
+        if (componentManagerCategory !== 'attitude' || component.sectionId !== sectionId) {
           return component
         }
 
         return { ...component, label: nextLabel }
       }),
     )
+    setComponentManagerError('')
   }
 
   function handleManagerSectionWeightChange(
@@ -1372,6 +1581,7 @@ export default function GradesPage() {
         section.id === sectionId ? { ...section, weight: parsedValue === null ? 0 : parsedValue } : section,
       ),
     )
+    setComponentManagerError('')
   }
 
   function handleManagerDraftLabelChange(
@@ -1383,6 +1593,7 @@ export default function GradesPage() {
         component.id === componentId ? { ...component, label: event.target.value } : component,
       ),
     )
+    setComponentManagerError('')
   }
 
   function handleMoveManagerSection(sectionId: string, direction: -1 | 1) {
@@ -1464,6 +1675,7 @@ export default function GradesPage() {
     const nextSection = createCustomSection(category, activeCount + 1)
 
     setComponentManagerDraftSections((current) => [...current, nextSection])
+    setComponentManagerError('')
 
     if (category === 'knowledge') {
       setComponentManagerDraftComponents((current) => [
@@ -1487,6 +1699,7 @@ export default function GradesPage() {
 
       return [...current, createCustomComponent(sectionId, nextLabel, nextOrder)]
     })
+    setComponentManagerError('')
   }
 
   function handleRemoveManagerSection(sectionId: string) {
@@ -1546,6 +1759,19 @@ export default function GradesPage() {
   }
 
   function handleSaveComponentManager() {
+    if (componentManagerCategory) {
+      const validationMessage = getCategoryValidationMessage(
+        componentManagerDraftSections,
+        selectedGradingPeriod,
+        componentManagerCategory,
+      )
+
+      if (validationMessage) {
+        setComponentManagerError(validationMessage)
+        return
+      }
+    }
+
     const cleanedSections = normalizeSectionOrders(
       componentManagerDraftSections.map((section, index) => ({
         ...section,
@@ -1568,27 +1794,6 @@ export default function GradesPage() {
       })),
       cleanedSections,
     )
-
-    if (componentManagerCategory === 'knowledge' || componentManagerCategory === 'attitude') {
-      const categoryTotal = roundTo(
-        cleanedSections
-          .filter(
-            (section) => section.category === componentManagerCategory && section.isActive,
-          )
-          .reduce((sum, section) => sum + section.weight, 0),
-        2,
-      )
-      const expectedTotal = getCategoryWeight(componentManagerCategory)
-
-      if (categoryTotal !== expectedTotal) {
-        setComponentManagerError(
-          `${
-            componentManagerCategory === 'knowledge' ? 'Knowledge' : 'Attitude'
-          } sub-grades must total exactly ${expectedTotal}%.`,
-        )
-        return
-      }
-    }
 
     setEditDraftSections(cleanedSections)
     setEditDraftComponents(cleanedComponents)
@@ -1992,7 +2197,7 @@ export default function GradesPage() {
                         <span>Student Name</span>
                         <small>Student ID</small>
                       </th>
-                      {gradeCategories.map((category) => (
+                      {activeGradeCategories.map((category) => (
                         <th
                           key={category.key}
                           colSpan={2}
@@ -2009,7 +2214,7 @@ export default function GradesPage() {
                       </th>
                     </tr>
                     <tr>
-                      {gradeCategories.flatMap((category) => [
+                      {activeGradeCategories.flatMap((category) => [
                         <th key={`${category.key}-total`} className="grades-table-subhead">
                           <span>Total</span>
                           <small>(100%)</small>
@@ -2024,7 +2229,7 @@ export default function GradesPage() {
                   <tbody>
                     {isLoading ? (
                       <tr>
-                        <td colSpan={10} className="grades-table-empty">
+                        <td colSpan={activeGradeCategories.length * 2 + 4} className="grades-table-empty">
                           Loading gradebook...
                         </td>
                       </tr>
@@ -2079,7 +2284,7 @@ export default function GradesPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={10} className="grades-table-empty">
+                        <td colSpan={activeGradeCategories.length * 2 + 4} className="grades-table-empty">
                           {selectedSubject
                             ? 'No students are currently enrolled in the selected subject.'
                             : 'No subjects are available for grade posting yet.'}
@@ -2265,7 +2470,7 @@ export default function GradesPage() {
             </div>
 
             <div className="grade-settings-modal-body">
-              {gradeCategories.map((category) => (
+              {activeGradeCategories.map((category) => (
                 <section key={category.key} className="grade-settings-section">
                   <h3>
                     {category.label} ({category.weight}%)
@@ -2522,7 +2727,7 @@ export default function GradesPage() {
             </div>
 
             <div className="grade-edit-modal-body">
-              {gradeCategories.map((category) => (
+              {getConfiguredCategories(editDraftSections).map((category) => (
                 <section key={category.key} className="grade-edit-section">
                   <header
                     className={
@@ -2839,22 +3044,25 @@ export default function GradesPage() {
                     <span>Add Sub-grade</span>
                   </button>
                   <div className="component-manager-total">
-                    Total Weight:{' '}
-                    {formatScore(
+                    Current Total:{' '}
+                    {formatPercentageValue(
                       componentManagerDraftSections
                         .filter(
                           (section) =>
                             section.category === componentManagerCategory && section.isActive,
                         )
                         .reduce((sum, section) => sum + section.weight, 0),
-                      2,
-                    )}{' '}
-                    / {getCategoryWeight(componentManagerCategory)}%
+                    )}
+                    %{' '}
+                    Required Total: {formatPercentageValue(getCategoryWeight(componentManagerCategory))}
+                    %
                   </div>
                 </>
               ) : null}
-              {componentManagerError ? (
-                <p className="component-manager-error">{componentManagerError}</p>
+              {componentManagerError || componentManagerValidationMessage ? (
+                <p className="component-manager-error">
+                  {componentManagerError || componentManagerValidationMessage}
+                </p>
               ) : null}
             </div>
 
@@ -2870,8 +3078,9 @@ export default function GradesPage() {
                 type="button"
                 className="subject-detail-action subject-detail-action--solid"
                 onClick={handleSaveComponentManager}
+                disabled={Boolean(componentManagerValidationMessage)}
               >
-                <span>Save</span>
+                <span>Save Changes</span>
               </button>
             </div>
           </div>

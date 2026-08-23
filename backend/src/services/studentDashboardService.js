@@ -298,6 +298,7 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
           subjectId,
           subjectCode: getDisplayValue(subject.subject_code, 'N/A'),
           subjectName: getDisplayValue(subject.subject_name, 'Untitled Subject'),
+          units: getDisplayValue(subject.units),
           instructorName: buildPersonName(instructor) || 'Instructor not set',
           schedule: getDisplayValue(subject.schedule),
           room: getDisplayValue(subject.room),

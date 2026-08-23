@@ -497,6 +497,7 @@ export default function StudentDashboardPage() {
             <div className="student-subjects-table-head">
               <span>Subject Code</span>
               <span>Subject Title</span>
+              <span>Units</span>
               <span>Instructor</span>
               <span>Schedule</span>
               <span>Room</span>
@@ -525,6 +526,7 @@ export default function StudentDashboardPage() {
                     </div>
 
                     <span className="student-subject-title">{subject.subjectName}</span>
+                    <span className="student-subject-text">{subject.units}</span>
                     <span className="student-subject-text">{subject.instructorName}</span>
 
                     <span className="student-inline-meta">
@@ -611,6 +613,14 @@ export default function StudentDashboardPage() {
                   </span>
                   <span className="subject-detail-label">Instructor</span>
                   <span className="subject-detail-value">{selectedSubject.instructorName}</span>
+                </div>
+
+                <div className="subject-detail-row">
+                  <span className="subject-detail-icon" aria-hidden="true">
+                    <BookIcon />
+                  </span>
+                  <span className="subject-detail-label">Units</span>
+                  <span className="subject-detail-value">{selectedSubject.units}</span>
                 </div>
 
                 <div className="subject-detail-row">

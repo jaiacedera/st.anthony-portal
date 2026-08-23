@@ -4,6 +4,7 @@ export type StudentDashboardSubjectRecord = {
   subjectId: string
   subjectCode: string
   subjectName: string
+  units: string
   instructorName: string
   schedule: string
   room: string

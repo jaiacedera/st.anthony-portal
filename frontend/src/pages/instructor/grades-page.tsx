@@ -2574,7 +2574,7 @@ export default function GradesPage() {
               />
               <button
                 type="button"
-                className="grades-toolbar-button grades-toolbar-button--secondary"
+                className="grades-toolbar-button grades-toolbar-button--secondary import-excel-btn"
                 onClick={handleImportTrigger}
               >
                 <UploadIcon />
@@ -2582,7 +2582,7 @@ export default function GradesPage() {
               </button>
               <button
                 type="button"
-                className="grades-toolbar-button grades-toolbar-button--primary"
+                className="grades-toolbar-button grades-toolbar-button--primary save-changes-btn"
                 onClick={handleSaveChanges}
                 disabled={isSaving || !hasUnsavedChanges}
               >

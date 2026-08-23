@@ -2847,6 +2847,63 @@
   color: #2e8b57;
 }
 
+@media (min-width: 801px) {
+  .grades-page-toolbar-actions {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .grades-page-toolbar-actions .import-excel-btn,
+  .grades-page-toolbar-actions .save-changes-btn {
+    height: 48px;
+    min-height: 48px;
+    padding: 0 20px;
+    border-radius: 12px;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    align-self: flex-start;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
+    white-space: nowrap;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .grades-page-toolbar-actions .import-excel-btn {
+    background: #fff;
+    border: 1px solid #d96b6b;
+    color: #9b1111;
+  }
+
+  .grades-page-toolbar-actions .import-excel-btn:hover {
+    background: #fff8f8;
+  }
+
+  .grades-page-toolbar-actions .save-changes-btn {
+    background: #c98c8c;
+    border: 1px solid #c98c8c;
+    color: #fff;
+  }
+
+  .grades-page-toolbar-actions .save-changes-btn:hover {
+    filter: brightness(0.98);
+  }
+
+  .grades-page-toolbar-actions .save-changes-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .grades-page-toolbar-actions .import-excel-btn svg,
+  .grades-page-toolbar-actions .save-changes-btn svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+}
+
 .grades-posting-status {
   display: grid;
   justify-items: end;

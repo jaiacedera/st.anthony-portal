@@ -1,6 +1,8 @@
 import {
   postInstructorLogin,
+  postStudentForgotPassword,
   postStudentLogin,
+  postStudentResetPassword,
 } from '../controllers/authController.js'
 import {
   getDatabaseStatus,
@@ -56,6 +58,16 @@ const routes = [
     method: 'POST',
     pathname: '/api/auth/student/login',
     handler: postStudentLogin,
+  },
+  {
+    method: 'POST',
+    pathname: '/api/auth/student/forgot-password',
+    handler: postStudentForgotPassword,
+  },
+  {
+    method: 'POST',
+    pathname: '/api/auth/student/reset-password',
+    handler: postStudentResetPassword,
   },
   {
     method: 'GET',

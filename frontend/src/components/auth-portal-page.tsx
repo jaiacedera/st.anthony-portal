@@ -2,6 +2,7 @@ import { useState } from 'react'
 import logoImage from '../assets/student/logo.png'
 import '../pages/student/student-auth-page.css'
 import { getApiBaseUrl } from '../utils/apiBaseUrl'
+import { clearRememberedStudentEmail, readRememberedStudentEmail, writeRememberedStudentEmail } from '../utils/studentAuth'
 
 const apiBaseUrl = getApiBaseUrl()
 
@@ -123,14 +124,15 @@ export function AuthPortalPage({
   firstFieldPlaceholder,
   forgotPasswordHref,
 }: AuthPortalPageProps) {
-  const [credential, setCredential] = useState('')
+  const isInstructorPortal = portalLabel === 'INSTRUCTOR'
+  const [credential, setCredential] = useState(() =>
+    isInstructorPortal ? '' : readRememberedStudentEmail(),
+  )
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(true)
+  const [rememberMe, setRememberMe] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-
-  const isInstructorPortal = portalLabel === 'INSTRUCTOR'
   const leadingFieldIcon = isInstructorPortal ? <InstructorFieldIcon /> : <FirstFieldIcon />
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -200,6 +202,14 @@ export function AuthPortalPage({
       } else {
         window.sessionStorage.setItem(storageKey, authPayload)
         window.localStorage.removeItem(storageKey)
+      }
+
+      if (!isInstructorPortal) {
+        if (rememberMe) {
+          writeRememberedStudentEmail(credential)
+        } else {
+          clearRememberedStudentEmail()
+        }
       }
 
       window.location.href = isInstructorPortal

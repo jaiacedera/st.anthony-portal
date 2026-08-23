@@ -38,6 +38,9 @@ export const SHEET_HEADERS = {
     'status',
     'created_at',
     'updated_at',
+    'password_reset_token_hash',
+    'password_reset_expires_at',
+    'password_reset_requested_at',
   ],
   [SHEET_NAMES.INSTRUCTORS]: [
     'instructor_id',

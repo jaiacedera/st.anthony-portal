@@ -108,6 +108,90 @@ export async function sendStudentWelcomeEmail({
   }
 }
 
+export async function sendStudentPasswordResetEmail({
+  recipientEmail,
+  resetUrl,
+}) {
+  if (!isBrevoConfigured()) {
+    return {
+      sent: false,
+      reason: 'Brevo email settings are not configured.',
+    }
+  }
+
+  let response
+
+  try {
+    response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'api-key': env.brevoApiKey,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        sender: {
+          email: env.brevoSenderEmail,
+          name: env.brevoSenderName,
+        },
+        to: [{ email: recipientEmail }],
+        subject: 'Student Portal Password Reset',
+        htmlContent: `
+          <html>
+            <body style="font-family: Arial, sans-serif; color: #1f1f1f; line-height: 1.5;">
+              <p>Hello,</p>
+              <p>We received a request to reset your St. Anthony College student portal password.</p>
+              <p>Use the link below to choose a new password:</p>
+              <p><a href="${escapeHtml(resetUrl)}">${escapeHtml(resetUrl)}</a></p>
+              <p>If you did not request this, you can safely ignore this email.</p>
+            </body>
+          </html>
+        `,
+        textContent: [
+          'Hello,',
+          '',
+          'We received a request to reset your St. Anthony College student portal password.',
+          'Use the link below to choose a new password:',
+          resetUrl,
+          '',
+          'If you did not request this, you can safely ignore this email.',
+        ].join('\n'),
+      }),
+    })
+  } catch (error) {
+    return {
+      sent: false,
+      reason:
+        error instanceof Error
+          ? `Brevo request failed: ${error.message}`
+          : 'Brevo request failed before a response was received.',
+    }
+  }
+
+  if (!response.ok) {
+    let details = ''
+
+    try {
+      const payload = await response.json()
+      details = payload?.message || JSON.stringify(payload)
+    } catch {
+      details = await response.text()
+    }
+
+    return {
+      sent: false,
+      reason: details || `Brevo request failed with ${response.status}.`,
+    }
+  }
+
+  const payload = await response.json()
+
+  return {
+    sent: true,
+    messageId: payload?.messageId ?? '',
+  }
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')

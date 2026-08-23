@@ -5,10 +5,15 @@ import {
 } from '../../database/authStore.js'
 import {
   getStudentAccountsByEmail,
+  setStudentAccountPasswordByResetToken,
+  setStudentPasswordResetTokenByEmail,
   verifyAccountPassword,
 } from '../../database/studentAuthStore.js'
 import { SHEET_ID_COLUMNS, SHEET_NAMES } from '../../database/sheetsSchema.js'
 import { getRowById } from '../../database/sheetsService.js'
+import { sendStudentPasswordResetEmail } from './emailService.js'
+import { env } from '../config/env.js'
+import { randomBytes } from 'node:crypto'
 
 function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
@@ -76,6 +81,17 @@ export async function authenticateInstructor(username, password) {
 
 export async function authenticateStudent(email, password) {
   return authenticateStudentWithResolver(email, password)
+}
+
+function buildStudentPasswordResetSuccessPayload() {
+  return {
+    success: true,
+    message: 'Password reset instructions have been sent to your email.',
+  }
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(String(email ?? '').trim())
 }
 
 export async function authenticateStudentWithResolver(
@@ -206,4 +222,84 @@ export async function authenticateStudentWithResolver(
   }
 
   return buildInvalidStudentCredentialsPayload()
+}
+
+export async function requestStudentPasswordReset(email) {
+  const normalizedEmail = String(email ?? '').trim().toLowerCase()
+
+  if (!isValidEmail(normalizedEmail)) {
+    return {
+      success: false,
+      message: 'Enter a valid email address.',
+    }
+  }
+
+  const accounts = await getStudentAccountsByEmail(normalizedEmail)
+  const activeAccount =
+    accounts.find((account) => String(account.status ?? '').trim().toUpperCase() === 'ACTIVE') ??
+    null
+
+  if (!activeAccount?.account_id) {
+    return buildStudentPasswordResetSuccessPayload()
+  }
+
+  const token = randomBytes(32).toString('hex')
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+  await setStudentPasswordResetTokenByEmail(normalizedEmail, token, expiresAt)
+
+  const resetUrl = `${String(env.frontendOrigin || 'http://localhost:5173').trim()}/student/reset-password?token=${encodeURIComponent(token)}`
+  const emailResult = await sendStudentPasswordResetEmail({
+    recipientEmail: normalizedEmail,
+    resetUrl,
+  })
+
+  if (!emailResult.sent) {
+    return {
+      success: false,
+      message: emailResult.reason || 'Password reset is unavailable right now.',
+    }
+  }
+
+  return buildStudentPasswordResetSuccessPayload()
+}
+
+export async function resetStudentPassword(token, password, confirmPassword) {
+  const normalizedToken = String(token ?? '').trim()
+  const nextPassword = String(password ?? '')
+  const nextConfirmPassword = String(confirmPassword ?? '')
+
+  if (!normalizedToken) {
+    return {
+      success: false,
+      message: 'This password reset link is invalid or has expired.',
+    }
+  }
+
+  if (!nextPassword || nextPassword.length < 8) {
+    return {
+      success: false,
+      message: 'Password must be at least 8 characters long.',
+    }
+  }
+
+  if (nextPassword !== nextConfirmPassword) {
+    return {
+      success: false,
+      message: 'Passwords do not match.',
+    }
+  }
+
+  const account = await setStudentAccountPasswordByResetToken(normalizedToken, nextPassword)
+
+  if (!account) {
+    return {
+      success: false,
+      message: 'This password reset link is invalid or has expired.',
+    }
+  }
+
+  return {
+    success: true,
+    message: 'Your password has been reset successfully. You can now sign in.',
+  }
 }

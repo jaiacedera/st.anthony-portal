@@ -346,6 +346,119 @@ body,
   text-decoration: none;
 }
 
+.login-container--support {
+  height: auto;
+  min-height: 430px;
+  padding: 34px 30px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.portal-heading--static,
+.auth-subtitle--static {
+  position: static;
+  width: auto;
+  height: auto;
+  transform: none;
+}
+
+.portal-heading--static {
+  margin: 0;
+  font-size: 27px;
+  text-align: center;
+}
+
+.auth-subtitle--static {
+  display: block;
+  margin: 12px 0 28px;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #707070;
+  text-align: center;
+}
+
+.support-auth-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.support-auth-field {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #3d3d3d;
+}
+
+.support-auth-field > span:first-child {
+  font-weight: 600;
+}
+
+.support-auth-field .field-shell {
+  width: 100%;
+}
+
+.support-auth-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.support-auth-button,
+.support-auth-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 44px;
+  border: none;
+  border-radius: 22px;
+  background: var(--brand-red);
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.support-auth-button--secondary {
+  border: 1px solid var(--brand-red);
+  background: transparent;
+  color: var(--brand-red);
+}
+
+.auth-success-message {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #146b32;
+}
+
+.auth-error-message--static,
+.auth-success-message--static {
+  position: static;
+  width: 100%;
+}
+
+.support-auth-success-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.support-auth-link {
+  background: transparent;
+  border: 1px solid var(--brand-red);
+  color: var(--brand-red);
+}
+
 @media (max-width: 600px) {
   .student-auth-page {
     width: 100%;
@@ -475,6 +588,11 @@ body,
     margin-bottom: 0;
   }
 
+  .login-container--support {
+    min-height: 0;
+    padding: 32px 24px 26px;
+  }
+
   .portal-heading--instructor {
     width: auto;
   }
@@ -561,6 +679,21 @@ body,
 
   .remember-row,
   .forgot-password {
+    font-size: 16px;
+  }
+
+  .support-auth-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .support-auth-button,
+  .support-auth-link {
+    height: 54px;
+    border-radius: 28px;
+    font-size: 16px;
+  }
+
+  .auth-subtitle--static {
     font-size: 16px;
   }
 

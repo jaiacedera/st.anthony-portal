@@ -1,5 +1,6 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import {
+  createHash,
   deleteAccountByAccountId as deleteLegacyAccountByAccountId,
   deleteStudentAccountByStudentId as deleteLegacyStudentAccountByStudentId,
   getAuthAccounts as getLegacyAuthAccounts,
@@ -42,6 +43,10 @@ function hashPassword(password, passwordSalt) {
   return scryptSync(password, passwordSalt, 64).toString('hex')
 }
 
+function hashResetToken(token) {
+  return createHash('sha256').update(String(token ?? '')).digest('hex')
+}
+
 function toStudentAccountRecord(account) {
   if (!account) {
     return null
@@ -54,6 +59,9 @@ function toStudentAccountRecord(account) {
     email: normalizeEmail(account.email ?? account.username),
     username: normalizeEmail(account.username ?? account.email),
     student_id: normalizeStudentId(account.student_id),
+    password_reset_token_hash: String(account.password_reset_token_hash ?? '').trim(),
+    password_reset_expires_at: String(account.password_reset_expires_at ?? '').trim(),
+    password_reset_requested_at: String(account.password_reset_requested_at ?? '').trim(),
   }
 }
 
@@ -224,6 +232,9 @@ export async function upsertStudentAccount({
     status: 'ACTIVE',
     created_at: String(existingAccount?.created_at ?? '').trim() || timestamp,
     updated_at: timestamp,
+    password_reset_token_hash: '',
+    password_reset_expires_at: '',
+    password_reset_requested_at: '',
   }
 
   if (existingAccount?.account_id) {
@@ -256,6 +267,76 @@ export async function setStudentAccountPasswordByStudentId(studentId, password) 
     password_hash: hashPassword(password, passwordSalt),
     status: 'ACTIVE',
     updated_at: new Date().toISOString(),
+    password_reset_token_hash: '',
+    password_reset_expires_at: '',
+    password_reset_requested_at: '',
+  }
+
+  await updateRowById(
+    SHEET_NAMES.STUDENT_AUTH_ACCOUNTS,
+    SHEET_ID_COLUMNS[SHEET_NAMES.STUDENT_AUTH_ACCOUNTS],
+    account.account_id,
+    nextAccount,
+  )
+
+  return nextAccount
+}
+
+export async function setStudentPasswordResetTokenByEmail(email, token, expiresAt) {
+  const account = await findStudentAccountByEmail(email)
+
+  if (!account?.account_id) {
+    return null
+  }
+
+  const nextAccount = {
+    ...account,
+    password_reset_token_hash: hashResetToken(token),
+    password_reset_expires_at: String(expiresAt ?? '').trim(),
+    password_reset_requested_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+
+  await updateRowById(
+    SHEET_NAMES.STUDENT_AUTH_ACCOUNTS,
+    SHEET_ID_COLUMNS[SHEET_NAMES.STUDENT_AUTH_ACCOUNTS],
+    account.account_id,
+    nextAccount,
+  )
+
+  return nextAccount
+}
+
+export async function setStudentAccountPasswordByResetToken(token, password) {
+  const normalizedTokenHash = hashResetToken(token)
+  const accounts = await getAllStudentAccounts()
+  const now = Date.now()
+  const account =
+    accounts.find((candidate) => {
+      const expiresAt = Date.parse(String(candidate.password_reset_expires_at ?? '').trim())
+
+      return (
+        String(candidate.password_reset_token_hash ?? '').trim() === normalizedTokenHash &&
+        Number.isFinite(expiresAt) &&
+        expiresAt > now
+      )
+    }) ?? null
+
+  if (!account?.account_id) {
+    return null
+  }
+
+  const passwordSalt = randomBytes(16).toString('hex')
+  const nextAccount = {
+    ...account,
+    role: 'STUDENT',
+    password_salt: passwordSalt,
+    password_hash: hashPassword(password, passwordSalt),
+    status: 'ACTIVE',
+    updated_at: new Date().toISOString(),
+    password_reset_token_hash: '',
+    password_reset_expires_at: '',
+    password_reset_requested_at: '',
   }
 
   await updateRowById(

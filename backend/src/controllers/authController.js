@@ -1,4 +1,9 @@
-import { authenticateInstructor, authenticateStudent } from '../services/authService.js'
+import {
+  authenticateInstructor,
+  authenticateStudent,
+  requestStudentPasswordReset,
+  resetStudentPassword,
+} from '../services/authService.js'
 import { sendJson } from '../utils/http.js'
 import { readJsonBody } from '../utils/request.js'
 
@@ -38,6 +43,38 @@ export async function postStudentLogin(req, res) {
     const payload = await authenticateStudent(email, password)
 
     sendJson(res, payload.success ? 200 : 401, payload)
+  } catch (error) {
+    sendJson(res, error?.statusCode ?? 400, {
+      success: false,
+      message: error instanceof Error ? error.message : 'Invalid request body.',
+    })
+  }
+}
+
+export async function postStudentForgotPassword(req, res) {
+  try {
+    const body = await readJsonBody(req)
+    const email = typeof body.email === 'string' ? body.email : ''
+    const payload = await requestStudentPasswordReset(email)
+
+    sendJson(res, payload.success ? 200 : 400, payload)
+  } catch (error) {
+    sendJson(res, error?.statusCode ?? 400, {
+      success: false,
+      message: error instanceof Error ? error.message : 'Invalid request body.',
+    })
+  }
+}
+
+export async function postStudentResetPassword(req, res) {
+  try {
+    const body = await readJsonBody(req)
+    const token = typeof body.token === 'string' ? body.token : ''
+    const password = typeof body.password === 'string' ? body.password : ''
+    const confirmPassword = typeof body.confirmPassword === 'string' ? body.confirmPassword : ''
+    const payload = await resetStudentPassword(token, password, confirmPassword)
+
+    sendJson(res, payload.success ? 200 : 400, payload)
   } catch (error) {
     sendJson(res, error?.statusCode ?? 400, {
       success: false,

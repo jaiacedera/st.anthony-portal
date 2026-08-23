@@ -8,14 +8,17 @@ export type StudentAuthSession = {
   signedInAt?: string
 }
 
+const STUDENT_AUTH_STORAGE_KEY = 'student-auth'
+const STUDENT_REMEMBERED_EMAIL_KEY = 'student-remembered-email'
+
 export function readStudentAuth(): StudentAuthSession | null {
   if (typeof window === 'undefined') {
     return null
   }
 
   const rawValue =
-    window.localStorage.getItem('student-auth') ??
-    window.sessionStorage.getItem('student-auth')
+    window.localStorage.getItem(STUDENT_AUTH_STORAGE_KEY) ??
+    window.sessionStorage.getItem(STUDENT_AUTH_STORAGE_KEY)
 
   if (!rawValue) {
     return null
@@ -33,8 +36,39 @@ export function clearStudentAuth() {
     return
   }
 
-  window.localStorage.removeItem('student-auth')
-  window.sessionStorage.removeItem('student-auth')
+  window.localStorage.removeItem(STUDENT_AUTH_STORAGE_KEY)
+  window.sessionStorage.removeItem(STUDENT_AUTH_STORAGE_KEY)
+}
+
+export function readRememberedStudentEmail() {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  return String(window.localStorage.getItem(STUDENT_REMEMBERED_EMAIL_KEY) ?? '').trim()
+}
+
+export function writeRememberedStudentEmail(email: string) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const normalizedEmail = String(email ?? '').trim()
+
+  if (!normalizedEmail) {
+    window.localStorage.removeItem(STUDENT_REMEMBERED_EMAIL_KEY)
+    return
+  }
+
+  window.localStorage.setItem(STUDENT_REMEMBERED_EMAIL_KEY, normalizedEmail)
+}
+
+export function clearRememberedStudentEmail() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.removeItem(STUDENT_REMEMBERED_EMAIL_KEY)
 }
 
 export function isInvalidStudentSessionMessage(message: string) {

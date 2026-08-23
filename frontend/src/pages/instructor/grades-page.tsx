@@ -18,14 +18,7 @@ import { readInstructorAuth } from '../../utils/instructorAuth'
 type GradebookTabKey = 'gradebook' | 'requests' | 'history'
 type GradingPeriodKey = 'prelim' | 'midterm' | 'final'
 type GradeCategoryKey = 'knowledge' | 'skills' | 'attitude'
-type GradeSectionKey =
-  | 'knowledge-quiz'
-  | 'knowledge-long-exam'
-  | 'knowledge-major-exam'
-  | 'skills-core'
-  | 'attitude-character'
-  | 'attitude-attendance'
-  | 'attitude-uniform'
+type GradeSectionKey = string
 type GradeAggregationType = 'average' | 'single'
 
 type GradeCategoryDefinition = {
@@ -40,8 +33,11 @@ type GradeSectionConfig = {
   label: string
   weight: number
   aggregationType: GradeAggregationType
-  allowAdditions: boolean
+  allowAssessments: boolean
   order: number
+  isDefault: boolean
+  isActive: boolean
+  isCustom: boolean
 }
 
 type GradeComponentConfig = {
@@ -110,6 +106,13 @@ type EditGradesState = {
   studentId: string
 } | null
 
+type ComponentManagerCategory = GradeCategoryKey | null
+
+type StoredGradebookConfig = {
+  sections: GradeSectionConfig[]
+  components: GradeComponentConfig[]
+}
+
 const gradingPeriods: Array<{ key: GradingPeriodKey; label: string }> = [
   { key: 'prelim', label: 'Prelim' },
   { key: 'midterm', label: 'Midterm' },
@@ -122,71 +125,104 @@ const gradeCategories: GradeCategoryDefinition[] = [
   { key: 'attitude', label: 'Attitude', weight: 20 },
 ]
 
-const gradeSections: GradeSectionConfig[] = [
-  {
-    id: 'knowledge-quiz',
-    category: 'knowledge',
-    label: 'Quiz',
-    weight: 8,
-    aggregationType: 'average',
-    allowAdditions: true,
-    order: 1,
-  },
-  {
-    id: 'knowledge-long-exam',
-    category: 'knowledge',
-    label: 'Long Exam',
-    weight: 12,
-    aggregationType: 'average',
-    allowAdditions: true,
-    order: 2,
-  },
-  {
-    id: 'knowledge-major-exam',
-    category: 'knowledge',
-    label: 'Major Exam',
-    weight: 20,
-    aggregationType: 'single',
-    allowAdditions: false,
-    order: 3,
-  },
-  {
-    id: 'skills-core',
-    category: 'skills',
-    label: 'Skills Components',
-    weight: 40,
-    aggregationType: 'average',
-    allowAdditions: true,
-    order: 1,
-  },
-  {
-    id: 'attitude-character',
-    category: 'attitude',
-    label: 'Character',
-    weight: 10,
-    aggregationType: 'single',
-    allowAdditions: false,
-    order: 1,
-  },
-  {
-    id: 'attitude-attendance',
-    category: 'attitude',
-    label: 'Attendance',
-    weight: 5,
-    aggregationType: 'single',
-    allowAdditions: false,
-    order: 2,
-  },
-  {
-    id: 'attitude-uniform',
-    category: 'attitude',
-    label: 'Uniform and Paraphernalia',
-    weight: 5,
-    aggregationType: 'single',
-    allowAdditions: false,
-    order: 3,
-  },
+const defaultSkillLabels = [
+  'Medications',
+  'FDAR',
+  'KARDEX',
+  'V/S',
+  'Performance',
+  'Case Study',
+  'Case Pres.',
 ]
+
+function buildDefaultGradeSections(): GradeSectionConfig[] {
+  return [
+    {
+      id: 'knowledge-quiz',
+      category: 'knowledge',
+      label: 'Quiz',
+      weight: 8,
+      aggregationType: 'average',
+      allowAssessments: true,
+      order: 1,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+    {
+      id: 'knowledge-long-exam',
+      category: 'knowledge',
+      label: 'Long Exam',
+      weight: 12,
+      aggregationType: 'average',
+      allowAssessments: true,
+      order: 2,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+    {
+      id: 'knowledge-major-exam',
+      category: 'knowledge',
+      label: 'Major Exam',
+      weight: 20,
+      aggregationType: 'average',
+      allowAssessments: true,
+      order: 3,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+    {
+      id: 'skills-core',
+      category: 'skills',
+      label: 'Skills Components',
+      weight: 40,
+      aggregationType: 'average',
+      allowAssessments: true,
+      order: 1,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+    {
+      id: 'attitude-character',
+      category: 'attitude',
+      label: 'Character',
+      weight: 10,
+      aggregationType: 'single',
+      allowAssessments: false,
+      order: 1,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+    {
+      id: 'attitude-attendance',
+      category: 'attitude',
+      label: 'Attendance',
+      weight: 5,
+      aggregationType: 'single',
+      allowAssessments: false,
+      order: 2,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+    {
+      id: 'attitude-uniform',
+      category: 'attitude',
+      label: 'Uniform and Paraphernalia',
+      weight: 5,
+      aggregationType: 'single',
+      allowAssessments: false,
+      order: 3,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+  ]
+}
 
 function buildDefaultGradeComponents(): GradeComponentConfig[] {
   return [
@@ -218,17 +254,9 @@ function buildDefaultGradeComponents(): GradeComponentConfig[] {
       isCustom: false,
       periodAware: true,
     },
-    ...[
-      'Medications',
-      'FDAR',
-      'KARDEX',
-      'V/S',
-      'Performance',
-      'Case Study',
-      'Case Pres.',
-    ].map((label, index) => ({
+    ...defaultSkillLabels.map((label, index) => ({
       id: `skills-core-${index + 1}`,
-      sectionId: 'skills-core' as GradeSectionKey,
+      sectionId: 'skills-core',
       label,
       order: index + 1,
       isDefault: true,
@@ -377,8 +405,32 @@ function PlusIcon() {
   )
 }
 
-function getSectionConfig(sectionId: GradeSectionKey) {
-  return gradeSections.find((section) => section.id === sectionId) ?? null
+function getSectionConfig(sections: GradeSectionConfig[], sectionId: GradeSectionKey) {
+  return sections.find((section) => section.id === sectionId) ?? null
+}
+
+function cloneSections(sections: GradeSectionConfig[]) {
+  return sections.map((section) => ({ ...section }))
+}
+
+function sortSections(sections: GradeSectionConfig[]) {
+  return [...sections].sort((left, right) =>
+    `${left.category}-${left.order}-${left.id}`.localeCompare(
+      `${right.category}-${right.order}-${right.id}`,
+    ),
+  )
+}
+
+function sortComponents(components: GradeComponentConfig[]) {
+  return [...components].sort((left, right) =>
+    `${left.sectionId}-${left.order}-${left.id}`.localeCompare(
+      `${right.sectionId}-${right.order}-${right.id}`,
+    ),
+  )
+}
+
+function getCategoryWeight(categoryKey: GradeCategoryKey) {
+  return gradeCategories.find((category) => category.key === categoryKey)?.weight ?? 0
 }
 
 function getGradingPeriodLabel(gradingPeriod: GradingPeriodKey) {
@@ -569,14 +621,26 @@ function cloneComponents(components: GradeComponentConfig[]) {
   return components.map((component) => ({ ...component }))
 }
 
+function serializeSections(sections: GradeSectionConfig[]) {
+  return JSON.stringify(
+    sortSections(sections).map((section) => ({
+      id: section.id,
+      category: section.category,
+      label: section.label,
+      weight: section.weight,
+      aggregationType: section.aggregationType,
+      allowAssessments: section.allowAssessments,
+      order: section.order,
+      isDefault: section.isDefault,
+      isActive: section.isActive,
+      isCustom: section.isCustom,
+    })),
+  )
+}
+
 function serializeComponents(components: GradeComponentConfig[]) {
   return JSON.stringify(
-    [...components]
-      .sort((left, right) =>
-        `${left.sectionId}-${left.order}-${left.id}`.localeCompare(
-          `${right.sectionId}-${right.order}-${right.id}`,
-        ),
-      )
+    sortComponents(components)
       .map((component) => ({
         id: component.id,
         sectionId: component.sectionId,
@@ -594,9 +658,10 @@ function getComponentBaseScore(
   student: InstructorStudentRecord,
   subjectId: string,
   gradingPeriod: GradingPeriodKey,
+  sections: GradeSectionConfig[],
   component: GradeComponentConfig,
 ) {
-  const section = getSectionConfig(component.sectionId)
+  const section = getSectionConfig(sections, component.sectionId)
   const seed = `${student.studentId}:${subjectId}:${gradingPeriod}:${component.id}`
   const hash = hashString(seed)
   const categoryOffset =
@@ -614,18 +679,19 @@ function buildStudentGradeSnapshot(
   student: InstructorStudentRecord,
   subject: InstructorRosterSubject | null,
   gradingPeriod: GradingPeriodKey,
+  sections: GradeSectionConfig[],
   components: GradeComponentConfig[],
   overrides: GradeOverrideMap,
 ): StudentGradeSnapshot {
   const categories = gradeCategories.map((category) => {
-    const sections = gradeSections
+    const categorySections = sections
       .filter((section) => section.category === category.key)
+      .filter((section) => section.isActive)
       .sort((left, right) => left.order - right.order)
       .map<GradeSectionSnapshot>((section) => {
-        const sectionComponents = components
-          .filter((component) => component.sectionId === section.id && component.isActive)
-          .sort((left, right) => left.order - right.order)
-          .map<GradeComponentSnapshot>((component) => {
+        const sectionComponents = getSectionComponentList(components, section.id).map<
+          GradeComponentSnapshot
+        >((component) => {
             const overrideKey = getScoreOverrideKey(
               student.id,
               subject?.id ?? '',
@@ -643,6 +709,7 @@ function buildStudentGradeSnapshot(
                         student,
                         subject?.id ?? 'unassigned',
                         gradingPeriod,
+                        sections,
                         component,
                       ),
                       2,
@@ -668,7 +735,7 @@ function buildStudentGradeSnapshot(
         }
       })
 
-    const availableContributions = sections
+    const availableContributions = categorySections
       .map((section) => section.contribution)
       .filter((value): value is number => value !== null)
     const weighted = availableContributions.length
@@ -676,14 +743,14 @@ function buildStudentGradeSnapshot(
       : null
     const total =
       weighted === null ? null : roundTo(weighted / (category.weight / 100), 2)
-    const isIncomplete = sections.some(
+    const isIncomplete = categorySections.some(
       (section) =>
         !section.components.length || section.average === null || section.hasMissingScores,
     )
 
     return {
       ...category,
-      sections,
+      sections: categorySections,
       total,
       weighted,
       isIncomplete,
@@ -738,6 +805,7 @@ function createCustomComponent(
   sectionId: GradeSectionKey,
   label: string,
   order: number,
+  periodAware = false,
 ) {
   return {
     id: `${sectionId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -747,42 +815,61 @@ function createCustomComponent(
     isDefault: false,
     isActive: true,
     isCustom: true,
+    periodAware,
+  } satisfies GradeComponentConfig
+}
+
+function createCustomSection(category: GradeCategoryKey, order: number) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+
+  return {
+    id: `${category}-${suffix}`,
+    category,
+    label:
+      category === 'knowledge'
+        ? `Sub-grade ${order}`
+        : category === 'attitude'
+          ? `Attitude ${order}`
+          : 'Skills Components',
+    weight: 0,
+    aggregationType: category === 'attitude' ? 'single' : 'average',
+    allowAssessments: category !== 'attitude',
+    order,
+    isDefault: false,
+    isActive: true,
+    isCustom: true,
+  } satisfies GradeSectionConfig
+}
+
+function createLinkedSingleComponent(section: GradeSectionConfig) {
+  return {
+    id: `${section.id}-score`,
+    sectionId: section.id,
+    label: section.label,
+    order: 1,
+    isDefault: false,
+    isActive: true,
+    isCustom: true,
   } satisfies GradeComponentConfig
 }
 
 function getNextCustomLabel(
   sectionId: GradeSectionKey,
+  sections: GradeSectionConfig[],
   components: GradeComponentConfig[],
 ) {
   const currentCount = getSectionComponentList(components, sectionId).length
+  const section = getSectionConfig(sections, sectionId)
 
-  if (sectionId === 'knowledge-quiz') {
-    return `Quiz ${currentCount + 1}`
+  if (!section) {
+    return `Component ${currentCount + 1}`
   }
 
-  if (sectionId === 'knowledge-long-exam') {
-    return `Long Exam ${currentCount + 1}`
+  if (section.category === 'skills') {
+    return `Skill ${currentCount + 1}`
   }
 
-  return `Skill Component ${currentCount + 1}`
-}
-
-function pruneOverridesByComponentIds(
-  overrides: GradeOverrideMap,
-  componentIdsToRemove: string[],
-) {
-  if (!componentIdsToRemove.length) {
-    return overrides
-  }
-
-  const removedIds = new Set(componentIdsToRemove)
-
-  return Object.fromEntries(
-    Object.entries(overrides).filter((entry) => {
-      const [, , , componentId] = entry[0].split('::')
-      return !removedIds.has(componentId)
-    }),
-  )
+  return `${section.label.trim() || 'Assessment'} ${currentCount + 1}`
 }
 
 function syncVisibleComponentIds(
@@ -801,13 +888,106 @@ function syncVisibleComponentIds(
     .filter((componentId) => currentVisibleSet.has(componentId) || !previousIds.has(componentId))
 }
 
+function normalizeSectionOrders(sections: GradeSectionConfig[]) {
+  const nextSections = cloneSections(sections)
+
+  for (const category of gradeCategories) {
+    sortSections(nextSections)
+      .filter((section) => section.category === category.key && section.isActive)
+      .forEach((section, index) => {
+        const currentSection = nextSections.find((candidate) => candidate.id === section.id)
+
+        if (currentSection) {
+          currentSection.order = index + 1
+        }
+      })
+  }
+
+  return nextSections
+}
+
+function normalizeComponentOrders(components: GradeComponentConfig[], sections: GradeSectionConfig[]) {
+  const nextComponents = cloneComponents(components)
+
+  for (const section of sections.filter((currentSection) => currentSection.isActive)) {
+    getSectionComponentList(nextComponents, section.id).forEach((component, index) => {
+      const currentComponent = nextComponents.find((candidate) => candidate.id === component.id)
+
+      if (currentComponent) {
+        currentComponent.order = index + 1
+      }
+    })
+  }
+
+  return nextComponents
+}
+
+function getGradeConfigStorageKey(
+  username: string,
+  subjectId: string,
+  gradingPeriod: GradingPeriodKey,
+) {
+  return `instructor-grade-config::${username}::${subjectId}::${gradingPeriod}`
+}
+
+function readStoredGradeConfig(storageKey: string): StoredGradebookConfig | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const rawValue = window.localStorage.getItem(storageKey)
+
+  if (!rawValue) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as StoredGradebookConfig
+
+    if (!Array.isArray(parsed.sections) || !Array.isArray(parsed.components)) {
+      return null
+    }
+
+    const normalizedSections = normalizeSectionOrders(cloneSections(parsed.sections))
+    const normalizedComponents = normalizeComponentOrders(
+      cloneComponents(parsed.components),
+      normalizedSections,
+    )
+
+    return {
+      sections: normalizedSections,
+      components: normalizedComponents,
+    }
+  } catch {
+    return null
+  }
+}
+
+function persistStoredGradeConfig(storageKey: string, config: StoredGradebookConfig) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(
+    storageKey,
+    JSON.stringify({
+      sections: sortSections(config.sections),
+      components: sortComponents(config.components),
+    }),
+  )
+}
+
 export default function GradesPage() {
   const auth = readInstructorAuth()
   const username = auth?.username ?? ''
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const initialSections = useMemo(() => buildDefaultGradeSections(), [])
   const initialComponents = useMemo(() => buildDefaultGradeComponents(), [])
   const [students, setStudents] = useState<InstructorStudentRecord[]>([])
   const [subjects, setSubjects] = useState<InstructorRosterSubject[]>([])
+  const [gradeSections, setGradeSections] = useState<GradeSectionConfig[]>(
+    cloneSections(initialSections),
+  )
   const [gradeComponents, setGradeComponents] = useState<GradeComponentConfig[]>(
     cloneComponents(initialComponents),
   )
@@ -834,11 +1014,24 @@ export default function GradesPage() {
   const [editGradesState, setEditGradesState] = useState<EditGradesState>(null)
   const [draftScoreOverrides, setDraftScoreOverrides] = useState<GradeOverrideMap>({})
   const [savedScoreOverrides, setSavedScoreOverrides] = useState<GradeOverrideMap>({})
+  const [savedGradeSections, setSavedGradeSections] = useState<GradeSectionConfig[]>(
+    cloneSections(initialSections),
+  )
   const [savedGradeComponents, setSavedGradeComponents] = useState<GradeComponentConfig[]>(
     cloneComponents(initialComponents),
   )
   const [editDraftValues, setEditDraftValues] = useState<Record<string, string>>({})
+  const [editDraftSections, setEditDraftSections] = useState<GradeSectionConfig[]>([])
   const [editDraftComponents, setEditDraftComponents] = useState<GradeComponentConfig[]>([])
+  const [componentManagerCategory, setComponentManagerCategory] =
+    useState<ComponentManagerCategory>(null)
+  const [componentManagerDraftSections, setComponentManagerDraftSections] = useState<
+    GradeSectionConfig[]
+  >([])
+  const [componentManagerDraftComponents, setComponentManagerDraftComponents] = useState<
+    GradeComponentConfig[]
+  >([])
+  const [componentManagerError, setComponentManagerError] = useState('')
 
   useEffect(() => {
     if (!username) {
@@ -908,6 +1101,30 @@ export default function GradesPage() {
   }, [username])
 
   useEffect(() => {
+    if (!username || !selectedSubjectId) {
+      return
+    }
+
+    const storageKey = getGradeConfigStorageKey(username, selectedSubjectId, selectedGradingPeriod)
+    const storedConfig = readStoredGradeConfig(storageKey)
+    const nextSections = storedConfig?.sections ?? cloneSections(initialSections)
+    const nextComponents = storedConfig?.components ?? cloneComponents(initialComponents)
+
+    setGradeSections(nextSections)
+    setSavedGradeSections(cloneSections(nextSections))
+    setGradeComponents(nextComponents)
+    setSavedGradeComponents(cloneComponents(nextComponents))
+    setVisibleComponentIds(getDefaultVisibleComponentIds(nextComponents))
+
+    if (!storedConfig) {
+      persistStoredGradeConfig(storageKey, {
+        sections: nextSections,
+        components: nextComponents,
+      })
+    }
+  }, [initialComponents, initialSections, selectedGradingPeriod, selectedSubjectId, username])
+
+  useEffect(() => {
     setCurrentPage(1)
   }, [selectedSubjectId, selectedGradingPeriod, activeTab, rowsPerPage])
 
@@ -922,6 +1139,10 @@ export default function GradesPage() {
       }
 
       if (editGradesState) {
+        setComponentManagerCategory(null)
+        setComponentManagerDraftSections([])
+        setComponentManagerDraftComponents([])
+        setComponentManagerError('')
         setEditGradesState(null)
         return
       }
@@ -966,10 +1187,18 @@ export default function GradesPage() {
       (key) => (draftScoreOverrides[key] ?? null) !== (savedScoreOverrides[key] ?? null),
     )
     const hasConfigChanges =
+      serializeSections(gradeSections) !== serializeSections(savedGradeSections) ||
       serializeComponents(gradeComponents) !== serializeComponents(savedGradeComponents)
 
     return hasOverrideChanges || hasConfigChanges
-  }, [draftScoreOverrides, gradeComponents, savedGradeComponents, savedScoreOverrides])
+  }, [
+    draftScoreOverrides,
+    gradeComponents,
+    gradeSections,
+    savedGradeComponents,
+    savedGradeSections,
+    savedScoreOverrides,
+  ])
 
   const latestHistoryByStudentKey = useMemo(() => {
     const historyMap = new Map<string, GradeHistoryEntry>()
@@ -995,6 +1224,7 @@ export default function GradesPage() {
           student,
           selectedSubject,
           selectedGradingPeriod,
+          gradeSections,
           gradeComponents,
           draftScoreOverrides,
         ),
@@ -1002,6 +1232,7 @@ export default function GradesPage() {
     [
       draftScoreOverrides,
       gradeComponents,
+      gradeSections,
       selectedGradingPeriod,
       selectedSubject,
       subjectStudents,
@@ -1035,6 +1266,7 @@ export default function GradesPage() {
       return
     }
 
+    setEditDraftSections(cloneSections(gradeSections))
     setEditDraftComponents(cloneComponents(gradeComponents))
 
     const nextDraftValues: Record<string, string> = {}
@@ -1054,7 +1286,7 @@ export default function GradesPage() {
     }
 
     setEditDraftValues(nextDraftValues)
-  }, [editSnapshot, gradeComponents])
+  }, [editSnapshot, gradeComponents, gradeSections])
 
   const alerts = [errorMessage, bindingMessage, successMessage].filter(Boolean)
   const breakdownRequestRows = pendingRequests.filter(
@@ -1076,6 +1308,10 @@ export default function GradesPage() {
   }
 
   function closeEditGrades() {
+    setComponentManagerCategory(null)
+    setComponentManagerDraftSections([])
+    setComponentManagerDraftComponents([])
+    setComponentManagerError('')
     setEditGradesState(null)
   }
 
@@ -1094,35 +1330,269 @@ export default function GradesPage() {
     }))
   }
 
-  function handleEditDraftLabelChange(
+  function hasStoredScoresForComponentIds(componentIds: string[]) {
+    const componentIdSet = new Set(componentIds)
+
+    return [...Object.keys(draftScoreOverrides), ...Object.keys(savedScoreOverrides)].some((key) => {
+      const [, , , componentId] = key.split('::')
+      return componentIdSet.has(componentId)
+    })
+  }
+
+  function handleManagerSectionLabelChange(
+    sectionId: string,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const nextLabel = event.target.value
+
+    setComponentManagerDraftSections((current) =>
+      current.map((section) => (section.id === sectionId ? { ...section, label: nextLabel } : section)),
+    )
+    setComponentManagerDraftComponents((current) =>
+      current.map((component) => {
+        const section = componentManagerDraftSections.find((currentSection) => currentSection.id === sectionId)
+
+        if (!section || section.category !== 'attitude' || component.sectionId !== sectionId) {
+          return component
+        }
+
+        return { ...component, label: nextLabel }
+      }),
+    )
+  }
+
+  function handleManagerSectionWeightChange(
+    sectionId: string,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const parsedValue = parseNumericValue(event.target.value)
+
+    setComponentManagerDraftSections((current) =>
+      current.map((section) =>
+        section.id === sectionId ? { ...section, weight: parsedValue === null ? 0 : parsedValue } : section,
+      ),
+    )
+  }
+
+  function handleManagerDraftLabelChange(
     componentId: string,
     event: ChangeEvent<HTMLInputElement>,
   ) {
-    setEditDraftComponents((current) =>
+    setComponentManagerDraftComponents((current) =>
       current.map((component) =>
         component.id === componentId ? { ...component, label: event.target.value } : component,
       ),
     )
   }
 
-  function handleAddDraftComponent(sectionId: GradeSectionKey) {
-    setEditDraftComponents((current) => {
-      const nextLabel = getNextCustomLabel(sectionId, current)
+  function handleMoveManagerSection(sectionId: string, direction: -1 | 1) {
+    setComponentManagerDraftSections((current) => {
+      const section = current.find((candidate) => candidate.id === sectionId)
+
+      if (!section) {
+        return current
+      }
+
+      const activeSections = current
+        .filter((candidate) => candidate.category === section.category && candidate.isActive)
+        .sort((left, right) => left.order - right.order)
+      const currentIndex = activeSections.findIndex((candidate) => candidate.id === sectionId)
+      const nextIndex = currentIndex + direction
+
+      if (currentIndex === -1 || nextIndex < 0 || nextIndex >= activeSections.length) {
+        return current
+      }
+
+      const reordered = [...activeSections]
+      const [moved] = reordered.splice(currentIndex, 1)
+      reordered.splice(nextIndex, 0, moved)
+      const nextSections = cloneSections(current)
+
+      reordered.forEach((currentSection, index) => {
+        const match = nextSections.find((candidate) => candidate.id === currentSection.id)
+
+        if (match) {
+          match.order = index + 1
+        }
+      })
+
+      return nextSections
+    })
+  }
+
+  function handleMoveManagerDraftComponent(componentId: string, direction: -1 | 1) {
+    setComponentManagerDraftComponents((current) => {
+      const component = current.find((candidate) => candidate.id === componentId)
+
+      if (!component) {
+        return current
+      }
+
+      const activeComponents = getSectionComponentList(current, component.sectionId)
+      const currentIndex = activeComponents.findIndex((candidate) => candidate.id === componentId)
+      const nextIndex = currentIndex + direction
+
+      if (currentIndex === -1 || nextIndex < 0 || nextIndex >= activeComponents.length) {
+        return current
+      }
+
+      const reordered = [...activeComponents]
+      const [moved] = reordered.splice(currentIndex, 1)
+      reordered.splice(nextIndex, 0, moved)
+      const nextComponents = cloneComponents(current)
+
+      reordered.forEach((currentComponent, index) => {
+        const match = nextComponents.find((candidate) => candidate.id === currentComponent.id)
+
+        if (match) {
+          match.order = index + 1
+        }
+      })
+
+      return nextComponents
+    })
+  }
+
+  function handleAddManagerSection(category: GradeCategoryKey) {
+    if (category === 'skills') {
+      return
+    }
+
+    const activeCount = componentManagerDraftSections.filter(
+      (section) => section.category === category && section.isActive,
+    ).length
+    const nextSection = createCustomSection(category, activeCount + 1)
+
+    setComponentManagerDraftSections((current) => [...current, nextSection])
+
+    if (category === 'knowledge') {
+      setComponentManagerDraftComponents((current) => [
+        ...current,
+        createCustomComponent(nextSection.id, 'Assessment 1', 1),
+      ])
+      return
+    }
+
+    setComponentManagerDraftComponents((current) => [...current, createLinkedSingleComponent(nextSection)])
+  }
+
+  function handleAddManagerDraftComponent(sectionId: GradeSectionKey) {
+    setComponentManagerDraftComponents((current) => {
+      const nextLabel = getNextCustomLabel(
+        sectionId,
+        componentManagerDraftSections,
+        current,
+      )
       const nextOrder = getSectionComponentList(current, sectionId).length + 1
 
       return [...current, createCustomComponent(sectionId, nextLabel, nextOrder)]
     })
   }
 
-  function handleRemoveDraftComponent(componentId: string) {
-    setEditDraftComponents((current) =>
-      current.filter((component) => component.id !== componentId),
+  function handleRemoveManagerSection(sectionId: string) {
+    const componentIds = componentManagerDraftComponents
+      .filter((component) => component.sectionId === sectionId && component.isActive)
+      .map((component) => component.id)
+
+    if (
+      componentIds.length &&
+      hasStoredScoresForComponentIds(componentIds) &&
+      !window.confirm(
+        'This component already contains student scores. Removing it may affect grade calculations. Continue?',
+      )
+    ) {
+      return
+    }
+
+    setComponentManagerDraftSections((current) =>
+      current.map((section) => (section.id === sectionId ? { ...section, isActive: false } : section)),
     )
-    setEditDraftValues((current) => {
-      const nextValues = { ...current }
-      delete nextValues[componentId]
-      return nextValues
-    })
+    setComponentManagerDraftComponents((current) =>
+      current.map((component) =>
+        component.sectionId === sectionId ? { ...component, isActive: false } : component,
+      ),
+    )
+  }
+
+  function handleRemoveManagerDraftComponent(componentId: string) {
+    if (
+      hasStoredScoresForComponentIds([componentId]) &&
+      !window.confirm(
+        'This component already contains student scores. Removing it may affect grade calculations. Continue?',
+      )
+    ) {
+      return
+    }
+
+    setComponentManagerDraftComponents((current) =>
+      current.map((component) =>
+        component.id === componentId ? { ...component, isActive: false } : component,
+      ),
+    )
+  }
+
+  function openComponentManager(category: Exclude<ComponentManagerCategory, null>) {
+    setComponentManagerCategory(category)
+    setComponentManagerDraftSections(cloneSections(editDraftSections))
+    setComponentManagerDraftComponents(cloneComponents(editDraftComponents))
+    setComponentManagerError('')
+  }
+
+  function closeComponentManager() {
+    setComponentManagerCategory(null)
+    setComponentManagerDraftSections([])
+    setComponentManagerDraftComponents([])
+    setComponentManagerError('')
+  }
+
+  function handleSaveComponentManager() {
+    const cleanedSections = normalizeSectionOrders(
+      componentManagerDraftSections.map((section, index) => ({
+        ...section,
+        label:
+          section.label.trim() ||
+          (section.category === 'knowledge'
+            ? `Sub-grade ${index + 1}`
+            : section.category === 'attitude'
+              ? `Attitude ${index + 1}`
+              : 'Skills Components'),
+        weight: roundTo(section.weight, 2),
+      })),
+    )
+    const cleanedComponents = normalizeComponentOrders(
+      componentManagerDraftComponents.map((component) => ({
+        ...component,
+        label:
+          component.label.trim() ||
+          getNextCustomLabel(component.sectionId, cleanedSections, componentManagerDraftComponents),
+      })),
+      cleanedSections,
+    )
+
+    if (componentManagerCategory === 'knowledge' || componentManagerCategory === 'attitude') {
+      const categoryTotal = roundTo(
+        cleanedSections
+          .filter(
+            (section) => section.category === componentManagerCategory && section.isActive,
+          )
+          .reduce((sum, section) => sum + section.weight, 0),
+        2,
+      )
+      const expectedTotal = getCategoryWeight(componentManagerCategory)
+
+      if (categoryTotal !== expectedTotal) {
+        setComponentManagerError(
+          `${
+            componentManagerCategory === 'knowledge' ? 'Knowledge' : 'Attitude'
+          } sub-grades must total exactly ${expectedTotal}%.`,
+        )
+        return
+      }
+    }
+
+    setEditDraftSections(cleanedSections)
+    setEditDraftComponents(cleanedComponents)
+    closeComponentManager()
   }
 
   function handleSaveEditedScores() {
@@ -1130,34 +1600,22 @@ export default function GradesPage() {
       return
     }
 
-    const cleanedComponents = editDraftComponents
-      .filter((component) => component.isActive)
+    const cleanedSections = normalizeSectionOrders(cloneSections(editDraftSections))
+    const cleanedComponents = normalizeComponentOrders(
+      editDraftComponents
       .map((component) => ({
         ...component,
         label:
           component.isCustom && !component.label.trim()
-            ? getNextCustomLabel(component.sectionId, editDraftComponents)
+            ? getNextCustomLabel(component.sectionId, cleanedSections, editDraftComponents)
             : component.label.trim() || component.label,
       }))
-      .sort((left, right) =>
-        `${left.sectionId}-${left.order}-${left.id}`.localeCompare(
-          `${right.sectionId}-${right.order}-${right.id}`,
-        ),
-      )
-
-    const removedComponentIds = gradeComponents
-      .filter(
-        (component) =>
-          !cleanedComponents.some((nextComponent) => nextComponent.id === component.id),
-      )
-      .map((component) => component.id)
-
-    const nextOverrides = pruneOverridesByComponentIds(
-      { ...draftScoreOverrides },
-      removedComponentIds,
+      ,
+      cleanedSections,
     )
+    const nextOverrides = { ...draftScoreOverrides }
 
-    for (const component of cleanedComponents) {
+    for (const component of cleanedComponents.filter((currentComponent) => currentComponent.isActive)) {
       const parsedValue = parseNumericValue(editDraftValues[component.id] ?? '')
 
       if (parsedValue === null) {
@@ -1175,6 +1633,7 @@ export default function GradesPage() {
     }
 
     setDraftScoreOverrides(nextOverrides)
+    setGradeSections(cleanedSections)
     setGradeComponents(cleanedComponents)
     setVisibleComponentIds((current) =>
       syncVisibleComponentIds(gradeComponents, cleanedComponents, current),
@@ -1197,7 +1656,7 @@ export default function GradesPage() {
     setSuccessMessage(
       `${editSnapshot.student.fullName}'s ${periodLabel.toLowerCase()} score breakdown was updated locally.`,
     )
-    setEditGradesState(null)
+    closeEditGrades()
   }
 
   function handleSaveChanges() {
@@ -1209,18 +1668,19 @@ export default function GradesPage() {
     setErrorMessage('')
 
     window.setTimeout(() => {
-      const prunedOverrides = pruneOverridesByComponentIds(
-        draftScoreOverrides,
-        savedGradeComponents
-          .filter(
-            (component) =>
-              !gradeComponents.some((currentComponent) => currentComponent.id === component.id),
-          )
-          .map((component) => component.id),
+      const storageKey = getGradeConfigStorageKey(
+        username,
+        selectedSubject.id,
+        selectedGradingPeriod,
       )
 
-      setDraftScoreOverrides(prunedOverrides)
-      setSavedScoreOverrides(prunedOverrides)
+      persistStoredGradeConfig(storageKey, {
+        sections: gradeSections,
+        components: gradeComponents,
+      })
+
+      setSavedScoreOverrides(draftScoreOverrides)
+      setSavedGradeSections(cloneSections(gradeSections))
       setSavedGradeComponents(cloneComponents(gradeComponents))
       setHistoryEntries((current) => [
         {
@@ -1812,7 +2272,7 @@ export default function GradesPage() {
                   </h3>
                   <div className="grade-settings-tree">
                     {gradeSections
-                      .filter((section) => section.category === category.key)
+                      .filter((section) => section.category === category.key && section.isActive)
                       .sort((left, right) => left.order - right.order)
                       .map((section) => (
                         <div key={section.id} className="grade-settings-group">
@@ -2065,14 +2525,28 @@ export default function GradesPage() {
               {gradeCategories.map((category) => (
                 <section key={category.key} className="grade-edit-section">
                   <header
-                    className={`grade-section-title grade-section-title--edit grade-section-title--${category.key}`}
+                    className={
+                      `grade-category-header grade-category-header--${category.key}`
+                    }
                   >
-                    {category.label} ({category.weight}%)
+                    <span>
+                      {category.label} ({category.weight}%)
+                    </span>
+
+                    <button
+                      type="button"
+                      className={`grade-category-edit-btn grade-category-edit-btn--${category.key}`}
+                      onClick={() => openComponentManager(category.key)}
+                      aria-haspopup="dialog"
+                    >
+                      <PencilIcon />
+                      <span>Edit</span>
+                    </button>
                   </header>
 
                   <div className="grade-edit-subsections">
-                    {gradeSections
-                      .filter((section) => section.category === category.key)
+                    {editDraftSections
+                      .filter((section) => section.category === category.key && section.isActive)
                       .sort((left, right) => left.order - right.order)
                       .map((section) => {
                         const sectionComponents = getSectionComponentList(
@@ -2082,30 +2556,20 @@ export default function GradesPage() {
 
                         return (
                           <div key={section.id} className="grade-edit-subsection">
-                            <div className="grade-edit-subsection-header">
-                              <h4>
-                                {section.label} ({section.weight}%)
-                              </h4>
-                            </div>
+                            {category.key !== 'skills' ? (
+                              <div className="grade-edit-subsection-header">
+                                <h4>
+                                  {section.label} ({section.weight}%)
+                                </h4>
+                              </div>
+                            ) : null}
 
                             <div className="grade-edit-entry-list">
                               {sectionComponents.map((component) => (
                                 <div key={component.id} className="grade-edit-entry">
-                                  {component.isCustom ? (
-                                    <input
-                                      type="text"
-                                      className="grade-edit-name-input"
-                                      value={component.label}
-                                      onChange={(event) =>
-                                        handleEditDraftLabelChange(component.id, event)
-                                      }
-                                      placeholder="Component name"
-                                    />
-                                  ) : (
-                                    <div className="grade-edit-entry-label">
-                                      {getDisplayComponentLabel(component, selectedGradingPeriod)}
-                                    </div>
-                                  )}
+                                  <div className="grade-edit-entry-label">
+                                    {getDisplayComponentLabel(component, selectedGradingPeriod)}
+                                  </div>
 
                                   <input
                                     type="number"
@@ -2119,37 +2583,9 @@ export default function GradesPage() {
                                     }
                                     placeholder="Score"
                                   />
-
-                                  {component.isCustom ? (
-                                    <button
-                                      type="button"
-                                      className="grade-edit-remove-button"
-                                      onClick={() => handleRemoveDraftComponent(component.id)}
-                                      aria-label={`Remove ${component.label}`}
-                                    >
-                                      <TrashIcon />
-                                    </button>
-                                  ) : null}
                                 </div>
                               ))}
                             </div>
-
-                            {section.allowAdditions ? (
-                              <button
-                                type="button"
-                                className="grade-edit-add-button"
-                                onClick={() => handleAddDraftComponent(section.id)}
-                              >
-                                <PlusIcon />
-                                <span>
-                                  {section.id === 'knowledge-quiz'
-                                    ? 'Add Quiz'
-                                    : section.id === 'knowledge-long-exam'
-                                      ? 'Add Long Exam'
-                                      : 'Add Skill Component'}
-                                </span>
-                              </button>
-                            ) : null}
                           </div>
                         )
                       })}
@@ -2172,6 +2608,270 @@ export default function GradesPage() {
                 onClick={handleSaveEditedScores}
               >
                 <span>Apply Scores</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {editSnapshot && componentManagerCategory ? (
+        <div className="grade-modal-backdrop" onClick={closeComponentManager}>
+          <div
+            className="component-manager-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="component-manager-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="grade-settings-modal-header">
+              <div>
+                <h2 id="component-manager-title">
+                  {componentManagerCategory === 'knowledge'
+                    ? 'Edit Knowledge Breakdown'
+                    : componentManagerCategory === 'skills'
+                      ? 'Edit Skills Breakdown'
+                      : 'Edit Attitude Breakdown'}
+                </h2>
+                <p>
+                  {componentManagerCategory === 'knowledge'
+                    ? 'Manage knowledge sub-grades, weights, and assessments.'
+                    : componentManagerCategory === 'skills'
+                      ? 'Manage the active skills included in the 40% skills category.'
+                      : 'Manage attitude sub-grades and keep the total weight at 20%.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="subject-modal-close"
+                onClick={closeComponentManager}
+                aria-label="Close component manager"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div className="component-manager-body">
+              {componentManagerDraftSections
+                .filter((section) => section.category === componentManagerCategory && section.isActive)
+                .sort((left, right) => left.order - right.order)
+                .map((section) => {
+                  const sectionComponents = getSectionComponentList(
+                    componentManagerDraftComponents,
+                    section.id,
+                  )
+
+                  return (
+                    <section key={section.id} className="component-manager-section">
+                      {componentManagerCategory === 'skills' ? (
+                        <>
+                          <div className="component-manager-list">
+                            {sectionComponents.map((component) => (
+                              <div key={component.id} className="component-manager-row">
+                                <input
+                                  type="text"
+                                  className="component-manager-input"
+                                  value={component.label}
+                                  onChange={(event) =>
+                                    handleManagerDraftLabelChange(component.id, event)
+                                  }
+                                  placeholder="Skill name"
+                                />
+                                <div className="component-manager-inline-actions">
+                                  <button
+                                    type="button"
+                                    className="component-manager-move-btn"
+                                    onClick={() => handleMoveManagerDraftComponent(component.id, -1)}
+                                    aria-label={`Move ${component.label} up`}
+                                  >
+                                    Up
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="component-manager-move-btn"
+                                    onClick={() => handleMoveManagerDraftComponent(component.id, 1)}
+                                    aria-label={`Move ${component.label} down`}
+                                  >
+                                    Down
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="component-manager-remove-btn"
+                                    onClick={() => handleRemoveManagerDraftComponent(component.id)}
+                                    aria-label={`Remove ${component.label}`}
+                                  >
+                                    <TrashIcon />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            className="add-grade-component-btn"
+                            onClick={() => handleAddManagerDraftComponent(section.id)}
+                          >
+                            <PlusIcon />
+                            <span>Add Skill</span>
+                          </button>
+                        </>
+                      ) : (
+                        <div className="component-manager-section-editor">
+                          <div className="component-manager-section-row">
+                            <input
+                              type="text"
+                              className="component-manager-input"
+                              value={section.label}
+                              onChange={(event) =>
+                                handleManagerSectionLabelChange(section.id, event)
+                              }
+                              placeholder="Sub-grade name"
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="component-manager-weight-input"
+                              value={String(section.weight)}
+                              onChange={(event) =>
+                                handleManagerSectionWeightChange(section.id, event)
+                              }
+                              placeholder="%"
+                            />
+                            <div className="component-manager-inline-actions">
+                              <button
+                                type="button"
+                                className="component-manager-move-btn"
+                                onClick={() => handleMoveManagerSection(section.id, -1)}
+                                aria-label={`Move ${section.label} up`}
+                              >
+                                Up
+                              </button>
+                              <button
+                                type="button"
+                                className="component-manager-move-btn"
+                                onClick={() => handleMoveManagerSection(section.id, 1)}
+                                aria-label={`Move ${section.label} down`}
+                              >
+                                Down
+                              </button>
+                              <button
+                                type="button"
+                                className="component-manager-remove-btn"
+                                onClick={() => handleRemoveManagerSection(section.id)}
+                                aria-label={`Remove ${section.label}`}
+                              >
+                                <TrashIcon />
+                              </button>
+                            </div>
+                          </div>
+
+                          {componentManagerCategory === 'knowledge' ? (
+                            <>
+                              <div className="component-manager-assessment-label">Assessments</div>
+                              <div className="component-manager-list">
+                                {sectionComponents.map((component) => (
+                                  <div key={component.id} className="component-manager-row">
+                                    <input
+                                      type="text"
+                                      className="component-manager-input"
+                                      value={component.label}
+                                      onChange={(event) =>
+                                        handleManagerDraftLabelChange(component.id, event)
+                                      }
+                                      placeholder="Assessment name"
+                                    />
+                                    <div className="component-manager-inline-actions">
+                                      <button
+                                        type="button"
+                                        className="component-manager-move-btn"
+                                        onClick={() =>
+                                          handleMoveManagerDraftComponent(component.id, -1)
+                                        }
+                                        aria-label={`Move ${component.label} up`}
+                                      >
+                                        Up
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="component-manager-move-btn"
+                                        onClick={() =>
+                                          handleMoveManagerDraftComponent(component.id, 1)
+                                        }
+                                        aria-label={`Move ${component.label} down`}
+                                      >
+                                        Down
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="component-manager-remove-btn"
+                                        onClick={() => handleRemoveManagerDraftComponent(component.id)}
+                                        aria-label={`Remove ${component.label}`}
+                                      >
+                                        <TrashIcon />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <button
+                                type="button"
+                                className="add-grade-component-btn"
+                                onClick={() => handleAddManagerDraftComponent(section.id)}
+                              >
+                                <PlusIcon />
+                                <span>Add Assessment</span>
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
+                      )}
+                    </section>
+                  )
+                })}
+              {componentManagerCategory === 'knowledge' || componentManagerCategory === 'attitude' ? (
+                <>
+                  <button
+                    type="button"
+                    className="add-grade-component-btn"
+                    onClick={() => handleAddManagerSection(componentManagerCategory)}
+                  >
+                    <PlusIcon />
+                    <span>Add Sub-grade</span>
+                  </button>
+                  <div className="component-manager-total">
+                    Total Weight:{' '}
+                    {formatScore(
+                      componentManagerDraftSections
+                        .filter(
+                          (section) =>
+                            section.category === componentManagerCategory && section.isActive,
+                        )
+                        .reduce((sum, section) => sum + section.weight, 0),
+                      2,
+                    )}{' '}
+                    / {getCategoryWeight(componentManagerCategory)}%
+                  </div>
+                </>
+              ) : null}
+              {componentManagerError ? (
+                <p className="component-manager-error">{componentManagerError}</p>
+              ) : null}
+            </div>
+
+            <div className="grade-settings-modal-footer">
+              <button
+                type="button"
+                className="subject-detail-action"
+                onClick={closeComponentManager}
+              >
+                <span>Cancel</span>
+              </button>
+              <button
+                type="button"
+                className="subject-detail-action subject-detail-action--solid"
+                onClick={handleSaveComponentManager}
+              >
+                <span>Save</span>
               </button>
             </div>
           </div>

@@ -3145,6 +3145,17 @@
   overflow: hidden;
 }
 
+.component-manager-modal {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+  overflow-y: auto;
+}
+
 .grade-settings-modal-header {
   display: flex;
   align-items: flex-start;
@@ -3172,9 +3183,94 @@
   overflow-y: auto;
 }
 
+.component-manager-body {
+  padding: 18px;
+  overflow-y: auto;
+}
+
 .grade-settings-section + .grade-settings-section,
 .grade-edit-section + .grade-edit-section {
   margin-top: 18px;
+}
+
+.component-manager-section + .component-manager-section {
+  margin-top: 16px;
+}
+
+.component-manager-section-title {
+  margin-bottom: 10px;
+  color: #4b4444;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.component-manager-list {
+  display: grid;
+  gap: 10px;
+}
+
+.component-manager-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.component-manager-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #ded6d6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #201b1b;
+  font: 500 14px/1.2 'Lato', sans-serif;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.component-manager-input--readonly {
+  display: inline-flex;
+  align-items: center;
+  background: #faf8f8;
+  color: #4f4848;
+}
+
+.component-manager-remove-btn,
+.add-grade-component-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.component-manager-remove-btn {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid #efd4d4;
+  border-radius: 8px;
+  background: #fff7f7;
+  color: #b22b2b;
+}
+
+.component-manager-remove-btn svg,
+.add-grade-component-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.add-grade-component-btn {
+  height: 34px;
+  margin-top: 10px;
+  padding: 0 12px;
+  border: 1px dashed #aaa;
+  border-radius: 6px;
+  background: #fff;
+  color: #6a5f5f;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .grade-settings-section h3 {
@@ -3351,6 +3447,63 @@
 
 .grade-section-title--edit {
   border-radius: 8px;
+}
+
+.grade-category-header {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.grade-category-header--knowledge {
+  background: #fdeaea;
+  color: #8f0b0b;
+}
+
+.grade-category-header--skills {
+  background: #eaf4ff;
+  color: #17649a;
+}
+
+.grade-category-header--attitude {
+  background: #fff5dc;
+  color: #9f6807;
+}
+
+.grade-category-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 9px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.grade-category-edit-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.grade-category-edit-btn--knowledge {
+  color: #8f0b0b;
+}
+
+.grade-category-edit-btn--skills {
+  color: #17649a;
+}
+
+.grade-category-edit-btn--attitude {
+  color: #9f6807;
 }
 
 .grade-section-table-wrap {
@@ -3629,6 +3782,71 @@
   font-size: 13px;
 }
 
+.component-manager-section-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.component-manager-section-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.component-manager-weight-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #ded6d6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #201b1b;
+  font: 500 14px/1.2 'Lato', sans-serif;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.component-manager-inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.component-manager-move-btn {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d9d2d2;
+  border-radius: 8px;
+  background: #fff;
+  color: #574f4f;
+  font: 600 12px/1 'Lato', sans-serif;
+  cursor: pointer;
+}
+
+.component-manager-assessment-label,
+.component-manager-total,
+.component-manager-error {
+  font-size: 12px;
+}
+
+.component-manager-assessment-label {
+  color: #5f5656;
+  font-weight: 700;
+}
+
+.component-manager-total {
+  margin-top: 12px;
+  color: #433c3c;
+  font-weight: 700;
+}
+
+.component-manager-error {
+  margin: 10px 0 0;
+  color: #b22b2b;
+  font-weight: 600;
+}
+
 @media (max-width: 1100px) {
   .grades-page-toolbar,
   .grades-page-tabs-row,
@@ -3653,6 +3871,8 @@
     width: auto;
   }
 
+  .component-manager-row,
+  .component-manager-section-row,
   .grade-settings-checkboxes,
   .grade-edit-entry {
     grid-template-columns: 1fr;
@@ -3666,6 +3886,7 @@
 @media (max-width: 640px) {
   .grade-details-modal,
   .grade-settings-modal,
+  .component-manager-modal,
   .grade-edit-modal {
     width: min(100%, calc(100vw - 24px));
     max-height: calc(100dvh - 32px);

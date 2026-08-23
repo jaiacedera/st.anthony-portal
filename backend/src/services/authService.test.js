@@ -37,6 +37,10 @@ async function loadAuthModules(authAccountsPath) {
   }
 }
 
+function createStudentAccountLoader(authStore) {
+  return async (email) => authStore.getStudentAccountsByEmail(email)
+}
+
 function cleanupTempAuthStore(tempDirectory) {
   delete process.env.AUTH_ACCOUNTS_PATH
   rmSync(tempDirectory, {
@@ -46,7 +50,7 @@ function cleanupTempAuthStore(tempDirectory) {
 }
 
 test(
-  'student credentials remain valid across repeated login attempts and service reloads',
+  'student credentials remain valid across repeated login attempts, logout cycles, and service reloads',
   { concurrency: false },
   async (t) => {
     const { tempDirectory, authAccountsPath } = createTempAuthStore()
@@ -63,6 +67,7 @@ test(
       defaultPassword: password,
       createdByInstructorId: 'instructor-1',
     })
+    const loadStudentAccountsByEmail = createStudentAccountLoader(authStore)
 
     const loadStudentById = async (candidateStudentId) => ({
       student_id: candidateStudentId,
@@ -71,6 +76,7 @@ test(
 
     let result = await authService.authenticateStudentWithResolver(email, password, {
       loadStudentById,
+      loadStudentAccountsByEmail,
     })
 
     assert.equal(result.success, true)
@@ -78,14 +84,17 @@ test(
 
     result = await authService.authenticateStudentWithResolver(email, password, {
       loadStudentById,
+      loadStudentAccountsByEmail,
     })
 
     assert.equal(result.success, true)
 
     ;({ authStore, authService } = await loadAuthModules(authAccountsPath))
+    const reloadedAccountLoader = createStudentAccountLoader(authStore)
 
     result = await authService.authenticateStudentWithResolver(email, password, {
       loadStudentById,
+      loadStudentAccountsByEmail: reloadedAccountLoader,
     })
 
     assert.equal(result.success, true)
@@ -96,6 +105,7 @@ test(
       'WrongPassword123!',
       {
         loadStudentById,
+        loadStudentAccountsByEmail: reloadedAccountLoader,
       },
     )
 
@@ -125,6 +135,7 @@ test(
     })
 
     authStore.setStudentAccountPasswordByStudentId(studentId, nextPassword)
+    const loadStudentAccountsByEmail = createStudentAccountLoader(authStore)
 
     const loadStudentById = async (candidateStudentId) => ({
       student_id: candidateStudentId,
@@ -136,6 +147,7 @@ test(
       initialPassword,
       {
         loadStudentById,
+        loadStudentAccountsByEmail,
       },
     )
     const newPasswordResult = await authService.authenticateStudentWithResolver(
@@ -143,6 +155,7 @@ test(
       nextPassword,
       {
         loadStudentById,
+        loadStudentAccountsByEmail,
       },
     )
 
@@ -169,9 +182,11 @@ test(
       defaultPassword: password,
       createdByInstructorId: 'instructor-1',
     })
+    const loadStudentAccountsByEmail = createStudentAccountLoader(authStore)
 
     const firstLogin = await authService.authenticateStudentWithResolver(email, password, {
       loadStudentById: async () => null,
+      loadStudentAccountsByEmail,
     })
 
     assert.equal(firstLogin.success, true)
@@ -181,6 +196,7 @@ test(
       loadStudentById: async () => {
         throw new Error('Temporary student lookup outage')
       },
+      loadStudentAccountsByEmail,
     })
 
     assert.equal(secondLogin.success, true)

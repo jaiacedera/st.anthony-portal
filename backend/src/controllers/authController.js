@@ -16,10 +16,10 @@ export async function postInstructorLogin(req, res) {
     const payload = await authenticateInstructor(username, password)
 
     sendJson(res, payload.success ? 200 : 401, payload)
-  } catch {
-    sendJson(res, 400, {
+  } catch (error) {
+    sendJson(res, error?.statusCode ?? 400, {
       success: false,
-      message: 'Invalid request body.',
+      message: error instanceof Error ? error.message : 'Invalid request body.',
     })
   }
 }
@@ -38,10 +38,10 @@ export async function postStudentLogin(req, res) {
     const payload = await authenticateStudent(email, password)
 
     sendJson(res, payload.success ? 200 : 401, payload)
-  } catch {
-    sendJson(res, 400, {
+  } catch (error) {
+    sendJson(res, error?.statusCode ?? 400, {
       success: false,
-      message: 'Invalid request body.',
+      message: error instanceof Error ? error.message : 'Invalid request body.',
     })
   }
 }

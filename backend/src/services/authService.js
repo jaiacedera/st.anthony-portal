@@ -1,9 +1,11 @@
 import {
   findInstructorAccountByUsername,
-  getStudentAccountsByEmail,
   verifyInstructorPassword,
-  verifyAccountPassword,
 } from '../../database/authStore.js'
+import {
+  getStudentAccountsByEmail,
+  verifyAccountPassword,
+} from '../../database/studentAuthStore.js'
 import { SHEET_ID_COLUMNS, SHEET_NAMES } from '../../database/sheetsSchema.js'
 import { getRowById } from '../../database/sheetsService.js'
 
@@ -75,7 +77,10 @@ export async function authenticateStudent(email, password) {
 export async function authenticateStudentWithResolver(
   email,
   password,
-  { loadStudentById = loadStudentRecordById } = {},
+  {
+    loadStudentById = loadStudentRecordById,
+    loadStudentAccountsByEmail = getStudentAccountsByEmail,
+  } = {},
 ) {
   const normalizedEmail = String(email ?? '').trim().toLowerCase()
 
@@ -86,7 +91,18 @@ export async function authenticateStudentWithResolver(
     }
   }
 
-  const accounts = getStudentAccountsByEmail(normalizedEmail)
+  let accounts = []
+
+  try {
+    accounts = await loadStudentAccountsByEmail(normalizedEmail)
+  } catch (error) {
+    logStudentAuthEvent('AUTH_PROVIDER_ERROR', {
+      normalizedEmail,
+      message: error instanceof Error ? error.message : 'Unknown auth account lookup error.',
+    })
+
+    throw error
+  }
 
   if (!accounts.length) {
     logStudentAuthEvent('ACCOUNT_NOT_FOUND', {
@@ -176,7 +192,7 @@ export async function authenticateStudentWithResolver(
       message: 'Student login successful.',
       account: {
         accountId: account.account_id,
-        role: account.role,
+        role: 'STUDENT',
         email: account.email ?? account.username,
         username: account.username,
         studentId: account.student_id,

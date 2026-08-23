@@ -1,4 +1,4 @@
-import { findStudentAccountByEmail } from '../../database/authStore.js'
+import { findStudentAccountByEmail } from '../../database/studentAuthStore.js'
 import { SHEET_ID_COLUMNS, SHEET_NAMES } from '../../database/sheetsSchema.js'
 import {
   findRows,
@@ -127,7 +127,7 @@ async function resolveStudentRecord({ studentId, email }) {
     throw error
   }
 
-  const account = findStudentAccountByEmail(normalizedEmail)
+  const account = await findStudentAccountByEmail(normalizedEmail)
 
   if (!account?.student_id) {
     const error = new Error('Student account was not found.')

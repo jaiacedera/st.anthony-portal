@@ -1,15 +1,15 @@
 import {
-  createStudentAccount,
+  getInstructorAccountByUsername,
+} from '../../database/authStore.js'
+import { randomBytes } from 'node:crypto'
+import {
   deleteAccountByAccountId,
   deleteStudentAccountByStudentId,
-  getAuthAccounts,
-  getInstructorAccountByUsername,
+  getAllStudentAccounts,
   getStudentAccountsByEmail,
   getStudentAccountByStudentId,
   upsertStudentAccount,
-  verifyAccountPassword,
-} from '../../database/authStore.js'
-import { randomBytes } from 'node:crypto'
+} from '../../database/studentAuthStore.js'
 import { SHEET_NAMES, SHEET_ID_COLUMNS } from '../../database/sheetsSchema.js'
 import { sendStudentWelcomeEmail } from './emailService.js'
 import {
@@ -161,7 +161,7 @@ async function resolveInstructorContext(username) {
 }
 
 async function purgeStaleStudentAccountsByEmail(email) {
-  const studentAccounts = getStudentAccountsByEmail(email)
+  const studentAccounts = await getStudentAccountsByEmail(email)
 
   for (const account of studentAccounts) {
     const student = account.student_id
@@ -173,7 +173,7 @@ async function purgeStaleStudentAccountsByEmail(email) {
       : null
 
     if (!student || !isActiveStatus(student.status)) {
-      deleteAccountByAccountId(account.account_id)
+      await deleteAccountByAccountId(account.account_id)
     }
   }
 }
@@ -233,11 +233,12 @@ export async function getInstructorStudentsPayload(username) {
     }
   }
 
-  const [subjects, subjectStudents, students, grades] = await Promise.all([
+  const [subjects, subjectStudents, students, grades, studentAccounts] = await Promise.all([
     getInstructorSubjects(instructorId),
     getAllRows(SHEET_NAMES.SUBJECT_STUDENTS),
     getAllRows(SHEET_NAMES.STUDENTS),
     getAllRows(SHEET_NAMES.GRADES),
+    getAllStudentAccounts(),
   ])
 
   const activeSubjects = subjects.filter((subject) => isActiveStatus(subject.status))
@@ -253,9 +254,8 @@ export async function getInstructorStudentsPayload(username) {
     instructorId,
     instructorRecord,
   }
-  const studentAccounts = getAuthAccounts().filter(
+  const ownedStudentAccounts = studentAccounts.filter(
     (account) =>
-      account.role === 'STUDENT' &&
       account.status === 'ACTIVE' &&
       isOwnedByInstructor(account.created_by_instructor_id, ownershipContext),
   )
@@ -280,7 +280,7 @@ export async function getInstructorStudentsPayload(username) {
 
   const visibleStudentIds = new Set([
     ...linksByStudentId.keys(),
-    ...studentAccounts
+    ...ownedStudentAccounts
       .map((account) => String(account.student_id ?? '').trim())
       .filter(Boolean),
   ])
@@ -464,7 +464,7 @@ export async function createInstructorStudentForUser({
   let studentAccount
 
   try {
-    studentAccount = upsertStudentAccount({
+    studentAccount = await upsertStudentAccount({
       email,
       studentId: student.student_id,
       defaultPassword,
@@ -475,14 +475,6 @@ export async function createInstructorStudentForUser({
       error.statusCode = 400
     }
 
-    throw error
-  }
-
-  if (!studentAccount || !verifyAccountPassword(studentAccount, defaultPassword)) {
-    const error = new Error(
-      'Student login credentials could not be finalized. Please try creating the account again.',
-    )
-    error.statusCode = 500
     throw error
   }
 
@@ -568,7 +560,7 @@ export async function deleteInstructorStudentAccount({
     throw error
   }
 
-  const studentAccount = getStudentAccountByStudentId(studentId)
+  const studentAccount = await getStudentAccountByStudentId(studentId)
 
   if (!studentAccount || studentAccount.status !== 'ACTIVE') {
     const error = new Error('Student auth account was not found.')
@@ -630,7 +622,7 @@ export async function deleteInstructorStudentAccount({
     studentId,
   )
 
-  deleteStudentAccountByStudentId(studentId)
+  await deleteStudentAccountByStudentId(studentId)
 
   return {
     success: true,

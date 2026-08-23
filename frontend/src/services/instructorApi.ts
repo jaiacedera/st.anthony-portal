@@ -22,6 +22,23 @@ export type InstructorPendingRequestPreview = {
   status: string
 }
 
+export type InstructorRequestRecord = {
+  requestId: string
+  studentId: string
+  studentName: string
+  subjectId: string
+  subjectCode: string
+  subjectTitle: string
+  requestType: string
+  message: string
+  status: string
+  requestedAt: string
+  processedAt: string
+  processedBy: string
+  processedByName: string
+  gradeId: string
+}
+
 export type InstructorDashboardPayload = {
   success: boolean
   connected: boolean
@@ -42,6 +59,18 @@ export type InstructorDashboardPayload = {
     gradePosting: InstructorGradePostingPreview[]
     pendingRequests: InstructorPendingRequestPreview[]
   }
+}
+
+export type InstructorRequestsPayload = {
+  success: boolean
+  connected: boolean
+  needsBinding: boolean
+  message?: string
+  header: {
+    schoolYear: string
+    semester: string
+  }
+  requests: InstructorRequestRecord[]
 }
 
 export type InstructorSubjectRecord = {
@@ -193,6 +222,20 @@ export type InstructorGradePublicationPayload = {
   publication: InstructorGradePublication
 }
 
+export type ReviewInstructorRequestInput = {
+  username: string
+  requestId: string
+  status: 'APPROVED' | 'REJECTED'
+}
+
+export type ReviewInstructorRequestPayload = {
+  success: boolean
+  request: Pick<
+    InstructorRequestRecord,
+    'requestId' | 'status' | 'processedAt' | 'processedBy' | 'processedByName'
+  >
+}
+
 export type PostInstructorGradesInput = {
   username: string
   subjectId: string
@@ -321,6 +364,29 @@ export async function fetchInstructorStudents(
   return payload
 }
 
+export async function fetchInstructorRequests(
+  username: string,
+  signal?: AbortSignal,
+): Promise<InstructorRequestsPayload> {
+  const query = new URLSearchParams({ username })
+  const response = await fetch(`${apiBaseUrl}/api/instructor/requests?${query.toString()}`, {
+    headers: {
+      Accept: 'application/json',
+    },
+    signal,
+  })
+
+  const payload = (await response.json()) as InstructorRequestsPayload & {
+    message?: string
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? `Backend request failed with ${response.status}`)
+  }
+
+  return payload
+}
+
 export async function updateInstructorStudentEnrollment(
   input: UpdateInstructorStudentEnrollmentInput,
 ): Promise<UpdateInstructorStudentEnrollmentPayload> {
@@ -437,6 +503,29 @@ export async function postInstructorGrades(
   })
 
   const payload = (await response.json()) as InstructorGradePublicationPayload & {
+    message?: string
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? `Backend request failed with ${response.status}`)
+  }
+
+  return payload
+}
+
+export async function reviewInstructorRequest(
+  input: ReviewInstructorRequestInput,
+): Promise<ReviewInstructorRequestPayload> {
+  const response = await fetch(`${apiBaseUrl}/api/instructor/requests/review`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  })
+
+  const payload = (await response.json()) as ReviewInstructorRequestPayload & {
     message?: string
   }
 

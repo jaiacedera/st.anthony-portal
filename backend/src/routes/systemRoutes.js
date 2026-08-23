@@ -19,6 +19,10 @@ import {
   postInstructorSubjectUpdate,
 } from '../controllers/instructorSubjectsController.js'
 import {
+  getInstructorRequestsData,
+  postInstructorRequestReview,
+} from '../controllers/instructorRequestsController.js'
+import {
   getInstructorStudentsData,
   postInstructorStudent,
   postInstructorStudentDelete,
@@ -90,6 +94,11 @@ const routes = [
     handler: getInstructorStudentsData,
   },
   {
+    method: 'GET',
+    pathname: '/api/instructor/requests',
+    handler: getInstructorRequestsData,
+  },
+  {
     method: 'POST',
     pathname: '/api/instructor/students',
     handler: postInstructorStudent,
@@ -103,6 +112,11 @@ const routes = [
     method: 'POST',
     pathname: '/api/instructor/students/enrollment',
     handler: postInstructorStudentEnrollment,
+  },
+  {
+    method: 'POST',
+    pathname: '/api/instructor/requests/review',
+    handler: postInstructorRequestReview,
   },
   {
     method: 'GET',

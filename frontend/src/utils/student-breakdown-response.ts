@@ -720,25 +720,12 @@ function buildSkillsScoreInput(
   )
 }
 
-function toRating(score: number) {
-  if (score >= 97) return '1.00'
-  if (score >= 94) return '1.25'
-  if (score >= 91) return '1.50'
-  if (score >= 88) return '1.75'
-  if (score >= 85) return '2.00'
-  if (score >= 82) return '2.25'
-  if (score >= 79) return '2.50'
-  if (score >= 76) return '2.75'
-  if (score >= 75) return '3.00'
-  return '5.00'
-}
-
 function toRemarks(score: number | null, isIncomplete: boolean) {
   if (isIncomplete || score === null || !Number.isFinite(score)) {
     return 'INC'
   }
 
-  return score >= 75 ? 'PASSED' : 'FAILED'
+  return gradeToRemarks(score)
 }
 
 function buildStudentGradeSnapshot({
@@ -856,7 +843,7 @@ function buildStudentGradeSnapshot({
   return {
     categories,
     finalScore,
-    rating: finalScore === null || isIncomplete ? '--' : toRating(finalScore),
+    rating: finalScore === null || isIncomplete ? '--' : gradeToRating(finalScore),
     remarks: toRemarks(finalScore, isIncomplete),
   }
 }
@@ -935,3 +922,4 @@ export function buildApprovedBreakdownResponse({
     generatedAt: new Date().toISOString(),
   }
 }
+import { gradeToRating, gradeToRemarks } from './grade-rating'

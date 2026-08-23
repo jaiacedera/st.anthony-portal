@@ -18,13 +18,15 @@ import { readInstructorAuth } from '../../utils/instructorAuth'
 type GradebookTabKey = 'gradebook' | 'requests' | 'history'
 type GradingPeriodKey = 'prelim' | 'midterm' | 'final'
 type GradeCategoryKey = 'knowledge' | 'skills' | 'attitude'
-
-type GradeComponent = {
-  id: string
-  label: string
-  category: GradeCategoryKey
-  weight: number
-}
+type GradeSectionKey =
+  | 'knowledge-quiz'
+  | 'knowledge-long-exam'
+  | 'knowledge-major-exam'
+  | 'skills-core'
+  | 'attitude-character'
+  | 'attitude-attendance'
+  | 'attitude-uniform'
+type GradeAggregationType = 'average' | 'single'
 
 type GradeCategoryDefinition = {
   key: GradeCategoryKey
@@ -32,19 +34,53 @@ type GradeCategoryDefinition = {
   weight: number
 }
 
+type GradeSectionConfig = {
+  id: GradeSectionKey
+  category: GradeCategoryKey
+  label: string
+  weight: number
+  aggregationType: GradeAggregationType
+  allowAdditions: boolean
+  order: number
+}
+
+type GradeComponentConfig = {
+  id: string
+  sectionId: GradeSectionKey
+  label: string
+  order: number
+  isDefault: boolean
+  isActive: boolean
+  isCustom: boolean
+  periodAware?: boolean
+}
+
+type GradeComponentSnapshot = GradeComponentConfig & {
+  displayLabel: string
+  score: number | null
+}
+
+type GradeSectionSnapshot = GradeSectionConfig & {
+  components: GradeComponentSnapshot[]
+  average: number | null
+  contribution: number | null
+  hasMissingScores: boolean
+}
+
 type GradeCategorySnapshot = GradeCategoryDefinition & {
-  components: Array<GradeComponent & { score: number }>
-  total: number
-  weighted: number
+  sections: GradeSectionSnapshot[]
+  total: number | null
+  weighted: number | null
+  isIncomplete: boolean
 }
 
 type StudentGradeSnapshot = {
   student: InstructorStudentRecord
   subject: InstructorRosterSubject | null
   categories: GradeCategorySnapshot[]
-  finalScore: number
-  rating: string
+  finalScore: number | null
   remarks: string
+  isIncomplete: boolean
 }
 
 type GradeOverrideMap = Record<string, number>
@@ -86,26 +122,148 @@ const gradeCategories: GradeCategoryDefinition[] = [
   { key: 'attitude', label: 'Attitude', weight: 20 },
 ]
 
-const gradeComponents: GradeComponent[] = [
-  { id: 'knowledge-exam', label: 'Exam', category: 'knowledge', weight: 40 },
-  { id: 'knowledge-activity-1', label: 'Activity 1', category: 'knowledge', weight: 15 },
-  { id: 'knowledge-activity-2', label: 'Activity 2', category: 'knowledge', weight: 15 },
-  { id: 'knowledge-activity-3', label: 'Activity 3', category: 'knowledge', weight: 15 },
-  { id: 'knowledge-activity-4', label: 'Activity 4', category: 'knowledge', weight: 15 },
-  { id: 'skills-pda', label: 'PDA', category: 'skills', weight: 10 },
-  { id: 'skills-ncra', label: 'NCRA', category: 'skills', weight: 10 },
-  { id: 'skills-journal', label: 'Journal', category: 'skills', weight: 10 },
-  { id: 'skills-role-play', label: 'Role Play', category: 'skills', weight: 10 },
-  { id: 'skills-mcos', label: 'MCOS', category: 'skills', weight: 10 },
-  { id: 'skills-case', label: 'Case', category: 'skills', weight: 10 },
-  { id: 'skills-demonstration', label: 'Demonstration', category: 'skills', weight: 20 },
-  { id: 'skills-return-demo', label: 'Return Demo', category: 'skills', weight: 20 },
-  { id: 'attitude-paperworks', label: 'Paperworks', category: 'attitude', weight: 20 },
-  { id: 'attitude-respect', label: 'Respect', category: 'attitude', weight: 20 },
-  { id: 'attitude-participation', label: 'Participation', category: 'attitude', weight: 20 },
-  { id: 'attitude-teamwork', label: 'Teamwork', category: 'attitude', weight: 20 },
-  { id: 'attitude-professionalism', label: 'Professionalism', category: 'attitude', weight: 20 },
+const gradeSections: GradeSectionConfig[] = [
+  {
+    id: 'knowledge-quiz',
+    category: 'knowledge',
+    label: 'Quiz',
+    weight: 8,
+    aggregationType: 'average',
+    allowAdditions: true,
+    order: 1,
+  },
+  {
+    id: 'knowledge-long-exam',
+    category: 'knowledge',
+    label: 'Long Exam',
+    weight: 12,
+    aggregationType: 'average',
+    allowAdditions: true,
+    order: 2,
+  },
+  {
+    id: 'knowledge-major-exam',
+    category: 'knowledge',
+    label: 'Major Exam',
+    weight: 20,
+    aggregationType: 'single',
+    allowAdditions: false,
+    order: 3,
+  },
+  {
+    id: 'skills-core',
+    category: 'skills',
+    label: 'Skills Components',
+    weight: 40,
+    aggregationType: 'average',
+    allowAdditions: true,
+    order: 1,
+  },
+  {
+    id: 'attitude-character',
+    category: 'attitude',
+    label: 'Character',
+    weight: 10,
+    aggregationType: 'single',
+    allowAdditions: false,
+    order: 1,
+  },
+  {
+    id: 'attitude-attendance',
+    category: 'attitude',
+    label: 'Attendance',
+    weight: 5,
+    aggregationType: 'single',
+    allowAdditions: false,
+    order: 2,
+  },
+  {
+    id: 'attitude-uniform',
+    category: 'attitude',
+    label: 'Uniform and Paraphernalia',
+    weight: 5,
+    aggregationType: 'single',
+    allowAdditions: false,
+    order: 3,
+  },
 ]
+
+function buildDefaultGradeComponents(): GradeComponentConfig[] {
+  return [
+    {
+      id: 'knowledge-quiz-1',
+      sectionId: 'knowledge-quiz',
+      label: 'Quiz 1',
+      order: 1,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+    {
+      id: 'knowledge-long-exam-1',
+      sectionId: 'knowledge-long-exam',
+      label: 'Long Exam 1',
+      order: 1,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+    {
+      id: 'knowledge-major-exam',
+      sectionId: 'knowledge-major-exam',
+      label: 'Major Exam',
+      order: 1,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+      periodAware: true,
+    },
+    ...[
+      'Medications',
+      'FDAR',
+      'KARDEX',
+      'V/S',
+      'Performance',
+      'Case Study',
+      'Case Pres.',
+    ].map((label, index) => ({
+      id: `skills-core-${index + 1}`,
+      sectionId: 'skills-core' as GradeSectionKey,
+      label,
+      order: index + 1,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    })),
+    {
+      id: 'attitude-character',
+      sectionId: 'attitude-character',
+      label: 'Character',
+      order: 1,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+    {
+      id: 'attitude-attendance',
+      sectionId: 'attitude-attendance',
+      label: 'Attendance',
+      order: 1,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+    {
+      id: 'attitude-uniform',
+      sectionId: 'attitude-uniform',
+      label: 'Uniform and Paraphernalia',
+      order: 1,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    },
+  ]
+}
 
 function EyeIcon() {
   return (
@@ -198,6 +356,46 @@ function ChevronRightIcon() {
   )
 }
 
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6" />
+      <path d="m6 6 1 14a1 1 0 0 0 1 .9h8a1 1 0 0 0 1-.9l1-14" />
+      <path d="M10 10.5v6" />
+      <path d="M14 10.5v6" />
+    </svg>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  )
+}
+
+function getSectionConfig(sectionId: GradeSectionKey) {
+  return gradeSections.find((section) => section.id === sectionId) ?? null
+}
+
+function getGradingPeriodLabel(gradingPeriod: GradingPeriodKey) {
+  return gradingPeriods.find((period) => period.key === gradingPeriod)?.label ?? 'Midterm'
+}
+
+function getDisplayComponentLabel(
+  component: GradeComponentConfig,
+  gradingPeriod: GradingPeriodKey,
+) {
+  if (component.periodAware) {
+    return `${getGradingPeriodLabel(gradingPeriod)} Exam`
+  }
+
+  return component.label
+}
+
 function getScoreOverrideKey(
   studentId: string,
   subjectId: string,
@@ -235,7 +433,13 @@ function roundTo(value: number, decimals = 2) {
 }
 
 function parseNumericValue(value: string) {
-  const parsed = Number.parseFloat(String(value).replace(/[^\d.-]/g, ''))
+  const normalizedValue = String(value ?? '').trim()
+
+  if (!normalizedValue) {
+    return null
+  }
+
+  const parsed = Number.parseFloat(normalizedValue.replace(/[^\d.-]/g, ''))
   return Number.isFinite(parsed) ? parsed : null
 }
 
@@ -243,33 +447,8 @@ function formatScore(value: number, decimals = 2) {
   return value.toFixed(decimals)
 }
 
-function formatWholeOrDecimal(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2)
-}
-
-function toRating(score: number) {
-  if (score >= 97) return '1.00'
-  if (score >= 94) return '1.25'
-  if (score >= 91) return '1.50'
-  if (score >= 88) return '1.75'
-  if (score >= 85) return '2.00'
-  if (score >= 82) return '2.25'
-  if (score >= 79) return '2.50'
-  if (score >= 76) return '2.75'
-  if (score >= 75) return '3.00'
-  return '5.00'
-}
-
-function toRemarks(score: number) {
-  if (!Number.isFinite(score)) {
-    return 'INC'
-  }
-
-  return score >= 75 ? 'PASSED' : 'FAILED'
-}
-
-function getGradingPeriodLabel(gradingPeriod: GradingPeriodKey) {
-  return gradingPeriods.find((period) => period.key === gradingPeriod)?.label ?? 'Midterm'
+function formatScoreOrPlaceholder(value: number | null, decimals = 2) {
+  return value === null ? '--' : formatScore(value, decimals)
 }
 
 function formatTimestamp(timestamp: string) {
@@ -292,103 +471,25 @@ function normalizeCsvHeader(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-function getDefaultVisibleComponentIds() {
-  return gradeComponents.map((component) => component.id)
-}
+function calculateAverage(values: Array<number | null>) {
+  const validValues = values.filter((value): value is number => value !== null)
 
-function getComponentBaseScore(
-  student: InstructorStudentRecord,
-  subjectId: string,
-  gradingPeriod: GradingPeriodKey,
-  component: GradeComponent,
-) {
-  const seed = `${student.studentId}:${subjectId}:${gradingPeriod}:${component.id}`
-  const hash = hashString(seed)
-  const categoryOffset =
-    component.category === 'knowledge'
-      ? 0
-      : component.category === 'skills'
-        ? 2
-        : -1
-  const periodOffset = gradingPeriod === 'prelim' ? -3 : gradingPeriod === 'final' ? 3 : 0
+  if (!validValues.length) {
+    return null
+  }
 
-  return clampNumber(58 + (hash % 35) + categoryOffset + periodOffset, 40, 100)
-}
-
-function buildStudentGradeSnapshot(
-  student: InstructorStudentRecord,
-  subject: InstructorRosterSubject | null,
-  gradingPeriod: GradingPeriodKey,
-  overrides: GradeOverrideMap,
-): StudentGradeSnapshot {
-  const currentSubjectGrade = student.subjects.find(
-    (studentSubject) => studentSubject.id === subject?.id,
-  )
-
-  const categories = gradeCategories.map((category) => {
-    const components = gradeComponents
-      .filter((component) => component.category === category.key)
-      .map((component) => {
-        const overrideKey = getScoreOverrideKey(
-          student.id,
-          subject?.id ?? '',
-          gradingPeriod,
-          component.id,
-        )
-        const score =
-          overrides[overrideKey] ??
-          getComponentBaseScore(student, subject?.id ?? 'unassigned', gradingPeriod, component)
-
-        return {
-          ...component,
-          score: roundTo(score, 2),
-        }
-      })
-
-    const totalWeight = components.reduce((sum, component) => sum + component.weight, 0) || 1
-    const total = roundTo(
-      components.reduce((sum, component) => sum + component.score * component.weight, 0) /
-        totalWeight,
-      2,
-    )
-
-    return {
-      ...category,
-      components,
-      total,
-      weighted: 0,
-    }
-  })
-
-  const rawWeightedScore = categories.reduce(
-    (sum, category) => sum + (category.total * category.weight) / 100,
-    0,
-  )
-  const existingFinalGrade =
-    gradingPeriod === 'final'
-      ? parseNumericValue(currentSubjectGrade?.finalGrade ?? '')
-      : null
-  const scaleFactor =
-    existingFinalGrade && rawWeightedScore > 0 ? existingFinalGrade / rawWeightedScore : 1
-
-  const normalizedCategories = categories.map((category) => ({
-    ...category,
-    weighted: roundTo((category.total * category.weight * scaleFactor) / 100, 2),
-  }))
-
-  const finalScore = roundTo(
-    normalizedCategories.reduce((sum, category) => sum + category.weighted, 0),
+  return roundTo(
+    validValues.reduce((sum, value) => sum + value, 0) / validValues.length,
     2,
   )
+}
 
-  return {
-    student,
-    subject,
-    categories: normalizedCategories,
-    finalScore,
-    rating: toRating(finalScore),
-    remarks: toRemarks(finalScore),
+function toRemarks(score: number | null, isIncomplete: boolean) {
+  if (isIncomplete || score === null || !Number.isFinite(score)) {
+    return 'INC'
   }
+
+  return score >= 75 ? 'PASSED' : 'FAILED'
 }
 
 function getRemarkClassName(remark: string) {
@@ -460,12 +561,256 @@ function parseCsvLine(line: string) {
   return cells
 }
 
+function getDefaultVisibleComponentIds(components: GradeComponentConfig[]) {
+  return components.filter((component) => component.isActive).map((component) => component.id)
+}
+
+function cloneComponents(components: GradeComponentConfig[]) {
+  return components.map((component) => ({ ...component }))
+}
+
+function serializeComponents(components: GradeComponentConfig[]) {
+  return JSON.stringify(
+    [...components]
+      .sort((left, right) =>
+        `${left.sectionId}-${left.order}-${left.id}`.localeCompare(
+          `${right.sectionId}-${right.order}-${right.id}`,
+        ),
+      )
+      .map((component) => ({
+        id: component.id,
+        sectionId: component.sectionId,
+        label: component.label,
+        order: component.order,
+        isDefault: component.isDefault,
+        isActive: component.isActive,
+        isCustom: component.isCustom,
+        periodAware: component.periodAware ?? false,
+      })),
+  )
+}
+
+function getComponentBaseScore(
+  student: InstructorStudentRecord,
+  subjectId: string,
+  gradingPeriod: GradingPeriodKey,
+  component: GradeComponentConfig,
+) {
+  const section = getSectionConfig(component.sectionId)
+  const seed = `${student.studentId}:${subjectId}:${gradingPeriod}:${component.id}`
+  const hash = hashString(seed)
+  const categoryOffset =
+    section?.category === 'knowledge'
+      ? 0
+      : section?.category === 'skills'
+        ? 2
+        : -1
+  const periodOffset = gradingPeriod === 'prelim' ? -3 : gradingPeriod === 'final' ? 3 : 0
+
+  return clampNumber(60 + (hash % 31) + categoryOffset + periodOffset, 45, 99)
+}
+
+function buildStudentGradeSnapshot(
+  student: InstructorStudentRecord,
+  subject: InstructorRosterSubject | null,
+  gradingPeriod: GradingPeriodKey,
+  components: GradeComponentConfig[],
+  overrides: GradeOverrideMap,
+): StudentGradeSnapshot {
+  const categories = gradeCategories.map((category) => {
+    const sections = gradeSections
+      .filter((section) => section.category === category.key)
+      .sort((left, right) => left.order - right.order)
+      .map<GradeSectionSnapshot>((section) => {
+        const sectionComponents = components
+          .filter((component) => component.sectionId === section.id && component.isActive)
+          .sort((left, right) => left.order - right.order)
+          .map<GradeComponentSnapshot>((component) => {
+            const overrideKey = getScoreOverrideKey(
+              student.id,
+              subject?.id ?? '',
+              gradingPeriod,
+              component.id,
+            )
+            const savedScore = overrides[overrideKey]
+            const score =
+              savedScore !== undefined
+                ? roundTo(savedScore, 2)
+                : component.isCustom
+                  ? null
+                  : roundTo(
+                      getComponentBaseScore(
+                        student,
+                        subject?.id ?? 'unassigned',
+                        gradingPeriod,
+                        component,
+                      ),
+                      2,
+                    )
+
+            return {
+              ...component,
+              displayLabel: getDisplayComponentLabel(component, gradingPeriod),
+              score,
+            }
+          })
+
+        const average = calculateAverage(sectionComponents.map((component) => component.score))
+        const contribution =
+          average === null ? null : roundTo(average * (section.weight / 100), 2)
+
+        return {
+          ...section,
+          components: sectionComponents,
+          average,
+          contribution,
+          hasMissingScores: sectionComponents.some((component) => component.score === null),
+        }
+      })
+
+    const availableContributions = sections
+      .map((section) => section.contribution)
+      .filter((value): value is number => value !== null)
+    const weighted = availableContributions.length
+      ? roundTo(availableContributions.reduce((sum, value) => sum + value, 0), 2)
+      : null
+    const total =
+      weighted === null ? null : roundTo(weighted / (category.weight / 100), 2)
+    const isIncomplete = sections.some(
+      (section) =>
+        !section.components.length || section.average === null || section.hasMissingScores,
+    )
+
+    return {
+      ...category,
+      sections,
+      total,
+      weighted,
+      isIncomplete,
+    }
+  })
+
+  const availableWeighted = categories
+    .map((category) => category.weighted)
+    .filter((value): value is number => value !== null)
+  const finalScore = availableWeighted.length
+    ? roundTo(availableWeighted.reduce((sum, value) => sum + value, 0), 2)
+    : null
+  const isIncomplete = categories.some(
+    (category) => category.isIncomplete || category.weighted === null,
+  )
+
+  return {
+    student,
+    subject,
+    categories,
+    finalScore,
+    remarks: toRemarks(finalScore, isIncomplete),
+    isIncomplete,
+  }
+}
+
+function getSectionComponentList(
+  components: GradeComponentConfig[],
+  sectionId: GradeSectionKey,
+) {
+  return components
+    .filter((component) => component.sectionId === sectionId && component.isActive)
+    .sort((left, right) => left.order - right.order)
+}
+
+function getCsvHeaderAliases(
+  component: GradeComponentConfig,
+  gradingPeriod: GradingPeriodKey,
+) {
+  const aliases = new Set<string>([normalizeCsvHeader(component.label)])
+
+  aliases.add(normalizeCsvHeader(getDisplayComponentLabel(component, gradingPeriod)))
+
+  if (component.periodAware) {
+    aliases.add(normalizeCsvHeader('Major Exam'))
+  }
+
+  return [...aliases]
+}
+
+function createCustomComponent(
+  sectionId: GradeSectionKey,
+  label: string,
+  order: number,
+) {
+  return {
+    id: `${sectionId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    sectionId,
+    label,
+    order,
+    isDefault: false,
+    isActive: true,
+    isCustom: true,
+  } satisfies GradeComponentConfig
+}
+
+function getNextCustomLabel(
+  sectionId: GradeSectionKey,
+  components: GradeComponentConfig[],
+) {
+  const currentCount = getSectionComponentList(components, sectionId).length
+
+  if (sectionId === 'knowledge-quiz') {
+    return `Quiz ${currentCount + 1}`
+  }
+
+  if (sectionId === 'knowledge-long-exam') {
+    return `Long Exam ${currentCount + 1}`
+  }
+
+  return `Skill Component ${currentCount + 1}`
+}
+
+function pruneOverridesByComponentIds(
+  overrides: GradeOverrideMap,
+  componentIdsToRemove: string[],
+) {
+  if (!componentIdsToRemove.length) {
+    return overrides
+  }
+
+  const removedIds = new Set(componentIdsToRemove)
+
+  return Object.fromEntries(
+    Object.entries(overrides).filter((entry) => {
+      const [, , , componentId] = entry[0].split('::')
+      return !removedIds.has(componentId)
+    }),
+  )
+}
+
+function syncVisibleComponentIds(
+  previousComponents: GradeComponentConfig[],
+  nextComponents: GradeComponentConfig[],
+  currentVisibleIds: string[],
+) {
+  const previousIds = new Set(
+    previousComponents.filter((component) => component.isActive).map((component) => component.id),
+  )
+  const currentVisibleSet = new Set(currentVisibleIds)
+
+  return nextComponents
+    .filter((component) => component.isActive)
+    .map((component) => component.id)
+    .filter((componentId) => currentVisibleSet.has(componentId) || !previousIds.has(componentId))
+}
+
 export default function GradesPage() {
   const auth = readInstructorAuth()
   const username = auth?.username ?? ''
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const initialComponents = useMemo(() => buildDefaultGradeComponents(), [])
   const [students, setStudents] = useState<InstructorStudentRecord[]>([])
   const [subjects, setSubjects] = useState<InstructorRosterSubject[]>([])
+  const [gradeComponents, setGradeComponents] = useState<GradeComponentConfig[]>(
+    cloneComponents(initialComponents),
+  )
   const [pendingRequests, setPendingRequests] = useState<PendingBreakdownRequest[]>([])
   const [historyEntries, setHistoryEntries] = useState<GradeHistoryEntry[]>([])
   const [activeTab, setActiveTab] = useState<GradebookTabKey>('gradebook')
@@ -482,14 +827,18 @@ export default function GradesPage() {
   const [bindingMessage, setBindingMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [visibleComponentIds, setVisibleComponentIds] = useState<string[]>(
-    getDefaultVisibleComponentIds(),
+    getDefaultVisibleComponentIds(initialComponents),
   )
   const [isColumnSettingsOpen, setIsColumnSettingsOpen] = useState(false)
   const [gradeDetailsState, setGradeDetailsState] = useState<GradeDetailsState>(null)
   const [editGradesState, setEditGradesState] = useState<EditGradesState>(null)
   const [draftScoreOverrides, setDraftScoreOverrides] = useState<GradeOverrideMap>({})
   const [savedScoreOverrides, setSavedScoreOverrides] = useState<GradeOverrideMap>({})
+  const [savedGradeComponents, setSavedGradeComponents] = useState<GradeComponentConfig[]>(
+    cloneComponents(initialComponents),
+  )
   const [editDraftValues, setEditDraftValues] = useState<Record<string, string>>({})
+  const [editDraftComponents, setEditDraftComponents] = useState<GradeComponentConfig[]>([])
 
   useEffect(() => {
     if (!username) {
@@ -594,21 +943,6 @@ export default function GradesPage() {
     }
   }, [editGradesState, gradeDetailsState, isColumnSettingsOpen])
 
-  const hasUnsavedChanges = useMemo(() => {
-    const allKeys = new Set([
-      ...Object.keys(draftScoreOverrides),
-      ...Object.keys(savedScoreOverrides),
-    ])
-
-    for (const key of allKeys) {
-      if ((draftScoreOverrides[key] ?? null) !== (savedScoreOverrides[key] ?? null)) {
-        return true
-      }
-    }
-
-    return false
-  }, [draftScoreOverrides, savedScoreOverrides])
-
   const selectedSubject =
     subjects.find((subject) => subject.id === selectedSubjectId) ?? subjects[0] ?? null
 
@@ -622,29 +956,29 @@ export default function GradesPage() {
       .sort((left, right) => left.fullName.localeCompare(right.fullName))
   }, [selectedSubject, students])
 
-  const visibleComponentsByCategory = useMemo(() => {
-    return gradeCategories.reduce<Record<GradeCategoryKey, GradeComponent[]>>(
-      (result, category) => {
-        result[category.key] = gradeComponents.filter(
-          (component) =>
-            component.category === category.key &&
-            visibleComponentIds.includes(component.id),
-        )
+  const hasUnsavedChanges = useMemo(() => {
+    const allOverrideKeys = new Set([
+      ...Object.keys(draftScoreOverrides),
+      ...Object.keys(savedScoreOverrides),
+    ])
 
-        return result
-      },
-      {
-        knowledge: [],
-        skills: [],
-        attitude: [],
-      },
+    const hasOverrideChanges = [...allOverrideKeys].some(
+      (key) => (draftScoreOverrides[key] ?? null) !== (savedScoreOverrides[key] ?? null),
     )
-  }, [visibleComponentIds])
+    const hasConfigChanges =
+      serializeComponents(gradeComponents) !== serializeComponents(savedGradeComponents)
+
+    return hasOverrideChanges || hasConfigChanges
+  }, [draftScoreOverrides, gradeComponents, savedGradeComponents, savedScoreOverrides])
 
   const latestHistoryByStudentKey = useMemo(() => {
     const historyMap = new Map<string, GradeHistoryEntry>()
 
     for (const entry of historyEntries) {
+      if (!entry.studentId) {
+        continue
+      }
+
       historyMap.set(
         getHistoryKey(entry.studentId, entry.subjectId, entry.gradingPeriod),
         entry,
@@ -654,16 +988,25 @@ export default function GradesPage() {
     return historyMap
   }, [historyEntries])
 
-  const gradeSnapshots = useMemo(() => {
-    return subjectStudents.map((student) =>
-      buildStudentGradeSnapshot(
-        student,
-        selectedSubject,
-        selectedGradingPeriod,
-        draftScoreOverrides,
+  const gradeSnapshots = useMemo(
+    () =>
+      subjectStudents.map((student) =>
+        buildStudentGradeSnapshot(
+          student,
+          selectedSubject,
+          selectedGradingPeriod,
+          gradeComponents,
+          draftScoreOverrides,
+        ),
       ),
-    )
-  }, [draftScoreOverrides, selectedGradingPeriod, selectedSubject, subjectStudents])
+    [
+      draftScoreOverrides,
+      gradeComponents,
+      selectedGradingPeriod,
+      selectedSubject,
+      subjectStudents,
+    ],
+  )
 
   const totalPages = Math.max(1, Math.ceil(gradeSnapshots.length / rowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -671,6 +1014,9 @@ export default function GradesPage() {
     (safeCurrentPage - 1) * rowsPerPage,
     safeCurrentPage * rowsPerPage,
   )
+  const displayStart = gradeSnapshots.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0
+  const displayEnd = Math.min(safeCurrentPage * rowsPerPage, gradeSnapshots.length)
+  const periodLabel = getGradingPeriodLabel(selectedGradingPeriod)
 
   const gradeDetailsSnapshot =
     gradeDetailsState?.studentId
@@ -680,47 +1026,40 @@ export default function GradesPage() {
 
   const editSnapshot =
     editGradesState?.studentId
-      ? gradeSnapshots.find((snapshot) => snapshot.student.id === editGradesState.studentId) ?? null
+      ? gradeSnapshots.find((snapshot) => snapshot.student.id === editGradesState.studentId) ??
+        null
       : null
 
   useEffect(() => {
-    if (!editSnapshot || !selectedSubject) {
+    if (!editSnapshot) {
       return
     }
 
+    setEditDraftComponents(cloneComponents(gradeComponents))
+
     const nextDraftValues: Record<string, string> = {}
 
-    for (const component of gradeComponents) {
-      if (!visibleComponentIds.includes(component.id)) {
-        continue
-      }
-
-      const category = editSnapshot.categories.find(
-        (currentCategory) => currentCategory.key === component.category,
-      )
-      const currentComponent = category?.components.find(
-        (currentCategoryComponent) => currentCategoryComponent.id === component.id,
+    for (const component of gradeComponents.filter((currentComponent) => currentComponent.isActive)) {
+      const section = editSnapshot.categories
+        .flatMap((category) => category.sections)
+        .find((currentSection) => currentSection.id === component.sectionId)
+      const currentComponent = section?.components.find(
+        (currentSnapshotComponent) => currentSnapshotComponent.id === component.id,
       )
 
-      if (!currentComponent) {
-        continue
-      }
-
-      nextDraftValues[component.id] = formatScore(currentComponent.score, 2)
+      nextDraftValues[component.id] =
+        currentComponent?.score === null || currentComponent?.score === undefined
+          ? ''
+          : formatScore(currentComponent.score, 2)
     }
 
     setEditDraftValues(nextDraftValues)
-  }, [editSnapshot, selectedSubject, visibleComponentIds])
+  }, [editSnapshot, gradeComponents])
 
   const alerts = [errorMessage, bindingMessage, successMessage].filter(Boolean)
-
   const breakdownRequestRows = pendingRequests.filter(
     (request) => request.localStatus.toUpperCase() === 'PENDING',
   )
-
-  const displayStart = gradeSnapshots.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0
-  const displayEnd = Math.min(safeCurrentPage * rowsPerPage, gradeSnapshots.length)
-  const periodLabel = getGradingPeriodLabel(selectedGradingPeriod)
 
   function openGradeDetails(studentId: string) {
     setEditGradesState(null)
@@ -743,19 +1082,47 @@ export default function GradesPage() {
   function handleColumnVisibilityChange(componentId: string) {
     setVisibleComponentIds((current) =>
       current.includes(componentId)
-        ? current.filter((currentComponentId) => currentComponentId !== componentId)
+        ? current.filter((currentId) => currentId !== componentId)
         : [...current, componentId],
     )
   }
 
-  function handleEditInputChange(
-    componentId: string,
-    event: ChangeEvent<HTMLInputElement>,
-  ) {
+  function handleEditInputChange(componentId: string, event: ChangeEvent<HTMLInputElement>) {
     setEditDraftValues((current) => ({
       ...current,
       [componentId]: event.target.value,
     }))
+  }
+
+  function handleEditDraftLabelChange(
+    componentId: string,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    setEditDraftComponents((current) =>
+      current.map((component) =>
+        component.id === componentId ? { ...component, label: event.target.value } : component,
+      ),
+    )
+  }
+
+  function handleAddDraftComponent(sectionId: GradeSectionKey) {
+    setEditDraftComponents((current) => {
+      const nextLabel = getNextCustomLabel(sectionId, current)
+      const nextOrder = getSectionComponentList(current, sectionId).length + 1
+
+      return [...current, createCustomComponent(sectionId, nextLabel, nextOrder)]
+    })
+  }
+
+  function handleRemoveDraftComponent(componentId: string) {
+    setEditDraftComponents((current) =>
+      current.filter((component) => component.id !== componentId),
+    )
+    setEditDraftValues((current) => {
+      const nextValues = { ...current }
+      delete nextValues[componentId]
+      return nextValues
+    })
   }
 
   function handleSaveEditedScores() {
@@ -763,10 +1130,35 @@ export default function GradesPage() {
       return
     }
 
-    const nextOverrides = { ...draftScoreOverrides }
+    const cleanedComponents = editDraftComponents
+      .filter((component) => component.isActive)
+      .map((component) => ({
+        ...component,
+        label:
+          component.isCustom && !component.label.trim()
+            ? getNextCustomLabel(component.sectionId, editDraftComponents)
+            : component.label.trim() || component.label,
+      }))
+      .sort((left, right) =>
+        `${left.sectionId}-${left.order}-${left.id}`.localeCompare(
+          `${right.sectionId}-${right.order}-${right.id}`,
+        ),
+      )
 
-    for (const [componentId, rawValue] of Object.entries(editDraftValues)) {
-      const parsedValue = parseNumericValue(rawValue)
+    const removedComponentIds = gradeComponents
+      .filter(
+        (component) =>
+          !cleanedComponents.some((nextComponent) => nextComponent.id === component.id),
+      )
+      .map((component) => component.id)
+
+    const nextOverrides = pruneOverridesByComponentIds(
+      { ...draftScoreOverrides },
+      removedComponentIds,
+    )
+
+    for (const component of cleanedComponents) {
+      const parsedValue = parseNumericValue(editDraftValues[component.id] ?? '')
 
       if (parsedValue === null) {
         continue
@@ -777,14 +1169,33 @@ export default function GradesPage() {
           editSnapshot.student.id,
           selectedSubject.id,
           selectedGradingPeriod,
-          componentId,
+          component.id,
         )
       ] = roundTo(clampNumber(parsedValue, 0, 100), 2)
     }
 
     setDraftScoreOverrides(nextOverrides)
+    setGradeComponents(cleanedComponents)
+    setVisibleComponentIds((current) =>
+      syncVisibleComponentIds(gradeComponents, cleanedComponents, current),
+    )
+    setHistoryEntries((current) => [
+      {
+        id: `${Date.now()}-edit`,
+        studentId: editSnapshot.student.id,
+        studentName: editSnapshot.student.fullName,
+        subjectId: selectedSubject.id,
+        subjectLabel: selectedSubject.label,
+        gradingPeriod: selectedGradingPeriod,
+        action: 'Updated score breakdown',
+        actor: username || 'Instructor',
+        timestamp: new Date().toISOString(),
+        note: `Updated ${periodLabel.toLowerCase()} scores for ${editSnapshot.student.fullName}.`,
+      },
+      ...current,
+    ])
     setSuccessMessage(
-      `${editSnapshot.student.fullName}'s ${periodLabel.toLowerCase()} scores were updated locally.`,
+      `${editSnapshot.student.fullName}'s ${periodLabel.toLowerCase()} score breakdown was updated locally.`,
     )
     setEditGradesState(null)
   }
@@ -798,7 +1209,19 @@ export default function GradesPage() {
     setErrorMessage('')
 
     window.setTimeout(() => {
-      setSavedScoreOverrides(draftScoreOverrides)
+      const prunedOverrides = pruneOverridesByComponentIds(
+        draftScoreOverrides,
+        savedGradeComponents
+          .filter(
+            (component) =>
+              !gradeComponents.some((currentComponent) => currentComponent.id === component.id),
+          )
+          .map((component) => component.id),
+      )
+
+      setDraftScoreOverrides(prunedOverrides)
+      setSavedScoreOverrides(prunedOverrides)
+      setSavedGradeComponents(cloneComponents(gradeComponents))
       setHistoryEntries((current) => [
         {
           id: `${Date.now()}-save`,
@@ -815,7 +1238,7 @@ export default function GradesPage() {
         ...current,
       ])
       setSuccessMessage(
-        `${selectedSubject.label} ${periodLabel.toLowerCase()} scores were saved locally.`,
+        `${selectedSubject.label} ${periodLabel.toLowerCase()} gradebook changes were saved locally.`,
       )
       setIsSaving(false)
     }, 300)
@@ -862,10 +1285,12 @@ export default function GradesPage() {
         throw new Error('The CSV file must include a "Student ID" column.')
       }
 
-      const headerComponentMap = new Map<string, GradeComponent>()
+      const headerComponentMap = new Map<string, GradeComponentConfig>()
 
-      for (const component of gradeComponents) {
-        headerComponentMap.set(normalizeCsvHeader(component.label), component)
+      for (const component of gradeComponents.filter((currentComponent) => currentComponent.isActive)) {
+        for (const alias of getCsvHeaderAliases(component, selectedGradingPeriod)) {
+          headerComponentMap.set(alias, component)
+        }
       }
 
       const nextOverrides = { ...draftScoreOverrides }
@@ -956,7 +1381,10 @@ export default function GradesPage() {
         subjectId: selectedSubject?.id ?? '',
         subjectLabel: selectedSubject?.label ?? 'Selected subject',
         gradingPeriod: selectedGradingPeriod,
-        action: nextStatus === 'APPROVED' ? 'Approved breakdown request' : 'Rejected breakdown request',
+        action:
+          nextStatus === 'APPROVED'
+            ? 'Approved breakdown request'
+            : 'Rejected breakdown request',
         actor: username || 'Instructor',
         timestamp: new Date().toISOString(),
         note: `${nextStatus === 'APPROVED' ? 'Approved' : 'Rejected'} grade breakdown request.`,
@@ -1082,7 +1510,10 @@ export default function GradesPage() {
                 <span>Column Settings</span>
               </button>
 
-              <button type="button" className="grades-tab-action-button grades-tab-action-button--icon">
+              <button
+                type="button"
+                className="grades-tab-action-button grades-tab-action-button--icon"
+              >
                 <MoreIcon />
               </button>
             </div>
@@ -1110,13 +1541,6 @@ export default function GradesPage() {
                           {category.label} ({category.weight}%)
                         </th>
                       ))}
-                      <th rowSpan={2} className="grades-table-head-cell grades-table-head-cell--score">
-                        <span>{periodLabel} Final Score</span>
-                        <small>(100%)</small>
-                      </th>
-                      <th rowSpan={2} className="grades-table-head-cell grades-table-head-cell--rating">
-                        {periodLabel} Rating
-                      </th>
                       <th rowSpan={2} className="grades-table-head-cell grades-table-head-cell--remarks">
                         Remarks
                       </th>
@@ -1140,7 +1564,7 @@ export default function GradesPage() {
                   <tbody>
                     {isLoading ? (
                       <tr>
-                        <td colSpan={11} className="grades-table-empty">
+                        <td colSpan={10} className="grades-table-empty">
                           Loading gradebook...
                         </td>
                       </tr>
@@ -1155,20 +1579,19 @@ export default function GradesPage() {
                             <span>{snapshot.student.studentId}</span>
                           </td>
                           {snapshot.categories.flatMap((category) => [
-                            <td key={`${snapshot.student.id}-${category.key}-total`} className="grades-table-score">
-                              {formatScore(category.total, 2)}
+                            <td
+                              key={`${snapshot.student.id}-${category.key}-total`}
+                              className="grades-table-score"
+                            >
+                              {formatScoreOrPlaceholder(category.total, 2)}
                             </td>,
                             <td
                               key={`${snapshot.student.id}-${category.key}-weighted`}
                               className={`grades-table-score grades-table-score--weighted grades-table-score--${category.key}`}
                             >
-                              {formatScore(category.weighted, 2)}
+                              {formatScoreOrPlaceholder(category.weighted, 2)}
                             </td>,
                           ])}
-                          <td className="grades-table-final-score">
-                            {formatWholeOrDecimal(snapshot.finalScore)}
-                          </td>
-                          <td className="grades-table-rating">{snapshot.rating}</td>
                           <td className="grades-table-remarks">
                             <span className={getRemarkClassName(snapshot.remarks)}>
                               {snapshot.remarks}
@@ -1196,7 +1619,7 @@ export default function GradesPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={11} className="grades-table-empty">
+                        <td colSpan={10} className="grades-table-empty">
                           {selectedSubject
                             ? 'No students are currently enrolled in the selected subject.'
                             : 'No subjects are available for grade posting yet.'}
@@ -1369,7 +1792,7 @@ export default function GradesPage() {
             <div className="grade-settings-modal-header">
               <div>
                 <h2 id="grade-column-settings-title">Column Settings</h2>
-                <p>Choose which assessment components appear in the grade breakdown and edit views.</p>
+                <p>Choose which nested assessments appear in the breakdown views.</p>
               </div>
               <button
                 type="button"
@@ -1387,18 +1810,30 @@ export default function GradesPage() {
                   <h3>
                     {category.label} ({category.weight}%)
                   </h3>
-                  <div className="grade-settings-checkboxes">
-                    {gradeComponents
-                      .filter((component) => component.category === category.key)
-                      .map((component) => (
-                        <label key={component.id} className="grade-settings-checkbox">
-                          <input
-                            type="checkbox"
-                            checked={visibleComponentIds.includes(component.id)}
-                            onChange={() => handleColumnVisibilityChange(component.id)}
-                          />
-                          <span>{component.label}</span>
-                        </label>
+                  <div className="grade-settings-tree">
+                    {gradeSections
+                      .filter((section) => section.category === category.key)
+                      .sort((left, right) => left.order - right.order)
+                      .map((section) => (
+                        <div key={section.id} className="grade-settings-group">
+                          <div className="grade-settings-group-title">
+                            {section.label} ({section.weight}%)
+                          </div>
+                          <div className="grade-settings-checkboxes">
+                            {getSectionComponentList(gradeComponents, section.id).map((component) => (
+                              <label key={component.id} className="grade-settings-checkbox">
+                                <input
+                                  type="checkbox"
+                                  checked={visibleComponentIds.includes(component.id)}
+                                  onChange={() => handleColumnVisibilityChange(component.id)}
+                                />
+                                <span>
+                                  {getDisplayComponentLabel(component, selectedGradingPeriod)}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                   </div>
                 </section>
@@ -1409,7 +1844,7 @@ export default function GradesPage() {
               <button
                 type="button"
                 className="subject-detail-action"
-                onClick={() => setVisibleComponentIds(getDefaultVisibleComponentIds())}
+                onClick={() => setVisibleComponentIds(getDefaultVisibleComponentIds(gradeComponents))}
               >
                 <span>Reset Defaults</span>
               </button>
@@ -1460,80 +1895,71 @@ export default function GradesPage() {
             <div className="grade-details-scroll">
               <div className="grade-details-body">
                 <div className="grade-details-breakdown">
-                  {gradeDetailsSnapshot.categories.map((category) => {
-                    const visibleComponents = visibleComponentsByCategory[category.key]
-                    const latestEntry = latestHistoryByStudentKey.get(
-                      getHistoryKey(
-                        gradeDetailsSnapshot.student.id,
-                        selectedSubject?.id ?? '',
-                        selectedGradingPeriod,
-                      ),
-                    )
+                  {gradeDetailsSnapshot.categories.map((category) => (
+                    <section
+                      key={category.key}
+                      className={`grade-section grade-section--${category.key}`}
+                    >
+                      <header className="grade-section-title">
+                        {category.label} ({category.weight}%)
+                      </header>
+                      <div className="grade-section-content">
+                        {category.sections.map((section) => {
+                          const visibleComponents = section.components.filter((component) =>
+                            visibleComponentIds.includes(component.id),
+                          )
 
-                    return (
-                      <section
-                        key={category.key}
-                        className={`grade-section grade-section--${category.key}`}
-                      >
-                        <header className="grade-section-title">
-                          {category.label} ({category.weight}%)
-                        </header>
-                        <div className="grade-section-table-wrap">
-                          <table className="grade-breakdown-table">
-                            <thead>
-                              <tr>
-                                <th>Component</th>
-                                {visibleComponents.length ? (
-                                  visibleComponents.map((component) => (
-                                    <th key={component.id}>
-                                      <span>{component.label}</span>
-                                      <small>({component.weight}%)</small>
-                                    </th>
-                                  ))
-                                ) : (
-                                  <th>No visible components</th>
-                                )}
-                                <th>Total</th>
-                                <th>Weighted</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr>
-                                <td>Score</td>
-                                {visibleComponents.length ? (
-                                  visibleComponents.map((component) => {
-                                    const currentComponent = category.components.find(
-                                      (categoryComponent) => categoryComponent.id === component.id,
-                                    )
-
-                                    return (
-                                      <td key={component.id}>
-                                        {currentComponent
-                                          ? formatScore(currentComponent.score, 2)
-                                          : '-'}
+                          return (
+                            <div key={section.id} className="grade-subsection">
+                              <div className="grade-subsection-header">
+                                {section.label} ({section.weight}%)
+                              </div>
+                              <div className="grade-section-table-wrap">
+                                <table className="grade-breakdown-table grade-breakdown-table--stacked">
+                                  <tbody>
+                                    {visibleComponents.length ? (
+                                      visibleComponents.map((component) => (
+                                        <tr key={component.id}>
+                                          <th>{component.displayLabel}</th>
+                                          <td>{formatScoreOrPlaceholder(component.score, 2)}</td>
+                                        </tr>
+                                      ))
+                                    ) : (
+                                      <tr>
+                                        <th>Components</th>
+                                        <td>Hidden by Column Settings.</td>
+                                      </tr>
+                                    )}
+                                    <tr>
+                                      <th>
+                                        {section.aggregationType === 'average'
+                                          ? 'Average'
+                                          : 'Score'}
+                                      </th>
+                                      <td>{formatScoreOrPlaceholder(section.average, 2)}</td>
+                                    </tr>
+                                    <tr>
+                                      <th>Contribution</th>
+                                      <td>
+                                        {section.contribution === null
+                                          ? '--'
+                                          : `${formatScore(section.contribution, 2)} / ${section.weight}`}
                                       </td>
-                                    )
-                                  })
-                                ) : (
-                                  <td>Enable components from Column Settings.</td>
-                                )}
-                                <td>{formatScore(category.total, 2)}</td>
-                                <td>{formatScore(category.weighted, 2)}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )
+                        })}
 
-                        {category.key === 'attitude' ? (
-                          <div className="grade-section-note">
-                            {latestEntry
-                              ? `Last updated by ${latestEntry.actor} on ${formatTimestamp(latestEntry.timestamp)}`
-                              : 'Last updated information is not available yet.'}
-                          </div>
-                        ) : null}
-                      </section>
-                    )
-                  })}
+                        <div className="grade-section-summary">
+                          {category.label} Weighted = {formatScoreOrPlaceholder(category.weighted, 2)} /{' '}
+                          {category.weight}
+                        </div>
+                      </div>
+                    </section>
+                  ))}
                 </div>
 
                 <aside className="summary-card">
@@ -1549,22 +1975,10 @@ export default function GradesPage() {
                           </span>
                         </div>
                         <strong>
-                          {formatScore(category.weighted, 2)} / {category.weight}
+                          {formatScoreOrPlaceholder(category.weighted, 2)} / {category.weight}
                         </strong>
                       </div>
                     ))}
-                  </div>
-
-                  <div className="summary-score-block">
-                    <span className="summary-label">{periodLabel} Final Score</span>
-                    <strong className="summary-value">
-                      {formatWholeOrDecimal(gradeDetailsSnapshot.finalScore)} / 100
-                    </strong>
-                  </div>
-
-                  <div className="summary-score-block">
-                    <span className="summary-label">{periodLabel} Rating</span>
-                    <strong className="summary-value">{gradeDetailsSnapshot.rating}</strong>
                   </div>
 
                   <div className="summary-score-block">
@@ -1648,38 +2062,100 @@ export default function GradesPage() {
             </div>
 
             <div className="grade-edit-modal-body">
-              {gradeCategories.map((category) => {
-                const components = visibleComponentsByCategory[category.key]
+              {gradeCategories.map((category) => (
+                <section key={category.key} className="grade-edit-section">
+                  <header
+                    className={`grade-section-title grade-section-title--edit grade-section-title--${category.key}`}
+                  >
+                    {category.label} ({category.weight}%)
+                  </header>
 
-                return (
-                  <section key={category.key} className="grade-edit-section">
-                    <header className={`grade-section-title grade-section-title--edit grade-section-title--${category.key}`}>
-                      {category.label} ({category.weight}%)
-                    </header>
-                    <div className="grade-edit-grid">
-                      {components.length ? (
-                        components.map((component) => (
-                          <label key={component.id} className="grade-edit-field">
-                            <span>{component.label}</span>
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              value={editDraftValues[component.id] ?? ''}
-                              onChange={(event) => handleEditInputChange(component.id, event)}
-                            />
-                          </label>
-                        ))
-                      ) : (
-                        <p className="grade-edit-empty">
-                          No components are visible for this category. Update Column Settings first.
-                        </p>
-                      )}
-                    </div>
-                  </section>
-                )
-              })}
+                  <div className="grade-edit-subsections">
+                    {gradeSections
+                      .filter((section) => section.category === category.key)
+                      .sort((left, right) => left.order - right.order)
+                      .map((section) => {
+                        const sectionComponents = getSectionComponentList(
+                          editDraftComponents,
+                          section.id,
+                        )
+
+                        return (
+                          <div key={section.id} className="grade-edit-subsection">
+                            <div className="grade-edit-subsection-header">
+                              <h4>
+                                {section.label} ({section.weight}%)
+                              </h4>
+                            </div>
+
+                            <div className="grade-edit-entry-list">
+                              {sectionComponents.map((component) => (
+                                <div key={component.id} className="grade-edit-entry">
+                                  {component.isCustom ? (
+                                    <input
+                                      type="text"
+                                      className="grade-edit-name-input"
+                                      value={component.label}
+                                      onChange={(event) =>
+                                        handleEditDraftLabelChange(component.id, event)
+                                      }
+                                      placeholder="Component name"
+                                    />
+                                  ) : (
+                                    <div className="grade-edit-entry-label">
+                                      {getDisplayComponentLabel(component, selectedGradingPeriod)}
+                                    </div>
+                                  )}
+
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    className="grade-edit-score-input"
+                                    value={editDraftValues[component.id] ?? ''}
+                                    onChange={(event) =>
+                                      handleEditInputChange(component.id, event)
+                                    }
+                                    placeholder="Score"
+                                  />
+
+                                  {component.isCustom ? (
+                                    <button
+                                      type="button"
+                                      className="grade-edit-remove-button"
+                                      onClick={() => handleRemoveDraftComponent(component.id)}
+                                      aria-label={`Remove ${component.label}`}
+                                    >
+                                      <TrashIcon />
+                                    </button>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
+
+                            {section.allowAdditions ? (
+                              <button
+                                type="button"
+                                className="grade-edit-add-button"
+                                onClick={() => handleAddDraftComponent(section.id)}
+                              >
+                                <PlusIcon />
+                                <span>
+                                  {section.id === 'knowledge-quiz'
+                                    ? 'Add Quiz'
+                                    : section.id === 'knowledge-long-exam'
+                                      ? 'Add Long Exam'
+                                      : 'Add Skill Component'}
+                                </span>
+                              </button>
+                            ) : null}
+                          </div>
+                        )
+                      })}
+                  </div>
+                </section>
+              ))}
             </div>
 
             <div className="grade-settings-modal-footer">

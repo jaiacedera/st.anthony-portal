@@ -3183,6 +3183,25 @@
   font-size: 14px;
 }
 
+.grade-settings-tree {
+  display: grid;
+  gap: 12px;
+}
+
+.grade-settings-group {
+  padding: 12px;
+  border: 1px solid #efe8e8;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.grade-settings-group-title {
+  margin-bottom: 10px;
+  color: #524b4b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .grade-settings-checkboxes {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3281,6 +3300,23 @@
   min-width: 0;
 }
 
+.grade-section-content {
+  padding: 10px 12px 12px;
+}
+
+.grade-subsection + .grade-subsection {
+  margin-top: 10px;
+}
+
+.grade-subsection-header {
+  margin-bottom: 8px;
+  color: #5a5353;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .grade-section {
   border: 1px solid #e5e5e5;
   border-radius: 7px;
@@ -3328,6 +3364,10 @@
   font-size: 10px;
 }
 
+.grade-breakdown-table--stacked {
+  font-size: 11px;
+}
+
 .grade-breakdown-table th,
 .grade-breakdown-table td {
   padding: 7px 4px;
@@ -3352,6 +3392,24 @@
   display: block;
   margin-top: 2px;
   color: #8c8787;
+}
+
+.grade-breakdown-table--stacked th,
+.grade-breakdown-table--stacked td {
+  width: 50%;
+  padding: 8px 10px;
+}
+
+.grade-breakdown-table--stacked td {
+  text-align: right;
+}
+
+.grade-section-summary {
+  margin-top: 10px;
+  color: #413a3a;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
 }
 
 .grade-section-note {
@@ -3469,25 +3527,49 @@
   color: #6a6a6a;
 }
 
-.grade-edit-grid {
+.grade-edit-subsections {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 12px;
 }
 
-.grade-edit-field {
+.grade-edit-subsection {
+  padding: 12px;
+  border: 1px solid #efe6e6;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.grade-edit-subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.grade-edit-subsection-header h4 {
+  margin: 0;
+  color: #433c3c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.grade-edit-entry-list {
   display: grid;
-  gap: 6px;
+  gap: 10px;
 }
 
-.grade-edit-field span {
-  color: #4f4848;
-  font-size: 12px;
-  font-weight: 600;
+.grade-edit-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(100px, 120px) auto;
+  gap: 10px;
+  align-items: center;
 }
 
-.grade-edit-field input {
+.grade-edit-entry-label,
+.grade-edit-name-input,
+.grade-edit-score-input {
   width: 100%;
   min-height: 40px;
   padding: 0 12px;
@@ -3497,6 +3579,48 @@
   color: #201b1b;
   font: 500 14px/1.2 'Lato', sans-serif;
   outline: none;
+  box-sizing: border-box;
+}
+
+.grade-edit-entry-label {
+  display: inline-flex;
+  align-items: center;
+  color: #4f4848;
+  background: #faf8f8;
+}
+
+.grade-edit-remove-button,
+.grade-edit-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  border-radius: 8px;
+  font: 600 12px/1 'Lato', sans-serif;
+  cursor: pointer;
+}
+
+.grade-edit-remove-button {
+  width: 40px;
+  padding: 0;
+  border: 1px solid #efd4d4;
+  background: #fff7f7;
+  color: #b22b2b;
+}
+
+.grade-edit-remove-button svg,
+.grade-edit-add-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.grade-edit-add-button {
+  margin-top: 10px;
+  padding: 0 12px;
+  border: 1px dashed #d7b8b8;
+  background: #fffafa;
+  color: var(--portal-red);
 }
 
 .grade-edit-empty {
@@ -3530,7 +3654,11 @@
   }
 
   .grade-settings-checkboxes,
-  .grade-edit-grid {
+  .grade-edit-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .grade-settings-checkboxes {
     grid-template-columns: 1fr;
   }
 }

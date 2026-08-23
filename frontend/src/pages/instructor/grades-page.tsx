@@ -114,6 +114,11 @@ type StoredGradebookConfig = {
   components: GradeComponentConfig[]
 }
 
+type StoredGradebookScores = {
+  draftOverrides: GradeOverrideMap
+  savedOverrides: GradeOverrideMap
+}
+
 const gradingPeriods: Array<{ key: GradingPeriodKey; label: string }> = [
   { key: 'midterm', label: 'Midterm' },
   { key: 'final', label: 'Final' },
@@ -1222,6 +1227,14 @@ function getGradeConfigStorageKey(
   return `instructor-grade-config::${username}::${subjectId}::${gradingPeriod}`
 }
 
+function getGradeScoreStorageKey(
+  username: string,
+  subjectId: string,
+  gradingPeriod: GradingPeriodKey,
+) {
+  return `instructor-grade-scores::${username}::${subjectId}::${gradingPeriod}`
+}
+
 function readStoredGradeConfig(
   storageKey: string,
   gradingPeriod: GradingPeriodKey,
@@ -1275,6 +1288,62 @@ function persistStoredGradeConfig(storageKey: string, config: StoredGradebookCon
     JSON.stringify({
       sections: sortSections(config.sections),
       components: sortComponents(config.components),
+    }),
+  )
+}
+
+function readStoredGradeScores(storageKey: string): StoredGradebookScores | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const rawValue = window.localStorage.getItem(storageKey)
+
+  if (!rawValue) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as StoredGradebookScores
+
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !parsed.draftOverrides ||
+      typeof parsed.draftOverrides !== 'object' ||
+      !parsed.savedOverrides ||
+      typeof parsed.savedOverrides !== 'object'
+    ) {
+      return null
+    }
+
+    return {
+      draftOverrides: Object.fromEntries(
+        Object.entries(parsed.draftOverrides).filter(
+          ([, value]) => typeof value === 'number' && Number.isFinite(value),
+        ),
+      ),
+      savedOverrides: Object.fromEntries(
+        Object.entries(parsed.savedOverrides).filter(
+          ([, value]) => typeof value === 'number' && Number.isFinite(value),
+        ),
+      ),
+    }
+  } catch {
+    return null
+  }
+}
+
+function persistStoredGradeScores(storageKey: string, scores: StoredGradebookScores) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(
+    storageKey,
+    JSON.stringify({
+      draftOverrides: scores.draftOverrides,
+      savedOverrides: scores.savedOverrides,
     }),
   )
 }
@@ -1407,8 +1476,18 @@ export default function GradesPage() {
       return
     }
 
-    const storageKey = getGradeConfigStorageKey(username, selectedSubjectId, selectedGradingPeriod)
-    const storedConfig = readStoredGradeConfig(storageKey, selectedGradingPeriod)
+    const configStorageKey = getGradeConfigStorageKey(
+      username,
+      selectedSubjectId,
+      selectedGradingPeriod,
+    )
+    const scoreStorageKey = getGradeScoreStorageKey(
+      username,
+      selectedSubjectId,
+      selectedGradingPeriod,
+    )
+    const storedConfig = readStoredGradeConfig(configStorageKey, selectedGradingPeriod)
+    const storedScores = readStoredGradeScores(scoreStorageKey)
     const periodDefaultSections = buildDefaultGradeSections(selectedGradingPeriod)
     const periodDefaultComponents = buildDefaultGradeComponents(selectedGradingPeriod)
     const nextSections = storedConfig?.sections ?? cloneSections(periodDefaultSections)
@@ -1419,11 +1498,20 @@ export default function GradesPage() {
     setGradeComponents(nextComponents)
     setSavedGradeComponents(cloneComponents(nextComponents))
     setVisibleComponentIds(getDefaultVisibleComponentIds(nextComponents))
+    setDraftScoreOverrides(storedScores?.draftOverrides ?? {})
+    setSavedScoreOverrides(storedScores?.savedOverrides ?? {})
 
     if (!storedConfig) {
-      persistStoredGradeConfig(storageKey, {
+      persistStoredGradeConfig(configStorageKey, {
         sections: nextSections,
         components: nextComponents,
+      })
+    }
+
+    if (!storedScores) {
+      persistStoredGradeScores(scoreStorageKey, {
+        draftOverrides: {},
+        savedOverrides: {},
       })
     }
   }, [selectedGradingPeriod, selectedSubjectId, username])
@@ -1981,6 +2069,13 @@ export default function GradesPage() {
       ] = roundTo(clampNumber(parsedValue, 0, 100), 2)
     }
 
+    persistStoredGradeScores(
+      getGradeScoreStorageKey(username, selectedSubject.id, selectedGradingPeriod),
+      {
+        draftOverrides: nextOverrides,
+        savedOverrides: savedScoreOverrides,
+      },
+    )
     setDraftScoreOverrides(nextOverrides)
     setGradeSections(cleanedSections)
     setGradeComponents(cleanedComponents)
@@ -2017,18 +2112,26 @@ export default function GradesPage() {
     setErrorMessage('')
 
     window.setTimeout(() => {
-      const storageKey = getGradeConfigStorageKey(
+      const configStorageKey = getGradeConfigStorageKey(
         username,
         selectedSubject.id,
         selectedGradingPeriod,
       )
+      const nextSavedOverrides = { ...draftScoreOverrides }
 
-      persistStoredGradeConfig(storageKey, {
+      persistStoredGradeConfig(configStorageKey, {
         sections: gradeSections,
         components: gradeComponents,
       })
+      persistStoredGradeScores(
+        getGradeScoreStorageKey(username, selectedSubject.id, selectedGradingPeriod),
+        {
+          draftOverrides: nextSavedOverrides,
+          savedOverrides: nextSavedOverrides,
+        },
+      )
 
-      setSavedScoreOverrides(draftScoreOverrides)
+      setSavedScoreOverrides(nextSavedOverrides)
       setSavedGradeSections(cloneSections(gradeSections))
       setSavedGradeComponents(cloneComponents(gradeComponents))
       setHistoryEntries((current) => [
@@ -2141,6 +2244,13 @@ export default function GradesPage() {
         })
       }
 
+      persistStoredGradeScores(
+        getGradeScoreStorageKey(username, selectedSubject.id, selectedGradingPeriod),
+        {
+          draftOverrides: nextOverrides,
+          savedOverrides: savedScoreOverrides,
+        },
+      )
       setDraftScoreOverrides(nextOverrides)
       setHistoryEntries((current) => [
         {

@@ -3797,6 +3797,32 @@
   gap: 14px 16px;
 }
 
+.skills-computation-preview {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #ece2e2;
+  border-radius: 10px;
+  background: #fcfbfb;
+}
+
+.skills-computation-preview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #4f4848;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.skills-computation-preview-row strong {
+  color: #201b1b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .score-field {
   min-width: 0;
 }

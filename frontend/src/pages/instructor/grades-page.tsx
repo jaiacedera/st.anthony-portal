@@ -17,6 +17,15 @@ import {
   type InstructorStudentRecord,
 } from '../../services/instructorApi'
 import { readInstructorAuth } from '../../utils/instructorAuth'
+import {
+  calculateSkillsGrade,
+  getCanonicalSkillsComponentId,
+  getSkillsComponentAliases,
+  LEGACY_SKILLS_LABELS,
+  normalizeSkillsText,
+  SKILLS_COMPONENT_DEFINITIONS,
+  type SkillsGradeResult,
+} from '../../utils/skills-grade.js'
 
 type GradebookTabKey = 'gradebook' | 'requests' | 'history'
 type GradingPeriodKey = 'midterm' | 'final'
@@ -71,6 +80,7 @@ type GradeCategorySnapshot = GradeCategoryDefinition & {
   total: number | null
   weighted: number | null
   isIncomplete: boolean
+  skillsComputation: SkillsGradeResult | null
 }
 
 type StudentGradeSnapshot = {
@@ -118,6 +128,11 @@ type StoredGradebookConfig = {
   savedAt?: string
 }
 
+type LoadedStoredGradebookConfig = StoredGradebookConfig & {
+  didMigrate?: boolean
+  migratedComponentIds?: Record<string, string>
+}
+
 type StoredGradebookScores = {
   draftOverrides: GradeOverrideMap
   savedOverrides: GradeOverrideMap
@@ -143,27 +158,6 @@ const legacyMidtermKnowledgeLabels = new Set([
   'activity 3',
   'activity 4',
 ])
-
-const legacyMidtermSkillLabels = new Set([
-  'pda',
-  'ncra',
-  'journal',
-  'role play',
-  'mcos',
-  'case',
-  'demonstration',
-  'return demo',
-])
-
-const defaultSkillLabels = [
-  'Medications',
-  'FDAR',
-  'KARDEX',
-  'V/S',
-  'Performance',
-  'Case Study',
-  'Case Pres.',
-]
 
 function buildDefaultGradeSections(gradingPeriod: GradingPeriodKey): GradeSectionConfig[] {
   if (gradingPeriod === 'midterm') {
@@ -370,10 +364,10 @@ function buildDefaultGradeComponents(gradingPeriod: GradingPeriodKey): GradeComp
           },
         ]
 
-  const skillDefaults = defaultSkillLabels.map((label, index) => ({
-    id: `skills-core-${index + 1}`,
+  const skillDefaults = SKILLS_COMPONENT_DEFINITIONS.map((definition, index) => ({
+    id: definition.id,
     sectionId: 'skills-core',
-    label,
+    label: definition.label,
     order: index + 1,
     isDefault: true,
     isActive: true,
@@ -781,6 +775,65 @@ function calculateAverage(values: Array<number | null>) {
   )
 }
 
+function isLegacySkillsComponent(component: GradeComponentConfig) {
+  const normalizedLabel = normalizeSkillsText(component.label)
+
+  return (
+    LEGACY_SKILLS_LABELS.has(normalizedLabel) ||
+    (/^skills-core-\d+$/u.test(component.id) &&
+      getCanonicalSkillsComponentId(component.id, component.label) !== null)
+  )
+}
+
+function shouldMigrateSkillsToDefaults(
+  sections: GradeSectionConfig[],
+  components: GradeComponentConfig[],
+) {
+  const activeSkillSectionIds = new Set(
+    sections
+      .filter((section) => section.category === 'skills' && section.isActive)
+      .map((section) => section.id),
+  )
+
+  if (!activeSkillSectionIds.size) {
+    return false
+  }
+
+  return components.some(
+    (component) =>
+      component.isActive &&
+      activeSkillSectionIds.has(component.sectionId) &&
+      isLegacySkillsComponent(component),
+  )
+}
+
+function buildSkillsComponentIdMigrationMap(
+  sections: GradeSectionConfig[],
+  components: GradeComponentConfig[],
+) {
+  const activeSkillSectionIds = new Set(
+    sections
+      .filter((section) => section.category === 'skills' && section.isActive)
+      .map((section) => section.id),
+  )
+
+  return Object.fromEntries(
+    components.flatMap((component) => {
+      if (!component.isActive || !activeSkillSectionIds.has(component.sectionId)) {
+        return []
+      }
+
+      const canonicalId = getCanonicalSkillsComponentId(component.id, component.label)
+
+      if (!canonicalId || canonicalId === component.id) {
+        return []
+      }
+
+      return [[component.id, canonicalId]]
+    }),
+  )
+}
+
 function toRating(score: number) {
   if (score >= 97) return '1.00'
   if (score >= 94) return '1.25'
@@ -993,23 +1046,54 @@ function buildStudentGradeSnapshot(
         }
       })
 
+    const skillsComputation =
+      category.key === 'skills'
+        ? calculateSkillsGrade(
+            buildSkillsScoreInput(
+              categorySections.flatMap((section) =>
+                section.components.map((component) => ({
+                  id: component.id,
+                  label: component.label,
+                  score: component.score,
+                })),
+              ),
+            ),
+          )
+        : null
     const availableContributions = categorySections
       .map((section) => section.contribution)
       .filter((value): value is number => value !== null)
-    const weighted = availableContributions.length
-      ? roundTo(availableContributions.reduce((sum, value) => sum + value, 0), 2)
-      : null
+    const skillsWeightedValue = skillsComputation?.skillsWeighted
+    const skillsTotalValue = skillsComputation?.skillsTotal
+    const weighted =
+      category.key === 'skills'
+        ? skillsWeightedValue === null || skillsWeightedValue === undefined
+          ? null
+          : roundTo(skillsWeightedValue, 2)
+        : availableContributions.length
+          ? roundTo(availableContributions.reduce((sum, value) => sum + value, 0), 2)
+          : null
     const total =
-      weighted === null ? null : roundTo(weighted / (category.weight / 100), 2)
+      category.key === 'skills'
+        ? skillsTotalValue === null || skillsTotalValue === undefined
+          ? null
+          : roundTo(skillsTotalValue, 2)
+        : weighted === null
+          ? null
+          : roundTo(weighted / (category.weight / 100), 2)
     const hasConfigurationMismatch = category.key !== 'skills'
       ? getCategoryTotalWeight(sections, category.key) !== category.weight
       : false
     const isIncomplete =
-      hasConfigurationMismatch ||
-      categorySections.some(
-        (section) =>
-          !section.components.length || section.average === null || section.hasMissingScores,
-      )
+      category.key === 'skills'
+        ? hasConfigurationMismatch ||
+          !skillsComputation?.isComplete ||
+          categorySections.some((section) => !section.components.length)
+        : hasConfigurationMismatch ||
+          categorySections.some(
+            (section) =>
+              !section.components.length || section.average === null || section.hasMissingScores,
+          )
 
     return {
       ...category,
@@ -1017,6 +1101,7 @@ function buildStudentGradeSnapshot(
       total,
       weighted,
       isIncomplete,
+      skillsComputation,
     }
   })
 
@@ -1055,6 +1140,47 @@ function getSectionComponentList(
     .sort((left, right) => left.order - right.order)
 }
 
+function buildSkillsScoreInput(
+  components: Array<{ id: string; label: string; score: number | null }>,
+) {
+  return Object.fromEntries(
+    components.flatMap((component) => {
+      const canonicalId = getCanonicalSkillsComponentId(component.id, component.label)
+      return canonicalId ? [[canonicalId, component.score]] : []
+    }),
+  )
+}
+
+function buildSkillsBreakdownRows(skillsComputation: SkillsGradeResult) {
+  return [
+    { label: 'Journal', value: skillsComputation.scoreById['skills-journal'] },
+    { label: 'FDAR', value: skillsComputation.scoreById['skills-fdar'] },
+    { label: 'KARDEX', value: skillsComputation.scoreById['skills-kardex'] },
+    { label: 'PE', value: skillsComputation.scoreById['skills-pe'] },
+    { label: 'MEDS', value: skillsComputation.scoreById['skills-meds'] },
+    { label: 'Case Study', value: skillsComputation.scoreById['skills-case-study'] },
+    {
+      label: 'Case Presentation',
+      value: skillsComputation.scoreById['skills-case-presentation'],
+    },
+    { label: 'Case Average', value: skillsComputation.caseAverage },
+    { label: 'SN/HS', value: skillsComputation.scoreById['skills-snhs'] },
+    { label: 'SN/HS Contribution (30%)', value: skillsComputation.snhsContribution },
+    { label: 'Performance', value: skillsComputation.scoreById['skills-performance'] },
+    {
+      label: 'Performance Contribution (70%)',
+      value: skillsComputation.performanceContribution,
+    },
+    { label: 'Core Skills Average', value: skillsComputation.coreSkillsAverage },
+    {
+      label: 'SN/HS + Performance Total',
+      value: skillsComputation.snhsPerformanceTotal,
+    },
+    { label: 'Skills Total', value: skillsComputation.skillsTotal },
+    { label: 'Skills Weighted (40%)', value: skillsComputation.skillsWeighted },
+  ]
+}
+
 function getCsvHeaderAliases(
   component: GradeComponentConfig,
   gradingPeriod: GradingPeriodKey,
@@ -1062,6 +1188,10 @@ function getCsvHeaderAliases(
   const aliases = new Set<string>([normalizeCsvHeader(component.label)])
 
   aliases.add(normalizeCsvHeader(getDisplayComponentLabel(component, gradingPeriod)))
+
+  for (const alias of getSkillsComponentAliases(component.id, component.label)) {
+    aliases.add(normalizeCsvHeader(alias))
+  }
 
   if (component.periodAware) {
     aliases.add(normalizeCsvHeader('Major Exam'))
@@ -1196,13 +1326,17 @@ function shouldMigrateToPeriodDefaults(
   components: GradeComponentConfig[],
   gradingPeriod: GradingPeriodKey,
 ) {
-  if (gradingPeriod !== 'midterm') {
-    return false
+  if (shouldMigrateSkillsToDefaults(sections, components)) {
+    return true
   }
 
   const activeSectionIds = sortSections(sections)
     .filter((section) => section.isActive)
     .map((section) => section.id)
+
+  if (gradingPeriod !== 'midterm') {
+    return false
+  }
 
   return JSON.stringify(activeSectionIds) ===
       JSON.stringify([
@@ -1238,10 +1372,6 @@ function shouldMigrateToPeriodDefaults(
         return legacyMidtermKnowledgeLabels.has(normalizedLabel)
       }
 
-      if (section.category === 'skills') {
-        return legacyMidtermSkillLabels.has(normalizedLabel)
-      }
-
       return false
     })
 }
@@ -1265,7 +1395,7 @@ function getGradeScoreStorageKey(
 function readStoredGradeConfig(
   storageKey: string,
   gradingPeriod: GradingPeriodKey,
-): StoredGradebookConfig | null {
+): LoadedStoredGradebookConfig | null {
   if (typeof window === 'undefined') {
     return null
   }
@@ -1290,9 +1420,17 @@ function readStoredGradeConfig(
     )
 
     if (shouldMigrateToPeriodDefaults(normalizedSections, normalizedComponents, gradingPeriod)) {
+      const migratedComponentIds = buildSkillsComponentIdMigrationMap(
+        normalizedSections,
+        normalizedComponents,
+      )
+
       return {
         sections: cloneSections(buildDefaultGradeSections(gradingPeriod)),
         components: cloneComponents(buildDefaultGradeComponents(gradingPeriod)),
+        savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
+        didMigrate: true,
+        migratedComponentIds,
       }
     }
 
@@ -1319,6 +1457,60 @@ function persistStoredGradeConfig(storageKey: string, config: StoredGradebookCon
       savedAt: config.savedAt ?? '',
     }),
   )
+}
+
+function migrateStoredGradeOverrideMap(
+  overrides: GradeOverrideMap,
+  migratedComponentIds: Record<string, string>,
+) {
+  const nextOverrides: GradeOverrideMap = {}
+
+  for (const [key, value] of Object.entries(overrides)) {
+    const parts = key.split('::')
+
+    if (parts.length !== 4 || migratedComponentIds[parts[3]]) {
+      continue
+    }
+
+    nextOverrides[key] = value
+  }
+
+  for (const [key, value] of Object.entries(overrides)) {
+    const parts = key.split('::')
+
+    if (parts.length !== 4) {
+      continue
+    }
+
+    const migratedComponentId = migratedComponentIds[parts[3]]
+
+    if (!migratedComponentId) {
+      continue
+    }
+
+    const migratedKey = [parts[0], parts[1], parts[2], migratedComponentId].join('::')
+
+    if (nextOverrides[migratedKey] === undefined) {
+      nextOverrides[migratedKey] = value
+    }
+  }
+
+  return nextOverrides
+}
+
+function migrateStoredGradeScores(
+  scores: StoredGradebookScores,
+  migratedComponentIds: Record<string, string>,
+) {
+  if (!Object.keys(migratedComponentIds).length) {
+    return scores
+  }
+
+  return {
+    draftOverrides: migrateStoredGradeOverrideMap(scores.draftOverrides, migratedComponentIds),
+    savedOverrides: migrateStoredGradeOverrideMap(scores.savedOverrides, migratedComponentIds),
+    savedAt: scores.savedAt ?? '',
+  }
 }
 
 function readStoredGradeScores(storageKey: string): StoredGradebookScores | null {
@@ -1548,6 +1740,10 @@ export default function GradesPage() {
     )
     const storedConfig = readStoredGradeConfig(configStorageKey, selectedGradingPeriod)
     const storedScores = readStoredGradeScores(scoreStorageKey)
+    const nextStoredScores =
+      storedConfig?.migratedComponentIds && storedScores
+        ? migrateStoredGradeScores(storedScores, storedConfig.migratedComponentIds)
+        : storedScores
     const periodDefaultSections = buildDefaultGradeSections(selectedGradingPeriod)
     const periodDefaultComponents = buildDefaultGradeComponents(selectedGradingPeriod)
     const nextSections = storedConfig?.sections ?? cloneSections(periodDefaultSections)
@@ -1558,24 +1754,24 @@ export default function GradesPage() {
     setGradeComponents(nextComponents)
     setSavedGradeComponents(cloneComponents(nextComponents))
     setVisibleComponentIds(getDefaultVisibleComponentIds(nextComponents))
-    setDraftScoreOverrides(storedScores?.draftOverrides ?? {})
-    setSavedScoreOverrides(storedScores?.savedOverrides ?? {})
+    setDraftScoreOverrides(nextStoredScores?.draftOverrides ?? {})
+    setSavedScoreOverrides(nextStoredScores?.savedOverrides ?? {})
     setSavedConfigAt(storedConfig?.savedAt ?? '')
-    setSavedScoresAt(storedScores?.savedAt ?? '')
+    setSavedScoresAt(nextStoredScores?.savedAt ?? '')
 
-    if (!storedConfig) {
+    if (!storedConfig || storedConfig.didMigrate) {
       persistStoredGradeConfig(configStorageKey, {
         sections: nextSections,
         components: nextComponents,
-        savedAt: '',
+        savedAt: storedConfig?.savedAt ?? '',
       })
     }
 
-    if (!storedScores) {
+    if (!storedScores || storedConfig?.didMigrate) {
       persistStoredGradeScores(scoreStorageKey, {
-        draftOverrides: {},
-        savedOverrides: {},
-        savedAt: '',
+        draftOverrides: nextStoredScores?.draftOverrides ?? {},
+        savedOverrides: nextStoredScores?.savedOverrides ?? {},
+        savedAt: nextStoredScores?.savedAt ?? '',
       })
     }
   }, [selectedGradingPeriod, selectedSubjectId, username])
@@ -1796,6 +1992,32 @@ export default function GradesPage() {
       ? gradeSnapshots.find((snapshot) => snapshot.student.id === editGradesState.studentId) ??
         null
       : null
+  const editSkillsComputation = useMemo(() => {
+    if (!editSnapshot) {
+      return null
+    }
+
+    const activeSkillSectionIds = new Set(
+      editDraftSections
+        .filter((section) => section.category === 'skills' && section.isActive)
+        .map((section) => section.id),
+    )
+
+    return calculateSkillsGrade(
+      buildSkillsScoreInput(
+        editDraftComponents
+          .filter(
+            (component) =>
+              component.isActive && activeSkillSectionIds.has(component.sectionId),
+          )
+          .map((component) => ({
+            id: component.id,
+            label: component.label,
+            score: parseNumericValue(editDraftValues[component.id] ?? ''),
+          })),
+      ),
+    )
+  }, [editDraftComponents, editDraftSections, editDraftValues, editSnapshot])
 
   const componentManagerValidationMessage =
     componentManagerCategory === null
@@ -3135,54 +3357,72 @@ export default function GradesPage() {
                         {formatCategoryHeading(category, selectedGradingPeriod)}
                       </header>
                       <div className="grade-section-content">
-                        {category.sections.map((section) => {
-                          const visibleComponents = section.components.filter((component) =>
-                            visibleComponentIds.includes(component.id),
-                          )
-
-                          return (
-                            <div key={section.id} className="grade-subsection">
-                              <div className="grade-subsection-header">
-                                {section.label} ({section.weight}%)
-                              </div>
-                              <div className="grade-section-table-wrap">
-                                <table className="grade-breakdown-table grade-breakdown-table--stacked">
-                                  <tbody>
-                                    {visibleComponents.length ? (
-                                      visibleComponents.map((component) => (
-                                        <tr key={component.id}>
-                                          <th>{component.displayLabel}</th>
-                                          <td>{formatScoreOrPlaceholder(component.score, 2)}</td>
-                                        </tr>
-                                      ))
-                                    ) : (
-                                      <tr>
-                                        <th>Components</th>
-                                        <td>Hidden by Column Settings.</td>
-                                      </tr>
-                                    )}
-                                    <tr>
-                                      <th>
-                                        {section.aggregationType === 'average'
-                                          ? 'Average'
-                                          : 'Score'}
-                                      </th>
-                                      <td>{formatScoreOrPlaceholder(section.average, 2)}</td>
+                        {category.key === 'skills' && category.skillsComputation ? (
+                          <div className="grade-subsection">
+                            <div className="grade-subsection-header">Skills Computation</div>
+                            <div className="grade-section-table-wrap">
+                              <table className="grade-breakdown-table grade-breakdown-table--stacked">
+                                <tbody>
+                                  {buildSkillsBreakdownRows(category.skillsComputation).map((row) => (
+                                    <tr key={row.label}>
+                                      <th>{row.label}</th>
+                                      <td>{formatScoreOrPlaceholder(row.value, 2)}</td>
                                     </tr>
-                                    <tr>
-                                      <th>Contribution</th>
-                                      <td>
-                                        {section.contribution === null
-                                          ? '--'
-                                          : `${formatScore(section.contribution, 2)} / ${section.weight}`}
-                                      </td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </div>
+                                  ))}
+                                </tbody>
+                              </table>
                             </div>
-                          )
-                        })}
+                          </div>
+                        ) : (
+                          category.sections.map((section) => {
+                            const visibleComponents = section.components.filter((component) =>
+                              visibleComponentIds.includes(component.id),
+                            )
+
+                            return (
+                              <div key={section.id} className="grade-subsection">
+                                <div className="grade-subsection-header">
+                                  {section.label} ({section.weight}%)
+                                </div>
+                                <div className="grade-section-table-wrap">
+                                  <table className="grade-breakdown-table grade-breakdown-table--stacked">
+                                    <tbody>
+                                      {visibleComponents.length ? (
+                                        visibleComponents.map((component) => (
+                                          <tr key={component.id}>
+                                            <th>{component.displayLabel}</th>
+                                            <td>{formatScoreOrPlaceholder(component.score, 2)}</td>
+                                          </tr>
+                                        ))
+                                      ) : (
+                                        <tr>
+                                          <th>Components</th>
+                                          <td>Hidden by Column Settings.</td>
+                                        </tr>
+                                      )}
+                                      <tr>
+                                        <th>
+                                          {section.aggregationType === 'average'
+                                            ? 'Average'
+                                            : 'Score'}
+                                        </th>
+                                        <td>{formatScoreOrPlaceholder(section.average, 2)}</td>
+                                      </tr>
+                                      <tr>
+                                        <th>Contribution</th>
+                                        <td>
+                                          {section.contribution === null
+                                            ? '--'
+                                            : `${formatScore(section.contribution, 2)} / ${section.weight}`}
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )
+                          })
+                        )}
 
                         <div className="grade-section-summary">
                           {category.label} Weighted = {formatScoreOrPlaceholder(category.weighted, 2)} /{' '}
@@ -3366,6 +3606,26 @@ export default function GradesPage() {
                           })
                         })}
                     </div>
+                    {category.key === 'skills' && editSkillsComputation ? (
+                      <div className="skills-computation-preview">
+                        {buildSkillsBreakdownRows(editSkillsComputation)
+                          .filter((row) =>
+                            [
+                              'Case Average',
+                              'Core Skills Average',
+                              'SN/HS + Performance Total',
+                              'Skills Total',
+                              'Skills Weighted (40%)',
+                            ].includes(row.label),
+                          )
+                          .map((row) => (
+                            <div key={row.label} className="skills-computation-preview-row">
+                              <span>{row.label}</span>
+                              <strong>{formatScoreOrPlaceholder(row.value, 2)}</strong>
+                            </div>
+                          ))}
+                      </div>
+                    ) : null}
                   </div>
                 </section>
               ))}

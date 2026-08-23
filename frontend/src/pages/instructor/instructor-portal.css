@@ -2789,6 +2789,11 @@
   gap: 10px;
 }
 
+.grades-posting-group {
+  display: grid;
+  gap: 4px;
+}
+
 .grades-hidden-file-input {
   display: none;
 }
@@ -2828,6 +2833,33 @@
   border: 1px solid var(--portal-red);
   background: var(--portal-red);
   color: #ffffff;
+}
+
+.grades-toolbar-button--post {
+  border: 1px solid #950b0b;
+  background: #950b0b;
+  color: #ffffff;
+}
+
+.grades-toolbar-button--posted {
+  border: 1px solid #2e8b57;
+  background: #edf8f1;
+  color: #2e8b57;
+}
+
+.grades-posting-status {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  color: #716c6c;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.grades-posting-status small {
+  color: #8a8484;
+  font-size: 10px;
+  font-weight: 500;
 }
 
 .grades-page-tabs-row {
@@ -3327,6 +3359,35 @@
   border-top: 1px solid #ececec;
 }
 
+.grade-post-modal {
+  max-width: 520px;
+}
+
+.grade-post-modal-body {
+  display: grid;
+  gap: 12px;
+}
+
+.grade-post-modal-copy,
+.grade-post-modal-warning {
+  margin: 0;
+}
+
+.grade-post-modal-copy {
+  color: #4f4848;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.grade-post-modal-warning {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff6e8;
+  color: #9a5d00;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .grade-details-modal {
   width: min(760px, calc(100vw - 48px));
   max-height: calc(100dvh - 48px);
@@ -3823,6 +3884,10 @@
   .grades-page-tab-actions,
   .grades-pagination {
     justify-content: flex-start;
+  }
+
+  .grades-posting-status {
+    justify-items: start;
   }
 }
 

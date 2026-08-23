@@ -59,6 +59,38 @@ function parseNumericGrade(value) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function isPostedPublication(publication) {
+  return String(publication?.is_posted ?? '').trim().toUpperCase() === 'TRUE'
+}
+
+function resolveVisibleGrade(grade, finalPublication, midtermPublication) {
+  const finalGrade = String(grade?.final ?? '').trim()
+  const midtermGrade = String(grade?.midterm ?? '').trim()
+  const remarks = String(grade?.remarks ?? '').trim().toUpperCase()
+
+  if (isPostedPublication(finalPublication)) {
+    return {
+      grade: finalGrade || (remarks === 'INC' ? 'INC' : '-'),
+      gradeLabel: 'Final Grade',
+      hasPostedGrade: true,
+    }
+  }
+
+  if (isPostedPublication(midtermPublication)) {
+    return {
+      grade: midtermGrade || (remarks === 'INC' ? 'INC' : '-'),
+      gradeLabel: 'Midterm Grade',
+      hasPostedGrade: true,
+    }
+  }
+
+  return {
+    grade: '-',
+    gradeLabel: 'Grades have not been posted yet.',
+    hasPostedGrade: false,
+  }
+}
+
 function formatAverage(values) {
   if (!values.length) {
     return ''
@@ -121,13 +153,15 @@ async function resolveStudentRecord({ studentId, email }) {
 export async function getStudentDashboard({ studentId = '', email = '' }) {
   const student = await resolveStudentRecord({ studentId, email })
 
-  const [subjects, subjectStudents, grades, gradeRequests, instructors] = await Promise.all([
+  const [subjects, subjectStudents, grades, gradePublications, gradeRequests, instructors] =
+    await Promise.all([
     getAllRows(SHEET_NAMES.SUBJECTS),
     getAllRows(SHEET_NAMES.SUBJECT_STUDENTS),
     getAllRows(SHEET_NAMES.GRADES),
+    getAllRows(SHEET_NAMES.GRADE_PUBLICATIONS),
     getAllRows(SHEET_NAMES.GRADE_REQUESTS),
     getAllRows(SHEET_NAMES.INSTRUCTORS),
-  ])
+    ])
 
   const activeLinks = subjectStudents.filter(
     (link) =>
@@ -151,17 +185,44 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
   const gradeBySubjectId = new Map(
     studentGrades.map((grade) => [String(grade.subject_id ?? '').trim(), grade]),
   )
+  const publicationBySubjectPeriod = new Map(
+    gradePublications.map((publication) => [
+      `${String(publication.subject_id ?? '').trim()}::${String(
+        publication.grading_period ?? '',
+      )
+        .trim()
+        .toLowerCase()}`,
+      publication,
+    ]),
+  )
   const instructorById = new Map(
     instructors.map((instructor) => [String(instructor.instructor_id ?? '').trim(), instructor]),
   )
   const currentNumericGrades = activeSubjects
     .map((subject) => {
-      const grade = gradeBySubjectId.get(String(subject.subject_id ?? '').trim())
-      return parseNumericGrade(grade?.current_grade || grade?.final)
+      const subjectId = String(subject.subject_id ?? '').trim()
+      const grade = gradeBySubjectId.get(subjectId)
+      const visibleGrade = resolveVisibleGrade(
+        grade,
+        publicationBySubjectPeriod.get(`${subjectId}::final`),
+        publicationBySubjectPeriod.get(`${subjectId}::midterm`),
+      )
+
+      return parseNumericGrade(visibleGrade.grade)
     })
     .filter((value) => value !== null)
-  const overallNumericGrades = studentGrades
-    .map((grade) => parseNumericGrade(grade.current_grade || grade.final))
+  const overallNumericGrades = activeSubjects
+    .map((subject) => {
+      const subjectId = String(subject.subject_id ?? '').trim()
+      const grade = gradeBySubjectId.get(subjectId)
+      const visibleGrade = resolveVisibleGrade(
+        grade,
+        publicationBySubjectPeriod.get(`${subjectId}::final`),
+        publicationBySubjectPeriod.get(`${subjectId}::midterm`),
+      )
+
+      return parseNumericGrade(visibleGrade.grade)
+    })
     .filter((value) => value !== null)
   const pendingRequests = gradeRequests.filter(
     (request) =>
@@ -209,8 +270,12 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
       .map((subject) => {
         const subjectId = String(subject.subject_id ?? '').trim()
         const grade = gradeBySubjectId.get(subjectId)
-        const finalGrade = String(grade?.current_grade || grade?.final || '').trim()
         const instructor = instructorById.get(String(subject.instructor_id ?? '').trim())
+        const visibleGrade = resolveVisibleGrade(
+          grade,
+          publicationBySubjectPeriod.get(`${subjectId}::final`),
+          publicationBySubjectPeriod.get(`${subjectId}::midterm`),
+        )
 
         return {
           subjectId,
@@ -219,9 +284,9 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
           instructorName: buildPersonName(instructor) || 'Instructor not set',
           schedule: getDisplayValue(subject.schedule),
           room: getDisplayValue(subject.room),
-          grade: finalGrade || '-',
-          gradeLabel: finalGrade ? 'Final Grade' : 'No Grade Yet',
-          hasPostedGrade: Boolean(finalGrade),
+          grade: visibleGrade.grade,
+          gradeLabel: visibleGrade.gradeLabel,
+          hasPostedGrade: visibleGrade.hasPostedGrade,
         }
       })
       .sort((left, right) => left.subjectCode.localeCompare(right.subjectCode)),

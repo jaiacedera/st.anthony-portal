@@ -8,7 +8,10 @@ import {
 import { InstructorShell } from '../../components/instructor-shell'
 import {
   fetchInstructorDashboard,
+  fetchInstructorGradePublication,
   fetchInstructorStudents,
+  postInstructorGrades,
+  type InstructorGradePublication,
   type InstructorPendingRequestPreview,
   type InstructorRosterSubject,
   type InstructorStudentRecord,
@@ -112,11 +115,13 @@ type ComponentManagerCategory = GradeCategoryKey | null
 type StoredGradebookConfig = {
   sections: GradeSectionConfig[]
   components: GradeComponentConfig[]
+  savedAt?: string
 }
 
 type StoredGradebookScores = {
   draftOverrides: GradeOverrideMap
   savedOverrides: GradeOverrideMap
+  savedAt?: string
 }
 
 const gradingPeriods: Array<{ key: GradingPeriodKey; label: string }> = [
@@ -450,6 +455,23 @@ function SaveIcon() {
   )
 }
 
+function PostIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 2 11 13" />
+      <path d="m22 2-7 20-4-9-9-4 20-7Z" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m5 12 5 5L20 7" />
+    </svg>
+  )
+}
+
 function SettingsIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -735,6 +757,11 @@ function formatTimestamp(timestamp: string) {
     hour: 'numeric',
     minute: '2-digit',
   })
+}
+
+function toTimestampValue(timestamp: string) {
+  const value = Date.parse(timestamp)
+  return Number.isFinite(value) ? value : 0
 }
 
 function normalizeCsvHeader(value: string) {
@@ -1272,6 +1299,7 @@ function readStoredGradeConfig(
     return {
       sections: normalizedSections,
       components: normalizedComponents,
+      savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
     }
   } catch {
     return null
@@ -1288,6 +1316,7 @@ function persistStoredGradeConfig(storageKey: string, config: StoredGradebookCon
     JSON.stringify({
       sections: sortSections(config.sections),
       components: sortComponents(config.components),
+      savedAt: config.savedAt ?? '',
     }),
   )
 }
@@ -1328,6 +1357,7 @@ function readStoredGradeScores(storageKey: string): StoredGradebookScores | null
           ([, value]) => typeof value === 'number' && Number.isFinite(value),
         ),
       ),
+      savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
     }
   } catch {
     return null
@@ -1344,6 +1374,7 @@ function persistStoredGradeScores(storageKey: string, scores: StoredGradebookSco
     JSON.stringify({
       draftOverrides: scores.draftOverrides,
       savedOverrides: scores.savedOverrides,
+      savedAt: scores.savedAt ?? '',
     }),
   )
 }
@@ -1385,12 +1416,14 @@ export default function GradesPage() {
   const [editGradesState, setEditGradesState] = useState<EditGradesState>(null)
   const [draftScoreOverrides, setDraftScoreOverrides] = useState<GradeOverrideMap>({})
   const [savedScoreOverrides, setSavedScoreOverrides] = useState<GradeOverrideMap>({})
+  const [savedScoresAt, setSavedScoresAt] = useState('')
   const [savedGradeSections, setSavedGradeSections] = useState<GradeSectionConfig[]>(
     cloneSections(initialSections),
   )
   const [savedGradeComponents, setSavedGradeComponents] = useState<GradeComponentConfig[]>(
     cloneComponents(initialComponents),
   )
+  const [savedConfigAt, setSavedConfigAt] = useState('')
   const [editDraftValues, setEditDraftValues] = useState<Record<string, string>>({})
   const [editDraftSections, setEditDraftSections] = useState<GradeSectionConfig[]>([])
   const [editDraftComponents, setEditDraftComponents] = useState<GradeComponentConfig[]>([])
@@ -1403,6 +1436,9 @@ export default function GradesPage() {
     GradeComponentConfig[]
   >([])
   const [componentManagerError, setComponentManagerError] = useState('')
+  const [publicationState, setPublicationState] = useState<InstructorGradePublication | null>(null)
+  const [isPosting, setIsPosting] = useState(false)
+  const [isPostConfirmOpen, setIsPostConfirmOpen] = useState(false)
 
   useEffect(() => {
     if (!username) {
@@ -1500,11 +1536,14 @@ export default function GradesPage() {
     setVisibleComponentIds(getDefaultVisibleComponentIds(nextComponents))
     setDraftScoreOverrides(storedScores?.draftOverrides ?? {})
     setSavedScoreOverrides(storedScores?.savedOverrides ?? {})
+    setSavedConfigAt(storedConfig?.savedAt ?? '')
+    setSavedScoresAt(storedScores?.savedAt ?? '')
 
     if (!storedConfig) {
       persistStoredGradeConfig(configStorageKey, {
         sections: nextSections,
         components: nextComponents,
+        savedAt: '',
       })
     }
 
@@ -1512,7 +1551,47 @@ export default function GradesPage() {
       persistStoredGradeScores(scoreStorageKey, {
         draftOverrides: {},
         savedOverrides: {},
+        savedAt: '',
       })
+    }
+  }, [selectedGradingPeriod, selectedSubjectId, username])
+
+  useEffect(() => {
+    if (!username || !selectedSubjectId) {
+      setPublicationState(null)
+      return
+    }
+
+    const abortController = new AbortController()
+
+    fetchInstructorGradePublication(
+      {
+        username,
+        subjectId: selectedSubjectId,
+        gradingPeriod: selectedGradingPeriod,
+      },
+      abortController.signal,
+    )
+      .then((payload) => {
+        if (!abortController.signal.aborted) {
+          setPublicationState(payload.publication)
+        }
+      })
+      .catch((error: unknown) => {
+        if (abortController.signal.aborted) {
+          return
+        }
+
+        setPublicationState(null)
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : 'Unable to load the current grade publication status.',
+        )
+      })
+
+    return () => {
+      abortController.abort()
     }
   }, [selectedGradingPeriod, selectedSubjectId, username])
 
@@ -1521,7 +1600,7 @@ export default function GradesPage() {
   }, [selectedSubjectId, selectedGradingPeriod, activeTab, rowsPerPage])
 
   useEffect(() => {
-    if (!gradeDetailsState && !editGradesState && !isColumnSettingsOpen) {
+    if (!gradeDetailsState && !editGradesState && !isColumnSettingsOpen && !isPostConfirmOpen) {
       return undefined
     }
 
@@ -1546,6 +1625,11 @@ export default function GradesPage() {
 
       if (isColumnSettingsOpen) {
         setIsColumnSettingsOpen(false)
+        return
+      }
+
+      if (isPostConfirmOpen) {
+        setIsPostConfirmOpen(false)
       }
     }
 
@@ -1554,7 +1638,7 @@ export default function GradesPage() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [editGradesState, gradeDetailsState, isColumnSettingsOpen])
+  }, [editGradesState, gradeDetailsState, isColumnSettingsOpen, isPostConfirmOpen])
 
   const selectedSubject =
     subjects.find((subject) => subject.id === selectedSubjectId) ?? subjects[0] ?? null
@@ -1648,6 +1732,34 @@ export default function GradesPage() {
   const gradeSummaryLabel =
     selectedGradingPeriod === 'midterm' ? 'Midterm Grade' : `${periodLabel} Final Score`
   const ratingSummaryLabel = `${periodLabel} Rating`
+  const latestSavedDraftAt = useMemo(() => {
+    const timestamps = [savedConfigAt, savedScoresAt].map(toTimestampValue).filter(Boolean)
+
+    return timestamps.length ? new Date(Math.max(...timestamps)).toISOString() : ''
+  }, [savedConfigAt, savedScoresAt])
+  const hasIncompleteSnapshots = useMemo(
+    () => gradeSnapshots.some((snapshot) => snapshot.isIncomplete),
+    [gradeSnapshots],
+  )
+  const hasPostedGrades = Boolean(publicationState?.isPosted)
+  const hasSavedChangesSincePosting =
+    hasPostedGrades &&
+    Boolean(latestSavedDraftAt) &&
+    toTimestampValue(latestSavedDraftAt) > toTimestampValue(publicationState?.postedAt ?? '')
+  const postButtonLabel = hasPostedGrades
+    ? hasSavedChangesSincePosting
+      ? 'Post Updates'
+      : 'Grades Posted'
+    : `Post ${periodLabel} Grades`
+  const postStatusText = hasPostedGrades
+    ? hasSavedChangesSincePosting
+      ? 'Changes not posted'
+      : `Posted ${formatTimestamp(publicationState?.postedAt ?? '')}`
+    : 'Not posted'
+  const postStatusMeta =
+    hasPostedGrades && publicationState?.postedByName
+      ? `by ${publicationState.postedByName}`
+      : ''
 
   const gradeDetailsSnapshot =
     gradeDetailsState?.studentId
@@ -2002,6 +2114,7 @@ export default function GradesPage() {
     try {
       const nextSections = cloneSections(cleanedSections)
       const nextComponents = cloneComponents(cleanedComponents)
+      const savedAt = new Date().toISOString()
       const storageKey = getGradeConfigStorageKey(
         username,
         selectedSubject.id,
@@ -2011,12 +2124,14 @@ export default function GradesPage() {
       persistStoredGradeConfig(storageKey, {
         sections: nextSections,
         components: nextComponents,
+        savedAt,
       })
 
       setGradeSections(nextSections)
       setSavedGradeSections(cloneSections(nextSections))
       setGradeComponents(nextComponents)
       setSavedGradeComponents(cloneComponents(nextComponents))
+      setSavedConfigAt(savedAt)
       setVisibleComponentIds((current) =>
         syncVisibleComponentIds(gradeComponents, nextComponents, current),
       )
@@ -2074,6 +2189,7 @@ export default function GradesPage() {
       {
         draftOverrides: nextOverrides,
         savedOverrides: savedScoreOverrides,
+        savedAt: savedScoresAt,
       },
     )
     setDraftScoreOverrides(nextOverrides)
@@ -2112,6 +2228,7 @@ export default function GradesPage() {
     setErrorMessage('')
 
     window.setTimeout(() => {
+      const savedAt = new Date().toISOString()
       const configStorageKey = getGradeConfigStorageKey(
         username,
         selectedSubject.id,
@@ -2122,18 +2239,22 @@ export default function GradesPage() {
       persistStoredGradeConfig(configStorageKey, {
         sections: gradeSections,
         components: gradeComponents,
+        savedAt,
       })
       persistStoredGradeScores(
         getGradeScoreStorageKey(username, selectedSubject.id, selectedGradingPeriod),
         {
           draftOverrides: nextSavedOverrides,
           savedOverrides: nextSavedOverrides,
+          savedAt,
         },
       )
 
       setSavedScoreOverrides(nextSavedOverrides)
       setSavedGradeSections(cloneSections(gradeSections))
       setSavedGradeComponents(cloneComponents(gradeComponents))
+      setSavedScoresAt(savedAt)
+      setSavedConfigAt(savedAt)
       setHistoryEntries((current) => [
         {
           id: `${Date.now()}-save`,
@@ -2249,6 +2370,7 @@ export default function GradesPage() {
         {
           draftOverrides: nextOverrides,
           savedOverrides: savedScoreOverrides,
+          savedAt: savedScoresAt,
         },
       )
       setDraftScoreOverrides(nextOverrides)
@@ -2278,6 +2400,75 @@ export default function GradesPage() {
       )
     } finally {
       event.target.value = ''
+    }
+  }
+
+  function handlePostButtonClick() {
+    if (!selectedSubject) {
+      setErrorMessage('Select a subject before posting grades.')
+      return
+    }
+
+    if (!gradeSnapshots.length) {
+      setErrorMessage('No students are available for posting in the selected subject.')
+      return
+    }
+
+    if (hasUnsavedChanges) {
+      setErrorMessage('Please save your changes before posting grades.')
+      return
+    }
+
+    setErrorMessage('')
+    setIsPostConfirmOpen(true)
+  }
+
+  async function handleConfirmPostGrades() {
+    if (!selectedSubject) {
+      return
+    }
+
+    setIsPosting(true)
+    setErrorMessage('')
+
+    try {
+      const payload = await postInstructorGrades({
+        username,
+        subjectId: selectedSubject.id,
+        gradingPeriod: selectedGradingPeriod,
+        grades: gradeSnapshots.map((snapshot) => ({
+          studentId: snapshot.student.id,
+          grade: snapshot.finalScore === null ? '' : String(snapshot.finalScore),
+          remarks: snapshot.remarks,
+        })),
+      })
+
+      setPublicationState(payload.publication)
+      setHistoryEntries((current) => [
+        {
+          id: `${Date.now()}-post`,
+          studentId: '',
+          studentName: 'Multiple students',
+          subjectId: selectedSubject.id,
+          subjectLabel: selectedSubject.label,
+          gradingPeriod: selectedGradingPeriod,
+          action: hasPostedGrades ? 'Posted grade updates' : 'Posted grades',
+          actor: username || 'Instructor',
+          timestamp: new Date().toISOString(),
+          note: `${
+            hasPostedGrades ? 'Posted updates to' : 'Posted'
+          } ${periodLabel.toLowerCase()} grades for ${selectedSubject.label}.`,
+        },
+        ...current,
+      ])
+      setSuccessMessage(`${periodLabel} grades posted successfully.`)
+      setIsPostConfirmOpen(false)
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Unable to post grades. Please try again.',
+      )
+    } finally {
+      setIsPosting(false)
     }
   }
 
@@ -2398,6 +2589,30 @@ export default function GradesPage() {
                 <SaveIcon />
                 <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
               </button>
+              <div className="grades-posting-group">
+                <button
+                  type="button"
+                  className={
+                    hasPostedGrades && !hasSavedChangesSincePosting && !hasUnsavedChanges
+                      ? 'grades-toolbar-button grades-toolbar-button--posted'
+                      : 'grades-toolbar-button grades-toolbar-button--post'
+                  }
+                  onClick={handlePostButtonClick}
+                  disabled={
+                    isPosting ||
+                    !selectedSubject ||
+                    !gradeSnapshots.length ||
+                    (hasPostedGrades && !hasSavedChangesSincePosting && !hasUnsavedChanges)
+                  }
+                >
+                  {hasPostedGrades && !hasSavedChangesSincePosting ? <CheckIcon /> : <PostIcon />}
+                  <span>{isPosting ? 'Posting...' : postButtonLabel}</span>
+                </button>
+                <div className="grades-posting-status">
+                  <span>{postStatusText}</span>
+                  {postStatusMeta ? <small>{postStatusMeta}</small> : null}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2711,6 +2926,66 @@ export default function GradesPage() {
           ) : null}
         </article>
       </section>
+
+      {isPostConfirmOpen && selectedSubject ? (
+        <div className="grade-modal-backdrop" onClick={() => setIsPostConfirmOpen(false)}>
+          <div
+            className="grade-settings-modal grade-post-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="post-grades-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="grade-settings-modal-header">
+              <div>
+                <h2 id="post-grades-title">Post {periodLabel} Grades?</h2>
+                <p>
+                  Students enrolled in {selectedSubject.label} will be able to view their{' '}
+                  {periodLabel} grades after posting.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="subject-modal-close"
+                onClick={() => setIsPostConfirmOpen(false)}
+                aria-label="Close post grades confirmation"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div className="grade-settings-modal-body grade-post-modal-body">
+              <p className="grade-post-modal-copy">
+                Make sure all scores are correct before continuing.
+              </p>
+              {hasIncompleteSnapshots ? (
+                <p className="grade-post-modal-warning">
+                  Some student grades are incomplete. Posting now will publish the available grades
+                  and keep incomplete results marked according to the current grading rules.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="grade-settings-modal-footer">
+              <button
+                type="button"
+                className="subject-detail-action"
+                onClick={() => setIsPostConfirmOpen(false)}
+              >
+                <span>Cancel</span>
+              </button>
+              <button
+                type="button"
+                className="subject-detail-action subject-detail-action--solid"
+                onClick={handleConfirmPostGrades}
+                disabled={isPosting}
+              >
+                <span>{isPosting ? 'Posting...' : postButtonLabel}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isColumnSettingsOpen ? (
         <div className="grade-modal-backdrop" onClick={() => setIsColumnSettingsOpen(false)}>

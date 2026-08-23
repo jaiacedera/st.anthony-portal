@@ -65,7 +65,84 @@ function buildRowValues(headers, record) {
   return headers.map((header) => toCellValue(record[header]))
 }
 
+async function ensureSheetInitialized(sheetName) {
+  const sheetProperties = await getSheetPropertiesByName(sheetName)
+  const headers = getSheetHeaders(sheetName)
+  const sheets = createSheetsClient()
+  const spreadsheetId = getSpreadsheetId()
+
+  if (!sheetProperties) {
+    await runSheetsRequest(() =>
+      sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: sheetName,
+                },
+              },
+            },
+          ],
+        },
+      }),
+    )
+
+    await runSheetsRequest(() =>
+      sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: getSheetRange(sheetName, 'A1'),
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [headers],
+        },
+      }),
+    )
+
+    return
+  }
+
+  const response = await runSheetsRequest(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: getSheetRange(sheetName, '1:1'),
+    }),
+  )
+  const currentHeaderRow = response.data.values?.[0] ?? []
+  const hasHeaderValues = currentHeaderRow.some(
+    (value) => String(value ?? '').trim() !== '',
+  )
+
+  if (!hasHeaderValues) {
+    await runSheetsRequest(() =>
+      sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: getSheetRange(sheetName, 'A1'),
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [headers],
+        },
+      }),
+    )
+
+    return
+  }
+
+  const headersMatch = headers.every(
+    (header, index) =>
+      normalizeForComparison(currentHeaderRow[index]) === normalizeForComparison(header),
+  )
+
+  if (!headersMatch) {
+    throw new Error(
+      `Sheet "${sheetName}" has unexpected headers. Update the tab manually before continuing.`,
+    )
+  }
+}
+
 async function getSheetMatrix(sheetName) {
+  await ensureSheetInitialized(sheetName)
   const sheets = createSheetsClient()
   const spreadsheetId = getSpreadsheetId()
   const response = await runSheetsRequest(() =>
@@ -493,6 +570,62 @@ export async function upsertGrade({
   })
 }
 
+export async function getGradePublication({ subjectId, gradingPeriod }) {
+  return (
+    (
+      await findRows(SHEET_NAMES.GRADE_PUBLICATIONS, {
+        subject_id: subjectId,
+        grading_period: gradingPeriod,
+      })
+    )[0] ?? null
+  )
+}
+
+export async function upsertGradePublication({
+  subjectId,
+  gradingPeriod,
+  postedBy,
+}) {
+  const subject = await getRowById(
+    SHEET_NAMES.SUBJECTS,
+    SHEET_ID_COLUMNS[SHEET_NAMES.SUBJECTS],
+    subjectId,
+  )
+
+  assertRecordExists(subject, 'Subject does not exist.')
+
+  if (subject.instructor_id !== postedBy) {
+    throw new Error('Instructor does not own this subject.')
+  }
+
+  const existingPublication = await getGradePublication({ subjectId, gradingPeriod })
+  const timestamp = new Date().toISOString()
+
+  if (existingPublication) {
+    return updateRowById(
+      SHEET_NAMES.GRADE_PUBLICATIONS,
+      SHEET_ID_COLUMNS[SHEET_NAMES.GRADE_PUBLICATIONS],
+      existingPublication.publication_id,
+      {
+        is_posted: 'TRUE',
+        posted_by: postedBy,
+        posted_at: timestamp,
+        updated_at: timestamp,
+      },
+    )
+  }
+
+  return appendRow(SHEET_NAMES.GRADE_PUBLICATIONS, {
+    publication_id: randomUUID(),
+    subject_id: subjectId,
+    grading_period: gradingPeriod,
+    is_posted: 'TRUE',
+    posted_by: postedBy,
+    posted_at: timestamp,
+    updated_at: timestamp,
+  })
+}
+
 export async function createGradeBreakdownRequest({
   studentId,
   subjectId,
@@ -529,6 +662,17 @@ export async function createGradeBreakdownRequest({
 
   if (subjectStudent.length === 0) {
     throw new Error('Student does not belong to this subject.')
+  }
+
+  const gradePublications = await findRows(SHEET_NAMES.GRADE_PUBLICATIONS, {
+    subject_id: subjectId,
+    is_posted: 'TRUE',
+  })
+
+  if (gradePublications.length === 0) {
+    const error = new Error('Grades have not been posted yet.')
+    error.statusCode = 403
+    throw error
   }
 
   const pendingRequests = await findRows(SHEET_NAMES.GRADE_REQUESTS, {

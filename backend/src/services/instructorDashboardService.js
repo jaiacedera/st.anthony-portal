@@ -108,10 +108,10 @@ export async function getInstructorDashboard(username) {
     }
   }
 
-  const [subjects, subjectStudents, grades, gradeRequests, students] = await Promise.all([
+  const [subjects, subjectStudents, gradePublications, gradeRequests, students] = await Promise.all([
     getInstructorSubjects(instructorId),
     getAllRows(SHEET_NAMES.SUBJECT_STUDENTS),
-    getAllRows(SHEET_NAMES.GRADES),
+    getAllRows(SHEET_NAMES.GRADE_PUBLICATIONS),
     getAllRows(SHEET_NAMES.GRADE_REQUESTS),
     getAllRows(SHEET_NAMES.STUDENTS),
   ])
@@ -124,17 +124,10 @@ export async function getInstructorDashboard(username) {
   const uniqueStudentIds = new Set(
     activeSubjectStudents.map((link) => String(link.student_id ?? '').trim()).filter(Boolean),
   )
-  const postedGrades = grades.filter(
-    (grade) =>
-      subjectIds.has(grade.subject_id) &&
-      [
-        grade.current_grade,
-        grade.final,
-        grade.midterm,
-        grade.prelim,
-        grade.remarks,
-        grade.posted_at,
-      ].some((value) => String(value ?? '').trim() !== ''),
+  const postedGrades = gradePublications.filter(
+    (publication) =>
+      subjectIds.has(publication.subject_id) &&
+      String(publication.is_posted ?? '').trim().toUpperCase() === 'TRUE',
   )
   const pendingRequests = gradeRequests.filter(
     (request) =>

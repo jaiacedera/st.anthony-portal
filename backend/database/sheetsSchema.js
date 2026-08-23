@@ -4,6 +4,7 @@ export const SHEET_NAMES = {
   SUBJECTS: 'Subjects',
   SUBJECT_STUDENTS: 'SubjectStudents',
   GRADES: 'Grades',
+  GRADE_PUBLICATIONS: 'GradePublications',
   GRADE_REQUESTS: 'GradeBreakdownRequests',
 }
 
@@ -68,6 +69,15 @@ export const SHEET_HEADERS = {
     'posted_at',
     'updated_at',
   ],
+  [SHEET_NAMES.GRADE_PUBLICATIONS]: [
+    'publication_id',
+    'subject_id',
+    'grading_period',
+    'is_posted',
+    'posted_by',
+    'posted_at',
+    'updated_at',
+  ],
   [SHEET_NAMES.GRADE_REQUESTS]: [
     'request_id',
     'student_id',
@@ -87,6 +97,7 @@ export const SHEET_ID_COLUMNS = {
   [SHEET_NAMES.SUBJECTS]: 'subject_id',
   [SHEET_NAMES.SUBJECT_STUDENTS]: 'subject_student_id',
   [SHEET_NAMES.GRADES]: 'grade_id',
+  [SHEET_NAMES.GRADE_PUBLICATIONS]: 'publication_id',
   [SHEET_NAMES.GRADE_REQUESTS]: 'request_id',
 }
 

@@ -160,6 +160,31 @@ export type DeleteInstructorStudentPayload = {
   message?: string
 }
 
+export type InstructorGradePublication = {
+  subjectId: string
+  gradingPeriod: 'midterm' | 'final'
+  isPosted: boolean
+  postedAt: string
+  postedBy: string
+  postedByName: string
+}
+
+export type InstructorGradePublicationPayload = {
+  success: boolean
+  publication: InstructorGradePublication
+}
+
+export type PostInstructorGradesInput = {
+  username: string
+  subjectId: string
+  gradingPeriod: 'midterm' | 'final'
+  grades: Array<{
+    studentId: string
+    grade: string
+    remarks: string
+  }>
+}
+
 const apiBaseUrl = getApiBaseUrl()
 
 export async function fetchInstructorDashboard(
@@ -313,6 +338,63 @@ export async function deleteInstructorStudent(
   })
 
   const payload = (await response.json()) as DeleteInstructorStudentPayload & {
+    message?: string
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? `Backend request failed with ${response.status}`)
+  }
+
+  return payload
+}
+
+export async function fetchInstructorGradePublication(
+  input: {
+    username: string
+    subjectId: string
+    gradingPeriod: 'midterm' | 'final'
+  },
+  signal?: AbortSignal,
+): Promise<InstructorGradePublicationPayload> {
+  const query = new URLSearchParams({
+    username: input.username,
+    subjectId: input.subjectId,
+    gradingPeriod: input.gradingPeriod,
+  })
+  const response = await fetch(
+    `${apiBaseUrl}/api/instructor/grades/publication?${query.toString()}`,
+    {
+      headers: {
+        Accept: 'application/json',
+      },
+      signal,
+    },
+  )
+
+  const payload = (await response.json()) as InstructorGradePublicationPayload & {
+    message?: string
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? `Backend request failed with ${response.status}`)
+  }
+
+  return payload
+}
+
+export async function postInstructorGrades(
+  input: PostInstructorGradesInput,
+): Promise<InstructorGradePublicationPayload> {
+  const response = await fetch(`${apiBaseUrl}/api/instructor/grades/post`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  })
+
+  const payload = (await response.json()) as InstructorGradePublicationPayload & {
     message?: string
   }
 

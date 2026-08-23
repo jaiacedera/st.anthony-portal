@@ -7,12 +7,35 @@ import {
   type StudentDashboardSubjectRecord,
   type StudentDashboardPayload,
 } from '../../services/studentApi'
+import { gradeToRating } from '../../utils/grade-rating'
 import { navigateTo } from '../../utils/navigation'
 import {
   clearStudentAuth,
   isInvalidStudentSessionMessage,
   readStudentAuth,
 } from '../../utils/studentAuth'
+
+function getDisplayedSubjectRating(subject: StudentDashboardSubjectRecord) {
+  if (!subject.hasPostedGrade) {
+    return subject.grade
+  }
+
+  const numericGrade = Number.parseFloat(subject.grade)
+
+  if (!Number.isFinite(numericGrade)) {
+    return subject.grade
+  }
+
+  return gradeToRating(numericGrade)
+}
+
+function getDisplayedSubjectRatingLabel(subject: StudentDashboardSubjectRecord) {
+  if (!subject.hasPostedGrade) {
+    return subject.gradeLabel
+  }
+
+  return subject.gradeLabel.replace('Grade', 'Rating')
+}
 
 function BookIcon() {
   return (
@@ -541,9 +564,9 @@ export default function StudentDashboardPage() {
 
                     <div className="student-grade-cell">
                       <span className={subject.hasPostedGrade ? 'student-grade-pill' : 'student-grade-pill student-grade-pill--muted'}>
-                        {subject.grade}
+                        {getDisplayedSubjectRating(subject)}
                       </span>
-                      <span className="student-grade-label">{subject.gradeLabel}</span>
+                      <span className="student-grade-label">{getDisplayedSubjectRatingLabel(subject)}</span>
                     </div>
 
                     <button

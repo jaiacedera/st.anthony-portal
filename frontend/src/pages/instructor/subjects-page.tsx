@@ -672,10 +672,6 @@ export default function SubjectsPage() {
                   </div>
                 </div>
 
-                <p className="selected-subject-description">
-                  This subject is currently active and open for student management and class monitoring.
-                </p>
-
                 <div className="selected-subject-action-list selected-subject-actions">
                   <button
                     type="button"

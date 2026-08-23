@@ -393,13 +393,6 @@ export default function InstructorProfilePage() {
           </div>
         ) : null}
 
-        <header className="instructor-profile-header">
-          <h1 className="instructor-profile-title">Profile</h1>
-          <p className="instructor-profile-subtitle">
-            View and manage your personal information.
-          </p>
-        </header>
-
         <section className="instructor-profile-summary">
           <div className="instructor-summary-left">
             <div className="instructor-avatar">

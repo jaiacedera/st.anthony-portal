@@ -2483,8 +2483,11 @@
 
   .student-mobile-grade .student-grade-pill {
     min-width: 72px;
-    padding: 7px 12px;
-    font-size: 24px;
+    height: 38px;
+    padding: 0 12px;
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 700;
   }
 
   .student-mobile-grade .student-grade-label {

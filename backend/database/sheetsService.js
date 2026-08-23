@@ -106,13 +106,15 @@ async function ensureSheetInitialized(sheetName) {
   const response = await runSheetsRequest(() =>
     sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: getSheetRange(sheetName, '1:1'),
+      range: getSheetRange(sheetName, '1:2'),
     }),
   )
   const currentHeaderRow = response.data.values?.[0] ?? []
+  const firstDataRow = response.data.values?.[1] ?? []
   const hasHeaderValues = currentHeaderRow.some(
     (value) => String(value ?? '').trim() !== '',
   )
+  const hasDataRows = firstDataRow.some((value) => String(value ?? '').trim() !== '')
 
   if (!hasHeaderValues) {
     await runSheetsRequest(() =>
@@ -135,9 +137,27 @@ async function ensureSheetInitialized(sheetName) {
   )
 
   if (!headersMatch) {
-    throw new Error(
+    if (!hasDataRows) {
+      await runSheetsRequest(() =>
+        sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: getSheetRange(sheetName, 'A1'),
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [headers],
+          },
+        }),
+      )
+
+      return
+    }
+
+    const error = new Error(
       `Sheet "${sheetName}" has unexpected headers. Update the tab manually before continuing.`,
     )
+    error.statusCode = 409
+    error.expose = true
+    throw error
   }
 }
 

@@ -650,7 +650,7 @@ function getDisplayComponentLabel(
   component: GradeComponentConfig,
   gradingPeriod: GradingPeriodKey,
 ) {
-  if (component.periodAware) {
+  if (component.periodAware && normalizeCsvHeader(component.label) === 'major exam') {
     return `${getGradingPeriodLabel(gradingPeriod)} Exam`
   }
 

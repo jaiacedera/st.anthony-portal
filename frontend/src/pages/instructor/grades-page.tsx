@@ -1493,7 +1493,7 @@ export default function GradesPage() {
         )
 
   useEffect(() => {
-    if (!editSnapshot) {
+    if (!editSnapshot || !editGradesState?.studentId) {
       return
     }
 
@@ -1517,7 +1517,7 @@ export default function GradesPage() {
     }
 
     setEditDraftValues(nextDraftValues)
-  }, [editSnapshot, gradeComponents, gradeSections])
+  }, [editGradesState?.studentId, selectedGradingPeriod, selectedSubjectId])
 
   const alerts = [errorMessage, bindingMessage, successMessage].filter(Boolean)
   const breakdownRequestRows = pendingRequests.filter(
@@ -1816,9 +1816,42 @@ export default function GradesPage() {
       cleanedSections,
     )
 
-    setEditDraftSections(cleanedSections)
-    setEditDraftComponents(cleanedComponents)
-    closeComponentManager()
+    if (!selectedSubject) {
+      setComponentManagerError('Select a subject before saving the grading breakdown.')
+      return
+    }
+
+    try {
+      const nextSections = cloneSections(cleanedSections)
+      const nextComponents = cloneComponents(cleanedComponents)
+      const storageKey = getGradeConfigStorageKey(
+        username,
+        selectedSubject.id,
+        selectedGradingPeriod,
+      )
+
+      persistStoredGradeConfig(storageKey, {
+        sections: nextSections,
+        components: nextComponents,
+      })
+
+      setGradeSections(nextSections)
+      setSavedGradeSections(cloneSections(nextSections))
+      setGradeComponents(nextComponents)
+      setSavedGradeComponents(cloneComponents(nextComponents))
+      setVisibleComponentIds((current) =>
+        syncVisibleComponentIds(gradeComponents, nextComponents, current),
+      )
+      setEditDraftSections(cloneSections(nextSections))
+      setEditDraftComponents(cloneComponents(nextComponents))
+      closeComponentManager()
+    } catch (error) {
+      setComponentManagerError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to save the grading breakdown. Please try again.',
+      )
+    }
   }
 
   function handleSaveEditedScores() {

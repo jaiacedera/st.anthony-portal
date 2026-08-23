@@ -1,17 +1,32 @@
 import { randomBytes, timingSafeEqual, scryptSync } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
-const authAccountsPath = path.join(currentDir, 'authAccounts.json')
+
+function getAuthAccountsPath() {
+  return process.env.AUTH_ACCOUNTS_PATH
+    ? path.resolve(process.env.AUTH_ACCOUNTS_PATH)
+    : path.join(currentDir, 'authAccounts.json')
+}
+
+function ensureAuthAccountsFile() {
+  const authAccountsPath = getAuthAccountsPath()
+
+  if (!existsSync(authAccountsPath)) {
+    writeFileSync(authAccountsPath, '[]')
+  }
+}
 
 export function getAuthAccounts() {
-  return JSON.parse(readFileSync(authAccountsPath, 'utf8'))
+  ensureAuthAccountsFile()
+  return JSON.parse(readFileSync(getAuthAccountsPath(), 'utf8'))
 }
 
 function saveAuthAccounts(accounts) {
-  writeFileSync(authAccountsPath, JSON.stringify(accounts, null, 2))
+  ensureAuthAccountsFile()
+  writeFileSync(getAuthAccountsPath(), JSON.stringify(accounts, null, 2))
 }
 
 export function findInstructorAccountByUsername(username) {
@@ -83,8 +98,15 @@ export function verifyStudentPassword(email, password) {
 }
 
 export function verifyAccountPassword(account, password) {
+  const passwordSalt = String(account?.password_salt ?? '').trim()
+  const passwordHash = String(account?.password_hash ?? '').trim()
+
+  if (!passwordSalt || !passwordHash || typeof password !== 'string' || !password.length) {
+    return false
+  }
+
   const candidateHash = scryptSync(password, account.password_salt, 64)
-  const storedHash = Buffer.from(account.password_hash, 'hex')
+  const storedHash = Buffer.from(passwordHash, 'hex')
 
   if (candidateHash.length !== storedHash.length) {
     return false

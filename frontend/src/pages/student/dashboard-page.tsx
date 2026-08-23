@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { StudentShell } from '../../components/student-shell'
 import {
   fetchStudentDashboard,
+  type StudentDashboardSubjectRecord,
   type StudentDashboardPayload,
 } from '../../services/studentApi'
 import { navigateTo } from '../../utils/navigation'
@@ -114,6 +115,33 @@ function MoreIcon() {
   )
 }
 
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </svg>
+  )
+}
+
+type SubjectSwatchTone = 'rose' | 'mint' | 'slate'
+
+type StudentDashboardModalSubject = StudentDashboardSubjectRecord & {
+  swatchTone: SubjectSwatchTone
+}
+
+function getSubjectSwatchTone(index: number): SubjectSwatchTone {
+  if (index % 3 === 0) {
+    return 'rose'
+  }
+
+  if (index % 3 === 1) {
+    return 'mint'
+  }
+
+  return 'slate'
+}
+
 export default function StudentDashboardPage() {
   const auth = readStudentAuth()
   const hasStudentIdentity = Boolean(auth?.studentId || auth?.email || auth?.username)
@@ -123,6 +151,7 @@ export default function StudentDashboardPage() {
   const [dashboard, setDashboard] = useState<StudentDashboardPayload | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [selectedSubject, setSelectedSubject] = useState<StudentDashboardModalSubject | null>(null)
 
   useEffect(() => {
     if (!hasStudentIdentity) {
@@ -168,6 +197,56 @@ export default function StudentDashboardPage() {
       abortController.abort()
     }
   }, [auth?.email, auth?.studentId, auth?.username, hasStudentIdentity])
+
+  useEffect(() => {
+    if (!selectedSubject) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedSubject(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selectedSubject])
+
+  function openSubjectDetails(subject: StudentDashboardSubjectRecord, index: number) {
+    setSelectedSubject({
+      ...subject,
+      swatchTone: getSubjectSwatchTone(index),
+    })
+  }
+
+  function closeSubjectDetails() {
+    setSelectedSubject(null)
+  }
+
+  function handleRequestBreakdown() {
+    if (!selectedSubject?.hasPostedGrade) {
+      return
+    }
+
+    window.sessionStorage.setItem(
+      'student-request-intent',
+      JSON.stringify({
+        type: 'grade-breakdown',
+        subjectId: selectedSubject.subjectId,
+        subjectCode: selectedSubject.subjectCode,
+        subjectTitle: selectedSubject.subjectName,
+      }),
+    )
+
+    closeSubjectDetails()
+    navigateTo(
+      `/student/requests?subjectId=${encodeURIComponent(selectedSubject.subjectId)}&subjectCode=${encodeURIComponent(selectedSubject.subjectCode)}&subjectTitle=${encodeURIComponent(selectedSubject.subjectName)}&open=create`,
+    )
+  }
 
   const overviewCards = [
     {
@@ -336,7 +415,12 @@ export default function StudentDashboardPage() {
                       <span>{subject.room}</span>
                     </span>
 
-                    <button type="button" className="student-row-action" aria-label={`More actions for ${subject.subjectCode}`}>
+                    <button
+                      type="button"
+                      className="student-row-action"
+                      onClick={() => openSubjectDetails(subject, index)}
+                      aria-label={`Open subject details for ${subject.subjectCode}`}
+                    >
                       <MoreIcon />
                     </button>
                   </div>
@@ -400,7 +484,12 @@ export default function StudentDashboardPage() {
                       <span className="student-grade-label">{subject.gradeLabel}</span>
                     </div>
 
-                    <button type="button" className="student-row-action" aria-label={`More actions for ${subject.subjectCode}`}>
+                    <button
+                      type="button"
+                      className="student-row-action"
+                      onClick={() => openSubjectDetails(subject, index)}
+                      aria-label={`Open subject details for ${subject.subjectCode}`}
+                    >
                       <MoreIcon />
                     </button>
                   </div>
@@ -413,6 +502,100 @@ export default function StudentDashboardPage() {
             </div>
           </div>
         </section>
+
+        {selectedSubject ? (
+          <div
+            className="subject-details-overlay"
+            role="presentation"
+            onClick={closeSubjectDetails}
+          >
+            <section
+              className="subject-details-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="student-subject-details-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <header className="subject-details-header">
+                <span
+                  className={`subject-details-color student-subject-swatch student-subject-swatch--${selectedSubject.swatchTone}`}
+                  aria-hidden="true"
+                ></span>
+
+                <div className="subject-details-copy">
+                  <strong className="subject-details-code">
+                    {selectedSubject.subjectCode}
+                  </strong>
+                  <p
+                    id="student-subject-details-title"
+                    className="subject-details-title"
+                  >
+                    {selectedSubject.subjectName}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="subject-details-close"
+                  onClick={closeSubjectDetails}
+                  aria-label="Close subject details"
+                >
+                  <CloseIcon />
+                </button>
+              </header>
+
+              <div className="subject-details-section">
+                <div className="subject-detail-row">
+                  <span className="subject-detail-icon" aria-hidden="true">
+                    <PersonIcon />
+                  </span>
+                  <span className="subject-detail-label">Instructor</span>
+                  <span className="subject-detail-value">{selectedSubject.instructorName}</span>
+                </div>
+
+                <div className="subject-detail-row">
+                  <span className="subject-detail-icon" aria-hidden="true">
+                    <ClockIcon />
+                  </span>
+                  <span className="subject-detail-label">Schedule</span>
+                  <span className="subject-detail-value">{selectedSubject.schedule}</span>
+                </div>
+
+                <div className="subject-detail-row">
+                  <span className="subject-detail-icon" aria-hidden="true">
+                    <RoomIcon />
+                  </span>
+                  <span className="subject-detail-label">Room</span>
+                  <span className="subject-detail-value">{selectedSubject.room}</span>
+                </div>
+              </div>
+
+              <div className="subject-details-section subject-details-section--grade">
+                <span className="subject-details-grade-heading">FINAL GRADE</span>
+
+                {selectedSubject.hasPostedGrade ? (
+                  <span className="subject-final-grade-value">{selectedSubject.grade}</span>
+                ) : (
+                  <p className="subject-details-grade-note">
+                    Grades have not been posted yet.
+                  </p>
+                )}
+              </div>
+
+              <div className="subject-details-actions">
+                <button
+                  type="button"
+                  className="request-breakdown-btn"
+                  onClick={handleRequestBreakdown}
+                  disabled={!selectedSubject.hasPostedGrade}
+                >
+                  <ClipboardIcon />
+                  <span>Request Breakdown</span>
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
       </div>
     </StudentShell>
   )

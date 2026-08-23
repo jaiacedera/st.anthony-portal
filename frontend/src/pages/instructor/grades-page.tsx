@@ -159,6 +159,27 @@ const legacyMidtermKnowledgeLabels = new Set([
   'activity 4',
 ])
 
+const finalMajorExamDefaultComponents = [
+  {
+    id: 'knowledge-major-exam-midterm',
+    sectionId: 'knowledge-major-exam',
+    label: 'Midterm Exam',
+    order: 1,
+    isDefault: true,
+    isActive: true,
+    isCustom: false,
+  },
+  {
+    id: 'knowledge-major-exam-final',
+    sectionId: 'knowledge-major-exam',
+    label: 'Final Exam',
+    order: 2,
+    isDefault: true,
+    isActive: true,
+    isCustom: false,
+  },
+] satisfies GradeComponentConfig[]
+
 function buildDefaultGradeSections(gradingPeriod: GradingPeriodKey): GradeSectionConfig[] {
   if (gradingPeriod === 'midterm') {
     return [
@@ -352,16 +373,7 @@ function buildDefaultGradeComponents(gradingPeriod: GradingPeriodKey): GradeComp
             isActive: true,
             isCustom: false,
           },
-          {
-            id: 'knowledge-major-exam',
-            sectionId: 'knowledge-major-exam',
-            label: 'Major Exam',
-            order: 1,
-            isDefault: true,
-            isActive: true,
-            isCustom: false,
-            periodAware: true,
-          },
+          ...finalMajorExamDefaultComponents,
         ]
 
   const skillDefaults = SKILLS_COMPONENT_DEFINITIONS.map((definition, index) => ({
@@ -760,6 +772,160 @@ function toTimestampValue(timestamp: string) {
 
 function normalizeCsvHeader(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function isFinalKnowledgeMajorExamSection(
+  section: Pick<GradeSectionConfig, 'id' | 'category'>,
+  gradingPeriod: GradingPeriodKey,
+) {
+  return (
+    gradingPeriod === 'final' &&
+    section.category === 'knowledge' &&
+    section.id === 'knowledge-major-exam'
+  )
+}
+
+function isFinalKnowledgeExamLabel(label: string) {
+  const normalizedLabel = normalizeCsvHeader(label)
+  return normalizedLabel === 'midterm exam' || normalizedLabel === 'final exam'
+}
+
+function sortFinalMajorExamComponents(components: GradeComponentConfig[]) {
+  return [...components].sort((left, right) => {
+    const getPriority = (label: string) => {
+      const normalizedLabel = normalizeCsvHeader(label)
+
+      if (normalizedLabel === 'midterm exam') {
+        return 0
+      }
+
+      if (normalizedLabel === 'final exam') {
+        return 1
+      }
+
+      return 2
+    }
+
+    const priorityDifference = getPriority(left.label) - getPriority(right.label)
+
+    if (priorityDifference !== 0) {
+      return priorityDifference
+    }
+
+    return left.order - right.order || left.id.localeCompare(right.id)
+  })
+}
+
+function normalizeFinalKnowledgeMajorExamStructure(
+  sections: GradeSectionConfig[],
+  components: GradeComponentConfig[],
+) {
+  const nextSections = cloneSections(sections)
+  const nextComponents = cloneComponents(components)
+  let didMigrate = false
+
+  let majorExamSection = nextSections.find(
+    (section) => section.id === 'knowledge-major-exam' && section.category === 'knowledge',
+  )
+
+  if (!majorExamSection) {
+    majorExamSection = {
+      id: 'knowledge-major-exam',
+      category: 'knowledge',
+      label: 'Major Exam',
+      weight: 20,
+      aggregationType: 'average',
+      allowAssessments: true,
+      order: 3,
+      isDefault: true,
+      isActive: true,
+      isCustom: false,
+    }
+    nextSections.push(majorExamSection)
+    didMigrate = true
+  }
+
+  if (
+    !majorExamSection.isActive ||
+    majorExamSection.label !== 'Major Exam' ||
+    majorExamSection.weight !== 20
+  ) {
+    majorExamSection.isActive = true
+    majorExamSection.label = 'Major Exam'
+    majorExamSection.weight = 20
+    majorExamSection.aggregationType = 'average'
+    majorExamSection.allowAssessments = true
+    didMigrate = true
+  }
+
+  const movableSections = nextSections.filter(
+    (section) =>
+      section.isActive &&
+      section.category === 'knowledge' &&
+      section.id !== 'knowledge-major-exam' &&
+      isFinalKnowledgeExamLabel(section.label),
+  )
+
+  for (const section of movableSections) {
+    const sectionComponents = nextComponents.filter(
+      (component) => component.isActive && component.sectionId === section.id,
+    )
+
+    for (const component of sectionComponents) {
+      component.sectionId = 'knowledge-major-exam'
+      if (normalizeCsvHeader(component.label) === normalizeCsvHeader(section.label)) {
+        component.label = section.label
+      }
+    }
+
+    section.isActive = false
+    didMigrate = true
+  }
+
+  let majorExamComponents = nextComponents.filter(
+    (component) =>
+      component.isActive && component.sectionId === 'knowledge-major-exam',
+  )
+
+  if (
+    majorExamComponents.length === 1 &&
+    normalizeCsvHeader(majorExamComponents[0].label) === 'major exam'
+  ) {
+    majorExamComponents[0].label = 'Midterm Exam'
+    didMigrate = true
+  }
+
+  for (const defaultComponent of finalMajorExamDefaultComponents) {
+    const existingComponent = majorExamComponents.find(
+      (component) =>
+        normalizeCsvHeader(component.label) === normalizeCsvHeader(defaultComponent.label),
+    )
+
+    if (existingComponent) {
+      continue
+    }
+
+    nextComponents.push({ ...defaultComponent })
+    didMigrate = true
+  }
+
+  majorExamComponents = nextComponents.filter(
+    (component) =>
+      component.isActive && component.sectionId === 'knowledge-major-exam',
+  )
+
+  sortFinalMajorExamComponents(majorExamComponents).forEach((component, index) => {
+    if (component.order !== index + 1) {
+      component.order = index + 1
+      didMigrate = true
+    }
+  })
+
+  return {
+    sections: normalizeSectionOrders(nextSections),
+    components: normalizeComponentOrders(nextComponents, nextSections),
+    didMigrate,
+  }
 }
 
 function calculateAverage(values: Array<number | null>) {
@@ -1413,11 +1579,12 @@ function readStoredGradeConfig(
       return null
     }
 
-    const normalizedSections = normalizeSectionOrders(cloneSections(parsed.sections))
-    const normalizedComponents = normalizeComponentOrders(
+    let normalizedSections = normalizeSectionOrders(cloneSections(parsed.sections))
+    let normalizedComponents = normalizeComponentOrders(
       cloneComponents(parsed.components),
       normalizedSections,
     )
+    let didMigrate = false
 
     if (shouldMigrateToPeriodDefaults(normalizedSections, normalizedComponents, gradingPeriod)) {
       const migratedComponentIds = buildSkillsComponentIdMigrationMap(
@@ -1434,10 +1601,22 @@ function readStoredGradeConfig(
       }
     }
 
+    if (gradingPeriod === 'final') {
+      const normalizedFinalKnowledge = normalizeFinalKnowledgeMajorExamStructure(
+        normalizedSections,
+        normalizedComponents,
+      )
+
+      normalizedSections = normalizedFinalKnowledge.sections
+      normalizedComponents = normalizedFinalKnowledge.components
+      didMigrate = normalizedFinalKnowledge.didMigrate
+    }
+
     return {
       sections: normalizedSections,
       components: normalizedComponents,
       savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
+      didMigrate,
     }
   } catch {
     return null
@@ -2351,6 +2530,12 @@ export default function GradesPage() {
       })),
       cleanedSections,
     )
+    const normalizedFinalKnowledge =
+      selectedGradingPeriod === 'final'
+        ? normalizeFinalKnowledgeMajorExamStructure(cleanedSections, cleanedComponents)
+        : null
+    const nextPreparedSections = normalizedFinalKnowledge?.sections ?? cleanedSections
+    const nextPreparedComponents = normalizedFinalKnowledge?.components ?? cleanedComponents
 
     if (!selectedSubject) {
       setComponentManagerError('Select a subject before saving the grading breakdown.')
@@ -2358,8 +2543,8 @@ export default function GradesPage() {
     }
 
     try {
-      const nextSections = cloneSections(cleanedSections)
-      const nextComponents = cloneComponents(cleanedComponents)
+      const nextSections = cloneSections(nextPreparedSections)
+      const nextComponents = cloneComponents(nextPreparedComponents)
       const savedAt = new Date().toISOString()
       const storageKey = getGradeConfigStorageKey(
         username,
@@ -2411,9 +2596,15 @@ export default function GradesPage() {
       ,
       cleanedSections,
     )
+    const normalizedFinalKnowledge =
+      selectedGradingPeriod === 'final'
+        ? normalizeFinalKnowledgeMajorExamStructure(cleanedSections, cleanedComponents)
+        : null
+    const nextPreparedSections = normalizedFinalKnowledge?.sections ?? cleanedSections
+    const nextPreparedComponents = normalizedFinalKnowledge?.components ?? cleanedComponents
     const nextOverrides = { ...draftScoreOverrides }
 
-    for (const component of cleanedComponents.filter((currentComponent) => currentComponent.isActive)) {
+    for (const component of nextPreparedComponents.filter((currentComponent) => currentComponent.isActive)) {
       const parsedValue = parseNumericValue(editDraftValues[component.id] ?? '')
 
       if (parsedValue === null) {
@@ -2439,10 +2630,10 @@ export default function GradesPage() {
       },
     )
     setDraftScoreOverrides(nextOverrides)
-    setGradeSections(cleanedSections)
-    setGradeComponents(cleanedComponents)
+    setGradeSections(nextPreparedSections)
+    setGradeComponents(nextPreparedComponents)
     setVisibleComponentIds((current) =>
-      syncVisibleComponentIds(gradeComponents, cleanedComponents, current),
+      syncVisibleComponentIds(gradeComponents, nextPreparedComponents, current),
     )
     setHistoryEntries((current) => [
       {
@@ -3400,20 +3591,32 @@ export default function GradesPage() {
                                           <td>Hidden by Column Settings.</td>
                                         </tr>
                                       )}
-                                      <tr>
-                                        <th>
-                                          {section.aggregationType === 'average'
+                                    <tr>
+                                      <th>
+                                        {isFinalKnowledgeMajorExamSection(
+                                          section,
+                                          selectedGradingPeriod,
+                                        )
+                                          ? 'Major Exam Average'
+                                          : section.aggregationType === 'average'
                                             ? 'Average'
                                             : 'Score'}
-                                        </th>
-                                        <td>{formatScoreOrPlaceholder(section.average, 2)}</td>
-                                      </tr>
-                                      <tr>
-                                        <th>Contribution</th>
-                                        <td>
-                                          {section.contribution === null
-                                            ? '--'
-                                            : `${formatScore(section.contribution, 2)} / ${section.weight}`}
+                                      </th>
+                                      <td>{formatScoreOrPlaceholder(section.average, 2)}</td>
+                                    </tr>
+                                    <tr>
+                                      <th>
+                                        {isFinalKnowledgeMajorExamSection(
+                                          section,
+                                          selectedGradingPeriod,
+                                        )
+                                          ? 'Weighted Contribution'
+                                          : 'Contribution'}
+                                      </th>
+                                      <td>
+                                        {section.contribution === null
+                                          ? '--'
+                                          : `${formatScore(section.contribution, 2)} / ${section.weight}`}
                                         </td>
                                       </tr>
                                     </tbody>
@@ -3576,34 +3779,48 @@ export default function GradesPage() {
                             section.id,
                           )
 
-                          return sectionComponents.map((component) => {
-                            const fieldLabel =
-                              category.key === 'skills'
-                                ? getDisplayComponentLabel(component, selectedGradingPeriod)
-                                : sectionComponents.length === 1
-                                  ? `${section.label} (${section.weight}%)`
-                                  : getDisplayComponentLabel(component, selectedGradingPeriod)
+                          const isGroupedFinalMajorExam = isFinalKnowledgeMajorExamSection(
+                            section,
+                            selectedGradingPeriod,
+                          )
 
-                            return (
-                              <div key={component.id} className="score-field">
-                                <label htmlFor={`edit-score-${component.id}`}>{fieldLabel}</label>
+                          return [
+                            ...(isGroupedFinalMajorExam
+                              ? [
+                                  <div key={`${section.id}-heading`} className="score-field-group-title">
+                                    {section.label} ({section.weight}%)
+                                  </div>,
+                                ]
+                              : []),
+                            ...sectionComponents.map((component) => {
+                              const fieldLabel =
+                                category.key === 'skills'
+                                  ? getDisplayComponentLabel(component, selectedGradingPeriod)
+                                  : sectionComponents.length === 1 && !isGroupedFinalMajorExam
+                                    ? `${section.label} (${section.weight}%)`
+                                    : getDisplayComponentLabel(component, selectedGradingPeriod)
 
-                                <input
-                                  id={`edit-score-${component.id}`}
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  step="0.01"
-                                  className="grade-edit-score-input"
-                                  value={editDraftValues[component.id] ?? ''}
-                                  onChange={(event) =>
-                                    handleEditInputChange(component.id, event)
-                                  }
-                                  placeholder="Score"
-                                />
-                              </div>
-                            )
-                          })
+                              return (
+                                <div key={component.id} className="score-field">
+                                  <label htmlFor={`edit-score-${component.id}`}>{fieldLabel}</label>
+
+                                  <input
+                                    id={`edit-score-${component.id}`}
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    className="grade-edit-score-input"
+                                    value={editDraftValues[component.id] ?? ''}
+                                    onChange={(event) =>
+                                      handleEditInputChange(component.id, event)
+                                    }
+                                    placeholder="Score"
+                                  />
+                                </div>
+                              )
+                            }),
+                          ]
                         })}
                     </div>
                     {category.key === 'skills' && editSkillsComputation ? (

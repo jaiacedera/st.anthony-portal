@@ -3797,6 +3797,14 @@
   gap: 14px 16px;
 }
 
+.score-field-group-title {
+  grid-column: 1 / -1;
+  margin: 2px 0 -2px;
+  color: #4f4f4f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .skills-computation-preview {
   display: grid;
   gap: 8px;

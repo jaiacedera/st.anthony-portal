@@ -2778,9 +2778,7 @@ export default function GradesPage() {
               {getConfiguredCategories(editDraftSections).map((category) => (
                 <section key={category.key} className="grade-edit-section">
                   <header
-                    className={
-                      `grade-category-header grade-category-header--${category.key}`
-                    }
+                    className={`score-section-header score-section-header--${category.key}`}
                   >
                     <span>
                       {category.label} ({category.weight}%)
@@ -2788,7 +2786,7 @@ export default function GradesPage() {
 
                     <button
                       type="button"
-                      className={`grade-category-edit-btn grade-category-edit-btn--${category.key}`}
+                      className="score-section-edit"
                       onClick={() => openComponentManager(category.key)}
                       aria-haspopup="dialog"
                     >
@@ -2797,51 +2795,47 @@ export default function GradesPage() {
                     </button>
                   </header>
 
-                  <div className="grade-edit-subsections">
-                    {editDraftSections
-                      .filter((section) => section.category === category.key && section.isActive)
-                      .sort((left, right) => left.order - right.order)
-                      .map((section) => {
-                        const sectionComponents = getSectionComponentList(
-                          editDraftComponents,
-                          section.id,
-                        )
+                  <div className="score-section-body">
+                    <div className="score-fields-grid">
+                      {editDraftSections
+                        .filter((section) => section.category === category.key && section.isActive)
+                        .sort((left, right) => left.order - right.order)
+                        .flatMap((section) => {
+                          const sectionComponents = getSectionComponentList(
+                            editDraftComponents,
+                            section.id,
+                          )
 
-                        return (
-                          <div key={section.id} className="grade-edit-subsection">
-                            {category.key !== 'skills' ? (
-                              <div className="grade-edit-subsection-header">
-                                <h4>
-                                  {section.label} ({section.weight}%)
-                                </h4>
+                          return sectionComponents.map((component) => {
+                            const fieldLabel =
+                              category.key === 'skills'
+                                ? getDisplayComponentLabel(component, selectedGradingPeriod)
+                                : sectionComponents.length === 1
+                                  ? `${section.label} (${section.weight}%)`
+                                  : getDisplayComponentLabel(component, selectedGradingPeriod)
+
+                            return (
+                              <div key={component.id} className="score-field">
+                                <label htmlFor={`edit-score-${component.id}`}>{fieldLabel}</label>
+
+                                <input
+                                  id={`edit-score-${component.id}`}
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  className="grade-edit-score-input"
+                                  value={editDraftValues[component.id] ?? ''}
+                                  onChange={(event) =>
+                                    handleEditInputChange(component.id, event)
+                                  }
+                                  placeholder="Score"
+                                />
                               </div>
-                            ) : null}
-
-                            <div className="grade-edit-entry-list">
-                              {sectionComponents.map((component) => (
-                                <div key={component.id} className="grade-edit-entry">
-                                  <div className="grade-edit-entry-label">
-                                    {getDisplayComponentLabel(component, selectedGradingPeriod)}
-                                  </div>
-
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
-                                    className="grade-edit-score-input"
-                                    value={editDraftValues[component.id] ?? ''}
-                                    onChange={(event) =>
-                                      handleEditInputChange(component.id, event)
-                                    }
-                                    placeholder="Score"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )
-                      })}
+                            )
+                          })
+                        })}
+                    </div>
                   </div>
                 </section>
               ))}

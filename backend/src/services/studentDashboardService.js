@@ -10,6 +10,7 @@ import {
   GRADE_BREAKDOWN_REQUEST_TYPE,
   parseGradeRequestReason,
 } from '../utils/gradeRequestMetadata.js'
+import { gradeToRatingValue } from '../utils/gradeRating.js'
 
 function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
@@ -63,6 +64,16 @@ function parseNumericGrade(value) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function parsePositiveUnits(value) {
+  const parsed = parseNumericGrade(value)
+
+  if (parsed === null || parsed <= 0) {
+    return null
+  }
+
+  return parsed
+}
+
 function isPostedPublication(publication) {
   return String(publication?.is_posted ?? '').trim().toUpperCase() === 'TRUE'
 }
@@ -102,6 +113,40 @@ function formatAverage(values) {
 
   const total = values.reduce((sum, value) => sum + value, 0)
   return (total / values.length).toFixed(2)
+}
+
+function calculateWeightedRatingAverage(subjects, resolveVisibleGradeForSubject) {
+  let weightedTotal = 0
+  let totalUnits = 0
+
+  for (const subject of subjects) {
+    const units = parsePositiveUnits(subject.units)
+
+    if (units === null) {
+      continue
+    }
+
+    const visibleGrade = resolveVisibleGradeForSubject(subject)
+
+    if (!visibleGrade.hasPostedGrade) {
+      continue
+    }
+
+    const numericGrade = parseNumericGrade(visibleGrade.grade)
+
+    if (numericGrade === null) {
+      continue
+    }
+
+    weightedTotal += gradeToRatingValue(numericGrade) * units
+    totalUnits += units
+  }
+
+  if (!totalUnits) {
+    return ''
+  }
+
+  return (weightedTotal / totalUnits).toFixed(2)
 }
 
 function formatStudentRequestType(value) {
@@ -210,32 +255,27 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
   const instructorById = new Map(
     instructors.map((instructor) => [String(instructor.instructor_id ?? '').trim(), instructor]),
   )
-  const currentNumericGrades = activeSubjects
-    .map((subject) => {
-      const subjectId = String(subject.subject_id ?? '').trim()
-      const grade = gradeBySubjectId.get(subjectId)
-      const visibleGrade = resolveVisibleGrade(
-        grade,
-        publicationBySubjectPeriod.get(`${subjectId}::final`),
-        publicationBySubjectPeriod.get(`${subjectId}::midterm`),
-      )
+  const headerSchoolYear = getDisplayValue(
+    getMostCommonValue(activeSubjects.map((subject) => subject.school_year)),
+  )
+  const headerSemester = getDisplayValue(
+    getMostCommonValue(activeSubjects.map((subject) => subject.semester)),
+  )
+  const resolveVisibleGradeForSubject = (subject) => {
+    const subjectId = String(subject.subject_id ?? '').trim()
+    const grade = gradeBySubjectId.get(subjectId)
 
-      return parseNumericGrade(visibleGrade.grade)
-    })
-    .filter((value) => value !== null)
-  const overallNumericGrades = activeSubjects
-    .map((subject) => {
-      const subjectId = String(subject.subject_id ?? '').trim()
-      const grade = gradeBySubjectId.get(subjectId)
-      const visibleGrade = resolveVisibleGrade(
-        grade,
-        publicationBySubjectPeriod.get(`${subjectId}::final`),
-        publicationBySubjectPeriod.get(`${subjectId}::midterm`),
-      )
-
-      return parseNumericGrade(visibleGrade.grade)
-    })
-    .filter((value) => value !== null)
+    return resolveVisibleGrade(
+      grade,
+      publicationBySubjectPeriod.get(`${subjectId}::final`),
+      publicationBySubjectPeriod.get(`${subjectId}::midterm`),
+    )
+  }
+  const currentSemesterSubjects = activeSubjects.filter(
+    (subject) =>
+      getDisplayValue(subject.school_year) === headerSchoolYear &&
+      getDisplayValue(subject.semester) === headerSemester,
+  )
   const pendingRequests = gradeRequests.filter(
     (request) =>
       String(request.student_id ?? '').trim() === String(student.student_id ?? '').trim() &&
@@ -250,12 +290,8 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
     success: true,
     connected: true,
     header: {
-      schoolYear: getDisplayValue(
-        getMostCommonValue(activeSubjects.map((subject) => subject.school_year)),
-      ),
-      semester: getDisplayValue(
-        getMostCommonValue(activeSubjects.map((subject) => subject.semester)),
-      ),
+      schoolYear: headerSchoolYear,
+      semester: headerSemester,
     },
     student: {
       id: student.student_id,
@@ -274,9 +310,12 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
     },
     stats: {
       enrolledSubjectCount: activeSubjects.length,
-      currentGwa: formatAverage(currentNumericGrades),
+      currentGwa: calculateWeightedRatingAverage(
+        currentSemesterSubjects,
+        resolveVisibleGradeForSubject,
+      ),
       pendingRequestCount: pendingRequests.length,
-      overallGwa: formatAverage(overallNumericGrades),
+      overallGwa: calculateWeightedRatingAverage(activeSubjects, resolveVisibleGradeForSubject),
     },
     subjects: activeSubjects
       .map((subject) => {

@@ -39,6 +39,55 @@ export type InstructorRequestRecord = {
   gradeId: string
 }
 
+export type InstructorProfileRecord = {
+  id: string
+  fullName: string
+  firstName: string
+  middleName: string
+  lastName: string
+  email: string
+  employeeId: string
+  department: string
+  contactNumber: string
+  dateOfBirth: string
+  gender: string
+  address: string
+  joinedAt: string
+  lastLogin: string
+  username: string
+  status: string
+  role: string
+  profilePhoto: string
+}
+
+export type InstructorProfilePayload = {
+  success: boolean
+  connected: boolean
+  needsBinding: boolean
+  message?: string
+  header: {
+    schoolYear: string
+    semester: string
+  }
+  profile: InstructorProfileRecord
+}
+
+export type UpdateInstructorProfileInput = {
+  username: string
+  fullName: string
+  phone: string
+  dateOfBirth: string
+  gender: string
+  address: string
+}
+
+export type ChangeInstructorPasswordInput = {
+  username: string
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+}
+
 export type InstructorDashboardPayload = {
   success: boolean
   connected: boolean
@@ -286,6 +335,76 @@ export async function fetchInstructorSubjects(
   })
 
   const payload = (await response.json()) as InstructorSubjectsPayload & {
+    message?: string
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? `Backend request failed with ${response.status}`)
+  }
+
+  return payload
+}
+
+export async function fetchInstructorProfile(
+  username: string,
+  signal?: AbortSignal,
+): Promise<InstructorProfilePayload> {
+  const query = new URLSearchParams({ username })
+  const response = await fetch(`${apiBaseUrl}/api/instructor/profile?${query.toString()}`, {
+    headers: {
+      Accept: 'application/json',
+    },
+    signal,
+  })
+
+  const payload = (await response.json()) as InstructorProfilePayload & {
+    message?: string
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? `Backend request failed with ${response.status}`)
+  }
+
+  return payload
+}
+
+export async function updateInstructorProfile(
+  input: UpdateInstructorProfileInput,
+): Promise<InstructorProfilePayload> {
+  const response = await fetch(`${apiBaseUrl}/api/instructor/profile`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  })
+
+  const payload = (await response.json()) as InstructorProfilePayload & {
+    message?: string
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? `Backend request failed with ${response.status}`)
+  }
+
+  return payload
+}
+
+export async function changeInstructorPassword(
+  input: ChangeInstructorPasswordInput,
+): Promise<{ success: boolean; message?: string }> {
+  const response = await fetch(`${apiBaseUrl}/api/instructor/profile/password`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  })
+
+  const payload = (await response.json()) as {
+    success: boolean
     message?: string
   }
 

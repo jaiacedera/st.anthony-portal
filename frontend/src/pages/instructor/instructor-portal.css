@@ -1026,6 +1026,471 @@
   padding: 37px 30px 32px;
 }
 
+.instructor-profile-page {
+  padding: 32px 30px 36px;
+}
+
+.instructor-profile-header {
+  display: grid;
+  gap: 6px;
+}
+
+.instructor-profile-title {
+  margin: 0;
+  color: #8f0b0b;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.instructor-profile-subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.instructor-profile-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  margin-top: 24px;
+  border: 1px solid #e3e3e3;
+  border-radius: 16px;
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: var(--portal-shadow);
+}
+
+.instructor-summary-left {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 30px 34px;
+}
+
+.instructor-avatar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: #f8eaea;
+  color: #8f0b0b;
+  font-size: 34px;
+  font-weight: 500;
+  flex: none;
+  overflow: hidden;
+}
+
+.instructor-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.instructor-avatar-camera {
+  position: absolute;
+  right: -4px;
+  bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #5a4a4a;
+  cursor: pointer;
+}
+
+.instructor-avatar-camera svg {
+  width: 18px;
+  height: 18px;
+}
+
+.instructor-summary-copy {
+  min-width: 0;
+}
+
+.instructor-summary-name {
+  margin: 0;
+  color: #111827;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.instructor-summary-role {
+  margin: 6px 0 0;
+  color: #9b1111;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.instructor-summary-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.instructor-summary-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #555;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.instructor-summary-meta-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: #8f0b0b;
+  flex: none;
+}
+
+.instructor-summary-meta-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.instructor-summary-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 30px 34px;
+  border-left: 1px solid #eeeeee;
+}
+
+.instructor-summary-detail-row {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  min-height: 58px;
+  align-items: center;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.instructor-summary-detail-row:last-child {
+  border-bottom: none;
+}
+
+.instructor-summary-detail-label {
+  color: #6f6f6f;
+  font-size: 13px;
+}
+
+.instructor-summary-detail-value {
+  color: #1f1f1f;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.instructor-profile-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.instructor-profile-card {
+  border: 1px solid #e3e3e3;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: var(--portal-shadow);
+  overflow: hidden;
+}
+
+.instructor-profile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding: 0 24px;
+}
+
+.instructor-profile-card-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.instructor-profile-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #8f0b0b;
+}
+
+.instructor-profile-card-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.instructor-profile-card-title {
+  margin: 0;
+  color: #8f0b0b;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.instructor-profile-card-action,
+.instructor-inline-change-button,
+.instructor-secondary-button,
+.instructor-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  font: 600 14px/1 'Lato', sans-serif;
+  cursor: pointer;
+}
+
+.instructor-profile-card-action {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(143, 11, 11, 0.2);
+  background: #ffffff;
+  color: #8f0b0b;
+}
+
+.instructor-profile-card-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.instructor-profile-card-body {
+  border-top: 1px solid #eeeeee;
+}
+
+.instructor-profile-info-row {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  min-height: 54px;
+  align-items: center;
+  padding: 0 24px;
+  border-top: 1px solid #eeeeee;
+}
+
+.instructor-profile-info-row:first-child {
+  border-top: none;
+}
+
+.instructor-profile-info-label {
+  color: #6f6f6f;
+  font-size: 13px;
+}
+
+.instructor-profile-info-value-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.instructor-profile-info-value {
+  color: #1f1f1f;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.instructor-inline-change-button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(143, 11, 11, 0.2);
+  background: #ffffff;
+  color: #8f0b0b;
+}
+
+.account-status.active {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #e6f7ea;
+  color: #1e8e3e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.instructor-profile-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(22, 14, 14, 0.34);
+  backdrop-filter: blur(3px);
+}
+
+.instructor-profile-modal {
+  width: min(100%, 620px);
+  max-height: min(88vh, 820px);
+  overflow: auto;
+  border: 1px solid rgba(128, 10, 9, 0.14);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(38, 20, 20, 0.18);
+}
+
+.instructor-profile-modal--compact {
+  width: min(100%, 520px);
+}
+
+.instructor-profile-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid #ece6e6;
+}
+
+.instructor-profile-modal-header h3 {
+  margin: 0;
+  color: #202020;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.instructor-profile-modal-header p {
+  margin: 8px 0 0;
+  color: #6a6a6a;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.instructor-profile-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid #eadcdc;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #4b4040;
+  cursor: pointer;
+}
+
+.instructor-profile-modal-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.instructor-profile-form {
+  display: grid;
+  gap: 16px;
+  padding: 20px 24px 24px;
+}
+
+.instructor-profile-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.instructor-profile-form-field {
+  display: grid;
+  gap: 8px;
+}
+
+.instructor-profile-form-field span {
+  color: #5f5f5f;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.instructor-profile-form-field input,
+.instructor-profile-form-field select,
+.instructor-profile-form-field textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #ddd2d2;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #161616;
+  font: 500 14px/1.4 'Lato', 'Segoe UI', sans-serif;
+  outline: none;
+}
+
+.instructor-profile-form-field textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.instructor-profile-form-field input:focus,
+.instructor-profile-form-field select:focus,
+.instructor-profile-form-field textarea:focus {
+  border-color: rgba(147, 14, 13, 0.45);
+  box-shadow: 0 0 0 3px rgba(147, 14, 13, 0.08);
+}
+
+.instructor-profile-form-field input:disabled,
+.instructor-profile-form-field select:disabled,
+.instructor-profile-form-field textarea:disabled {
+  background: #f5f3f3;
+  color: #767676;
+  cursor: not-allowed;
+}
+
+.instructor-profile-form-message {
+  margin: 0;
+  color: #930e0d;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.instructor-profile-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.instructor-secondary-button,
+.instructor-primary-button {
+  min-height: 46px;
+  padding: 0 18px;
+}
+
+.instructor-secondary-button {
+  border: 1px solid rgba(143, 11, 11, 0.24);
+  background: #ffffff;
+  color: #8f0b0b;
+}
+
+.instructor-primary-button {
+  border: 1px solid #8f0b0b;
+  background: #8f0b0b;
+  color: #ffffff;
+}
+
+.instructor-secondary-button:disabled,
+.instructor-primary-button:disabled,
+.instructor-profile-card-action:disabled,
+.instructor-inline-change-button:disabled,
+.instructor-profile-modal-close:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .subjects-page,
 .subjects-page-content {
   display: grid;
@@ -2275,7 +2740,31 @@
   color: #ffffff;
 }
 
+@media (max-width: 1100px) {
+  .instructor-profile-page {
+    padding: 24px 20px 28px;
+  }
+
+  .instructor-profile-summary,
+  .instructor-profile-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .instructor-summary-right {
+    border-left: none;
+    border-top: 1px solid #eeeeee;
+  }
+
+  .instructor-profile-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 700px) {
+  .instructor-profile-page {
+    padding: 20px 16px 28px;
+  }
+
   .create-student-modal {
     width: calc(100vw - 28px);
     max-height: calc(100dvh - 28px);
@@ -2292,6 +2781,35 @@
 
   .create-student-footer .subject-detail-action {
     width: 100%;
+  }
+
+  .instructor-summary-left {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .instructor-profile-info-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .instructor-profile-info-value-wrap {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .instructor-profile-modal-header {
+    flex-direction: column;
+  }
+
+  .instructor-profile-modal-close {
+    align-self: flex-end;
+  }
+
+  .instructor-profile-form-actions {
+    flex-direction: column-reverse;
   }
 }
 

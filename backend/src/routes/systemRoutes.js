@@ -33,6 +33,11 @@ import {
   postInstructorStudentEnrollment,
 } from '../controllers/instructorStudentsController.js'
 import {
+  getInstructorProfileData,
+  postInstructorPasswordChange,
+  postInstructorProfile,
+} from '../controllers/instructorProfileController.js'
+import {
   getHealth,
   getModules,
   getOverview,
@@ -109,6 +114,11 @@ const routes = [
   },
   {
     method: 'GET',
+    pathname: '/api/instructor/profile',
+    handler: getInstructorProfileData,
+  },
+  {
+    method: 'GET',
     pathname: '/api/instructor/requests',
     handler: getInstructorRequestsData,
   },
@@ -126,6 +136,16 @@ const routes = [
     method: 'POST',
     pathname: '/api/instructor/students/enrollment',
     handler: postInstructorStudentEnrollment,
+  },
+  {
+    method: 'POST',
+    pathname: '/api/instructor/profile',
+    handler: postInstructorProfile,
+  },
+  {
+    method: 'POST',
+    pathname: '/api/instructor/profile/password',
+    handler: postInstructorPasswordChange,
   },
   {
     method: 'POST',

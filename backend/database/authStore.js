@@ -44,6 +44,66 @@ export function getInstructorAccountByUsername(username) {
   return findInstructorAccountByUsername(username)
 }
 
+export function updateInstructorAccountByUsername(username, updates) {
+  const normalizedUsername = String(username ?? '').trim()
+
+  if (!normalizedUsername) {
+    return null
+  }
+
+  const accounts = getAuthAccounts()
+  const accountIndex = accounts.findIndex(
+    (account) =>
+      account.role === 'INSTRUCTOR' &&
+      String(account.username ?? '').trim() === normalizedUsername,
+  )
+
+  if (accountIndex < 0) {
+    return null
+  }
+
+  const nextAccount = {
+    ...accounts[accountIndex],
+    ...updates,
+  }
+
+  accounts[accountIndex] = nextAccount
+  saveAuthAccounts(accounts)
+
+  return nextAccount
+}
+
+export function setInstructorAccountPasswordByUsername(username, password) {
+  const normalizedUsername = String(username ?? '').trim()
+
+  if (!normalizedUsername || typeof password !== 'string' || !password.length) {
+    return null
+  }
+
+  const passwordSalt = randomBytes(16).toString('hex')
+  const passwordHash = scryptSync(password, passwordSalt, 64).toString('hex')
+
+  return updateInstructorAccountByUsername(normalizedUsername, {
+    password_salt: passwordSalt,
+    password_hash: passwordHash,
+    status: 'ACTIVE',
+    updated_at: new Date().toISOString(),
+  })
+}
+
+export function touchInstructorAccountLastLogin(username) {
+  const normalizedUsername = String(username ?? '').trim()
+
+  if (!normalizedUsername) {
+    return null
+  }
+
+  return updateInstructorAccountByUsername(normalizedUsername, {
+    last_login: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  })
+}
+
 function compareIsoDatesDescending(leftValue, rightValue) {
   const leftTime = Date.parse(String(leftValue ?? '').trim() || '1970-01-01T00:00:00.000Z')
   const rightTime = Date.parse(String(rightValue ?? '').trim() || '1970-01-01T00:00:00.000Z')

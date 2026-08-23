@@ -1,5 +1,6 @@
 import {
   findInstructorAccountByUsername,
+  touchInstructorAccountLastLogin,
   verifyInstructorPassword,
 } from '../../database/authStore.js'
 import {
@@ -58,14 +59,17 @@ export async function authenticateInstructor(username, password) {
     }
   }
 
+  const refreshedAccount =
+    touchInstructorAccountLastLogin(normalizedUsername) ?? account
+
   return {
     success: true,
     message: 'Instructor login successful.',
     account: {
-      accountId: account.account_id,
-      role: account.role,
-      username: account.username,
-      status: account.status,
+      accountId: refreshedAccount.account_id,
+      role: refreshedAccount.role,
+      username: refreshedAccount.username,
+      status: refreshedAccount.status,
     },
   }
 }

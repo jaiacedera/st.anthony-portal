@@ -126,6 +126,7 @@ export type InstructorSubjectRecord = {
   id: string
   code: string
   title: string
+  units: string
   schedule: string
   room: string
   students: number
@@ -150,6 +151,7 @@ export type CreateInstructorSubjectInput = {
   username: string
   subjectCode: string
   subjectName: string
+  units: string
   semester: string
   schoolYear: string
   schedule: string
@@ -169,6 +171,7 @@ export type UpdateInstructorSubjectInput = {
   subjectId: string
   subjectCode: string
   subjectName: string
+  units: string
   semester: string
   schoolYear: string
   schedule: string

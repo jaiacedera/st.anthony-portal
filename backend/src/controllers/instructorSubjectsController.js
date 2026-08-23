@@ -39,6 +39,12 @@ export async function postInstructorSubject(req, res) {
       username,
       subjectCode: typeof body.subjectCode === 'string' ? body.subjectCode : '',
       subjectName: typeof body.subjectName === 'string' ? body.subjectName : '',
+      units:
+        typeof body.units === 'number'
+          ? String(body.units)
+          : typeof body.units === 'string'
+            ? body.units
+            : '',
       semester: typeof body.semester === 'string' ? body.semester : '',
       schoolYear: typeof body.schoolYear === 'string' ? body.schoolYear : '',
       schedule: typeof body.schedule === 'string' ? body.schedule : '',
@@ -77,6 +83,12 @@ export async function postInstructorSubjectUpdate(req, res) {
       subjectId: typeof body.subjectId === 'string' ? body.subjectId : '',
       subjectCode: typeof body.subjectCode === 'string' ? body.subjectCode : '',
       subjectName: typeof body.subjectName === 'string' ? body.subjectName : '',
+      units:
+        typeof body.units === 'number'
+          ? String(body.units)
+          : typeof body.units === 'string'
+            ? body.units
+            : '',
       semester: typeof body.semester === 'string' ? body.semester : '',
       schoolYear: typeof body.schoolYear === 'string' ? body.schoolYear : '',
       schedule: typeof body.schedule === 'string' ? body.schedule : '',

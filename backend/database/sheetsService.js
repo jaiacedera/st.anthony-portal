@@ -235,8 +235,31 @@ async function ensureSheetInitialized(sheetName) {
       (header, index) =>
         normalizeForComparison(currentHeaderRow[index]) === normalizeForComparison(header),
     )
+    const canAppendMissingHeaders =
+      currentHeaderRow.length < headers.length &&
+      currentHeaderRow.every(
+        (header, index) =>
+          normalizeForComparison(header) === normalizeForComparison(headers[index]),
+      )
 
     if (!headersMatch) {
+      if (canAppendMissingHeaders) {
+        await runSheetsRequest(() =>
+          sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: getSheetRange(sheetName, 'A1'),
+            valueInputOption: 'RAW',
+            requestBody: {
+              values: [headers],
+            },
+          }),
+        )
+
+        invalidateSheetMatrixCache(sheetName)
+        markSheetInitialized(sheetName)
+        return
+      }
+
       if (!hasDataRows) {
         await runSheetsRequest(() =>
           sheets.spreadsheets.values.update({
@@ -536,6 +559,7 @@ export async function createSubject({
   instructorId,
   subjectCode,
   subjectName,
+  units,
   semester,
   schoolYear,
   schedule,
@@ -571,6 +595,7 @@ export async function createSubject({
     status: 'ACTIVE',
     created_at: timestamp,
     updated_at: timestamp,
+    units: toCellValue(units),
   })
 }
 
@@ -579,6 +604,7 @@ export async function updateSubject({
   instructorId,
   subjectCode,
   subjectName,
+  units,
   semester,
   schoolYear,
   schedule,
@@ -616,6 +642,7 @@ export async function updateSubject({
       schedule: toCellValue(schedule),
       room: toCellValue(room),
       updated_at: new Date().toISOString(),
+      units: toCellValue(units),
     },
   )
 }

@@ -19,6 +19,7 @@ import { navigateTo } from '../../utils/navigation'
 
 type CreateSubjectFormState = {
   subjectCode: string
+  units: string
   subjectName: string
   schedule: string
   room: string
@@ -50,6 +51,7 @@ function createDefaultSubjectForm(
 ): CreateSubjectFormState {
   return {
     subjectCode: '',
+    units: '',
     subjectName: '',
     schedule: '',
     room: '',
@@ -312,7 +314,7 @@ export default function SubjectsPage() {
     return subjects.filter((subject) => {
       const matchesQuery =
         !normalizedQuery ||
-        [subject.code, subject.title, subject.schedule, subject.room]
+        [subject.code, subject.title, subject.units, subject.schedule, subject.room]
           .join(' ')
           .toLowerCase()
           .includes(normalizedQuery)
@@ -386,6 +388,7 @@ export default function SubjectsPage() {
     setIsCreateFormOpen(true)
     setFormState({
       subjectCode: selectedSubject.code,
+      units: selectedSubject.units === 'Not set' ? '' : selectedSubject.units,
       subjectName: selectedSubject.title,
       schedule: selectedSubject.schedule === 'Not set' ? '' : selectedSubject.schedule,
       room: selectedSubject.room === 'Not set' ? '' : selectedSubject.room,
@@ -421,6 +424,7 @@ export default function SubjectsPage() {
               subjectId: selectedSubject.id,
               subjectCode: formState.subjectCode,
               subjectName: formState.subjectName,
+              units: formState.units,
               semester: formState.semester,
               schoolYear: formState.schoolYear,
               schedule: formState.schedule,
@@ -430,6 +434,7 @@ export default function SubjectsPage() {
               username,
               subjectCode: formState.subjectCode,
               subjectName: formState.subjectName,
+              units: formState.units,
               semester: formState.semester,
               schoolYear: formState.schoolYear,
               schedule: formState.schedule,
@@ -544,13 +549,14 @@ export default function SubjectsPage() {
             </div>
           </div>
 
-          <div className="subjects-table-shell">
-            <div className="instructor-table-head subjects-table-layout subject-table-grid subject-table-header">
-              <span>Subject Code</span>
-              <span>Subject Title</span>
-              <span>Schedule</span>
-              <span>Room</span>
-              <span>Students</span>
+            <div className="subjects-table-shell">
+              <div className="instructor-table-head subjects-table-layout subject-table-grid subject-table-header">
+                <span>Subject Code</span>
+                <span>Subject Title</span>
+                <span>Units</span>
+                <span>Schedule</span>
+                <span>Room</span>
+                <span>Students</span>
             </div>
 
             <div className="subjects-table-body">
@@ -587,6 +593,7 @@ export default function SubjectsPage() {
                         {subject.code}
                       </span>
                       <span className="subjects-inline-title subject-title">{subject.title}</span>
+                      <span className="subjects-inline-meta subject-meta">{subject.units}</span>
                       <span className="subjects-inline-meta subject-meta">{subject.schedule}</span>
                       <span className="subjects-inline-meta subject-meta">{subject.room}</span>
                       <span className="table-stat student-count">{subject.students}</span>
@@ -781,6 +788,20 @@ export default function SubjectsPage() {
                     onChange={handleFormFieldChange}
                     placeholder="e.g. IT101"
                     required
+                  />
+                </label>
+
+                <label className="subject-create-field">
+                  <span>Units</span>
+                  <input
+                    type="number"
+                    name="units"
+                    value={formState.units}
+                    onChange={handleFormFieldChange}
+                    placeholder="e.g. 3"
+                    min="0"
+                    step="0.5"
+                    inputMode="decimal"
                   />
                 </label>
 

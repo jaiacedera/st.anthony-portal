@@ -61,6 +61,7 @@ export const SHEET_HEADERS = {
     'status',
     'created_at',
     'updated_at',
+    'units',
   ],
   [SHEET_NAMES.SUBJECT_STUDENTS]: [
     'subject_student_id',

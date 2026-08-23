@@ -125,6 +125,26 @@ const gradeCategories: GradeCategoryDefinition[] = [
   { key: 'attitude', label: 'Attitude', weight: 20 },
 ]
 
+const legacyMidtermKnowledgeLabels = new Set([
+  'exam',
+  'major exam',
+  'activity 1',
+  'activity 2',
+  'activity 3',
+  'activity 4',
+])
+
+const legacyMidtermSkillLabels = new Set([
+  'pda',
+  'ncra',
+  'journal',
+  'role play',
+  'mcos',
+  'case',
+  'demonstration',
+  'return demo',
+])
+
 const defaultSkillLabels = [
   'Medications',
   'FDAR',
@@ -527,12 +547,50 @@ function getCategoryWeight(categoryKey: GradeCategoryKey) {
   return gradeCategories.find((category) => category.key === categoryKey)?.weight ?? 0
 }
 
-function getConfiguredCategories(sections: GradeSectionConfig[]) {
+function getRequiredCategoryWeight(
+  gradingPeriod: GradingPeriodKey,
+  categoryKey: GradeCategoryKey,
+) {
+  if (gradingPeriod === 'midterm') {
+    if (categoryKey === 'knowledge') {
+      return 30
+    }
+
+    if (categoryKey === 'skills') {
+      return 40
+    }
+
+    return 0
+  }
+
+  return getCategoryWeight(categoryKey)
+}
+
+function getConfiguredCategories(
+  sections: GradeSectionConfig[],
+  gradingPeriod: GradingPeriodKey,
+) {
   const activeCategoryKeys = new Set(
     sections.filter((section) => section.isActive).map((section) => section.category),
   )
 
-  return gradeCategories.filter((category) => activeCategoryKeys.has(category.key))
+  return gradeCategories
+    .filter((category) => activeCategoryKeys.has(category.key))
+    .map((category) => ({
+      ...category,
+      weight: getRequiredCategoryWeight(gradingPeriod, category.key),
+    }))
+}
+
+function formatCategoryHeading(
+  category: GradeCategoryDefinition,
+  gradingPeriod: GradingPeriodKey,
+) {
+  if (gradingPeriod === 'midterm' && category.key === 'knowledge') {
+    return category.label
+  }
+
+  return `${category.label} (${category.weight}%)`
 }
 
 function getGradingPeriodLabel(gradingPeriod: GradingPeriodKey) {
@@ -562,7 +620,7 @@ function getCategoryValidationMessage(
   }
 
   const currentTotal = getCategoryTotalWeight(sections, categoryKey)
-  const requiredTotal = getCategoryWeight(categoryKey)
+  const requiredTotal = getRequiredCategoryWeight(gradingPeriod, categoryKey)
 
   if (currentTotal === requiredTotal) {
     return null
@@ -851,7 +909,7 @@ function buildStudentGradeSnapshot(
   components: GradeComponentConfig[],
   overrides: GradeOverrideMap,
 ): StudentGradeSnapshot {
-  const categories = getConfiguredCategories(sections).map((category) => {
+  const categories = getConfiguredCategories(sections, gradingPeriod).map((category) => {
     const categorySections = sections
       .filter((section) => section.category === category.key)
       .filter((section) => section.isActive)
@@ -1103,6 +1161,7 @@ function normalizeComponentOrders(components: GradeComponentConfig[], sections: 
 
 function shouldMigrateToPeriodDefaults(
   sections: GradeSectionConfig[],
+  components: GradeComponentConfig[],
   gradingPeriod: GradingPeriodKey,
 ) {
   if (gradingPeriod !== 'midterm') {
@@ -1114,15 +1173,45 @@ function shouldMigrateToPeriodDefaults(
     .map((section) => section.id)
 
   return JSON.stringify(activeSectionIds) ===
-    JSON.stringify([
-      'knowledge-quiz',
-      'knowledge-long-exam',
-      'knowledge-major-exam',
-      'skills-core',
-      'attitude-character',
-      'attitude-attendance',
-      'attitude-uniform',
-    ])
+      JSON.stringify([
+        'knowledge-quiz',
+        'knowledge-long-exam',
+        'knowledge-major-exam',
+        'skills-core',
+        'attitude-character',
+        'attitude-attendance',
+        'attitude-uniform',
+      ]) ||
+    sections.some((section) => section.category === 'attitude' && section.isActive) ||
+    sections.some(
+      (section) =>
+        section.category === 'knowledge' &&
+        section.isActive &&
+        legacyMidtermKnowledgeLabels.has(normalizeCsvHeader(section.label)),
+    ) ||
+    components.some((component) => {
+      if (!component.isActive) {
+        return false
+      }
+
+      const section = sections.find((candidate) => candidate.id === component.sectionId)
+
+      if (!section?.isActive) {
+        return false
+      }
+
+      const normalizedLabel = normalizeCsvHeader(component.label)
+
+      if (section.category === 'knowledge') {
+        return legacyMidtermKnowledgeLabels.has(normalizedLabel)
+      }
+
+      if (section.category === 'skills') {
+        return legacyMidtermSkillLabels.has(normalizedLabel)
+      }
+
+      return false
+    })
 }
 
 function getGradeConfigStorageKey(
@@ -1160,7 +1249,7 @@ function readStoredGradeConfig(
       normalizedSections,
     )
 
-    if (shouldMigrateToPeriodDefaults(normalizedSections, gradingPeriod)) {
+    if (shouldMigrateToPeriodDefaults(normalizedSections, normalizedComponents, gradingPeriod)) {
       return {
         sections: cloneSections(buildDefaultGradeSections(gradingPeriod)),
         components: cloneComponents(buildDefaultGradeComponents(gradingPeriod)),
@@ -1393,8 +1482,8 @@ export default function GradesPage() {
   }, [selectedSubject, students])
 
   const activeGradeCategories = useMemo(
-    () => getConfiguredCategories(gradeSections),
-    [gradeSections],
+    () => getConfiguredCategories(gradeSections, selectedGradingPeriod),
+    [gradeSections, selectedGradingPeriod],
   )
 
   const hasUnsavedChanges = useMemo(() => {
@@ -1468,7 +1557,8 @@ export default function GradesPage() {
   const displayStart = gradeSnapshots.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0
   const displayEnd = Math.min(safeCurrentPage * rowsPerPage, gradeSnapshots.length)
   const periodLabel = getGradingPeriodLabel(selectedGradingPeriod)
-  const gradeSummaryLabel = `${periodLabel} Final Score`
+  const gradeSummaryLabel =
+    selectedGradingPeriod === 'midterm' ? 'Midterm Grade' : `${periodLabel} Final Score`
   const ratingSummaryLabel = `${periodLabel} Rating`
 
   const gradeDetailsSnapshot =
@@ -2257,7 +2347,7 @@ export default function GradesPage() {
                           colSpan={2}
                           className={`grades-table-head-cell grades-table-head-cell--group grades-table-head-cell--${category.key}`}
                         >
-                          {category.label} ({category.weight}%)
+                          {formatCategoryHeading(category, selectedGradingPeriod)}
                         </th>
                       ))}
                       <th rowSpan={2} className="grades-table-head-cell grades-table-head-cell--score">
@@ -2540,7 +2630,7 @@ export default function GradesPage() {
               {activeGradeCategories.map((category) => (
                 <section key={category.key} className="grade-settings-section">
                   <h3>
-                    {category.label} ({category.weight}%)
+                    {formatCategoryHeading(category, selectedGradingPeriod)}
                   </h3>
                   <div className="grade-settings-tree">
                     {gradeSections
@@ -2633,7 +2723,7 @@ export default function GradesPage() {
                       className={`grade-section grade-section--${category.key}`}
                     >
                       <header className="grade-section-title">
-                        {category.label} ({category.weight}%)
+                        {formatCategoryHeading(category, selectedGradingPeriod)}
                       </header>
                       <div className="grade-section-content">
                         {category.sections.map((section) => {
@@ -2703,7 +2793,7 @@ export default function GradesPage() {
                         <div className="summary-category-label">
                           <span className={getSummaryDotClassName(category.key)}></span>
                           <span>
-                            {category.label} ({category.weight}%)
+                            {formatCategoryHeading(category, selectedGradingPeriod)}
                           </span>
                         </div>
                         <strong>
@@ -2808,14 +2898,12 @@ export default function GradesPage() {
             </div>
 
             <div className="grade-edit-modal-body">
-              {getConfiguredCategories(editDraftSections).map((category) => (
+              {getConfiguredCategories(editDraftSections, selectedGradingPeriod).map((category) => (
                 <section key={category.key} className="grade-edit-section">
                   <header
                     className={`score-section-header score-section-header--${category.key}`}
                   >
-                    <span>
-                      {category.label} ({category.weight}%)
-                    </span>
+                    <span>{formatCategoryHeading(category, selectedGradingPeriod)}</span>
 
                     <button
                       type="button"
@@ -3129,7 +3217,13 @@ export default function GradesPage() {
                         .reduce((sum, section) => sum + section.weight, 0),
                     )}
                     %{' '}
-                    Required Total: {formatPercentageValue(getCategoryWeight(componentManagerCategory))}
+                    Required Total:{' '}
+                    {formatPercentageValue(
+                      getRequiredCategoryWeight(
+                        selectedGradingPeriod,
+                        componentManagerCategory,
+                      ),
+                    )}
                     %
                   </div>
                 </>

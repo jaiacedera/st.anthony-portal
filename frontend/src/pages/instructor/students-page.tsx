@@ -1,5 +1,6 @@
 import {
   type FormEvent,
+  useCallback,
   useDeferredValue,
   useEffect,
   useMemo,
@@ -187,11 +188,13 @@ export default function StudentsPage() {
   const [selectedSubjectId, setSelectedSubjectId] = useState(pageIntent.subjectId)
   const [schoolYearLabel, setSchoolYearLabel] = useState('Not set')
   const [semesterLabel, setSemesterLabel] = useState('Not set')
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(Boolean(username))
   const [isUpdatingEnrollment, setIsUpdatingEnrollment] = useState(false)
   const [isCreatingStudent, setIsCreatingStudent] = useState(false)
   const [isDeletingStudent, setIsDeletingStudent] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState(
+    username ? '' : 'No instructor session was found. Please sign in again.',
+  )
   const [bindingMessage, setBindingMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [viewStudentId, setViewStudentId] = useState('')
@@ -207,15 +210,9 @@ export default function StudentsPage() {
   const deferredSearchValue = useDeferredValue(searchValue)
   const deferredSubjectSearchValue = useDeferredValue(subjectSearchValue)
   const subjectPickerRef = useRef<HTMLDivElement | null>(null)
-  const [hasAppliedPageIntent, setHasAppliedPageIntent] = useState(false)
+  const hasAppliedPageIntentRef = useRef(false)
 
-  async function loadStudents(signal?: AbortSignal) {
-    const payload = await fetchInstructorStudents(username, signal)
-
-    if (signal?.aborted) {
-      return
-    }
-
+  const applyStudentsPayload = useCallback((payload: Awaited<ReturnType<typeof fetchInstructorStudents>>) => {
     setStudents(payload.students)
     setSubjects(payload.subjects)
     setSchoolYearLabel(payload.header.schoolYear)
@@ -238,22 +235,62 @@ export default function StudentsPage() {
           ? [payload.subjects[0].id]
           : [],
     }))
-  }
+    if (!hasAppliedPageIntentRef.current && payload.subjects.length) {
+      const requestedSubject = pageIntent.subjectId
+        ? payload.subjects.find((subject) => subject.id === pageIntent.subjectId) ?? null
+        : null
+
+      if (requestedSubject) {
+        setSelectedSubjectId(requestedSubject.id)
+        setActiveTab('subject')
+
+        if (pageIntent.openCreate) {
+          setIsCreateStudentOpen(true)
+          setSubjectPickerOpen(false)
+          setSubjectSearchValue('')
+          setCreateStudentForm(createDefaultStudentForm([requestedSubject.id]))
+        }
+      }
+
+      hasAppliedPageIntentRef.current = true
+    }
+  }, [pageIntent.openCreate, pageIntent.subjectId])
+
+  const loadStudents = useCallback(async (signal?: AbortSignal) => {
+    const payload = await fetchInstructorStudents(username, signal)
+
+    if (signal?.aborted) {
+      return
+    }
+
+    applyStudentsPayload(payload)
+  }, [applyStudentsPayload, username])
 
   useEffect(() => {
     if (!username) {
-      setIsLoading(false)
-      setErrorMessage('No instructor session was found. Please sign in again.')
-      return
+      return undefined
     }
 
     const abortController = new AbortController()
 
-    setIsLoading(true)
-    setErrorMessage('')
-    setBindingMessage('')
+    Promise.resolve()
+      .then(async () => {
+        if (abortController.signal.aborted) {
+          return
+        }
 
-    loadStudents(abortController.signal)
+        setIsLoading(true)
+        setErrorMessage('')
+        setBindingMessage('')
+
+        const payload = await fetchInstructorStudents(username, abortController.signal)
+
+        if (abortController.signal.aborted) {
+          return
+        }
+
+        applyStudentsPayload(payload)
+      })
       .catch((error: unknown) => {
         if (abortController.signal.aborted) {
           return
@@ -274,7 +311,7 @@ export default function StudentsPage() {
     return () => {
       abortController.abort()
     }
-  }, [username])
+  }, [applyStudentsPayload, username])
 
   useEffect(() => {
     if (!openMenuStudentId) {
@@ -344,30 +381,6 @@ export default function StudentsPage() {
       document.removeEventListener('mousedown', handlePointerDown)
     }
   }, [isCreateStudentOpen, subjectPickerOpen])
-
-  useEffect(() => {
-    if (hasAppliedPageIntent || !subjects.length) {
-      return
-    }
-
-    const requestedSubject = pageIntent.subjectId
-      ? subjects.find((subject) => subject.id === pageIntent.subjectId) ?? null
-      : null
-
-    if (requestedSubject) {
-      setSelectedSubjectId(requestedSubject.id)
-      setActiveTab('subject')
-
-      if (pageIntent.openCreate) {
-        setIsCreateStudentOpen(true)
-        setSubjectPickerOpen(false)
-        setSubjectSearchValue('')
-        setCreateStudentForm(createDefaultStudentForm([requestedSubject.id]))
-      }
-    }
-
-    setHasAppliedPageIntent(true)
-  }, [hasAppliedPageIntent, pageIntent.openCreate, pageIntent.subjectId, subjects])
 
   const filteredStudents = useMemo(() => {
     const normalizedQuery = deferredSearchValue.trim().toLowerCase()

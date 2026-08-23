@@ -37,10 +37,18 @@ function ChevronDownIcon() {
   )
 }
 
+function ChevronLeftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  )
+}
+
 function ChevronRightIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m9 6 6 6-6 6" />
+      <path d="m9 18 6-6-6-6" />
     </svg>
   )
 }
@@ -76,7 +84,48 @@ function BookIcon() {
   )
 }
 
-function formatRequestedAt(value: string) {
+function MailIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <path d="m4 7 8 6 8-6" />
+    </svg>
+  )
+}
+
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </svg>
+  )
+}
+
+function formatRequestedDate(value: string) {
+  const parsed = new Date(value)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Date unavailable'
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(parsed)
+}
+
+function formatRequestedDateTime(value: string) {
   const parsed = new Date(value)
 
   if (Number.isNaN(parsed.getTime())) {
@@ -93,7 +142,7 @@ function formatRequestedAt(value: string) {
     minute: '2-digit',
   }).format(parsed)
 
-  return `${datePart} - ${timePart}`
+  return `${datePart} • ${timePart}`
 }
 
 function getStatusTone(status: string) {
@@ -110,6 +159,18 @@ function getStatusTone(status: string) {
   return 'pending'
 }
 
+function formatStatusLabel(status: string) {
+  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+}
+
+function buildRequestMessage(
+  request: StudentDashboardPayload['requests'][number],
+) {
+  return `Your ${request.requestType.toLowerCase()} request for ${request.subjectCode} (${request.subjectName}) is currently recorded in the portal.`
+}
+
+const rowsPerPage = 8
+
 export default function StudentRequestPage() {
   const auth = readStudentAuth()
   const hasStudentIdentity = Boolean(auth?.studentId || auth?.email || auth?.username)
@@ -121,6 +182,8 @@ export default function StudentRequestPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedRequestId, setSelectedRequestId] = useState('')
 
   useEffect(() => {
     if (!hasStudentIdentity) {
@@ -193,12 +256,35 @@ export default function StudentRequestPage() {
     })
   }, [dashboard?.requests, searchText, statusFilter])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchText, statusFilter])
+
+  useEffect(() => {
+    if (!selectedRequestId) {
+      return
+    }
+
+    if (!filteredRequests.some((request) => request.requestId === selectedRequestId)) {
+      setSelectedRequestId('')
+    }
+  }, [filteredRequests, selectedRequestId])
+
   const totalRequests = dashboard?.requests.length ?? 0
-  const hasFilteredRequests = filteredRequests.length > 0
-  const emptyStateMessage =
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / rowsPerPage))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const paginatedRequests = filteredRequests.slice(
+    (safeCurrentPage - 1) * rowsPerPage,
+    safeCurrentPage * rowsPerPage,
+  )
+  const selectedRequest =
+    filteredRequests.find((request) => request.requestId === selectedRequestId) ?? null
+  const tableEmptyMessage =
     totalRequests === 0
       ? 'No requests to display.'
       : 'No requests matched your current filters.'
+  const displayStart = filteredRequests.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0
+  const displayEnd = Math.min(safeCurrentPage * rowsPerPage, filteredRequests.length)
 
   return (
     <StudentShell
@@ -216,19 +302,7 @@ export default function StudentRequestPage() {
           </div>
         ) : null}
 
-        <header className="student-requests-header">
-          <div>
-            <h2>Requests</h2>
-            <p>View and manage your requests.</p>
-          </div>
-
-          <button type="button" className="student-requests-primary-button">
-            <PlusIcon />
-            <span>New Request</span>
-          </button>
-        </header>
-
-        <section className="student-requests-filters">
+        <section className="student-requests-toolbar">
           <label className="student-requests-search">
             <span className="student-requests-search-icon" aria-hidden="true">
               <SearchIcon />
@@ -255,63 +329,185 @@ export default function StudentRequestPage() {
               <ChevronDownIcon />
             </span>
           </label>
+
+          <button type="button" className="student-requests-primary-button">
+            <PlusIcon />
+            <span>New Request</span>
+          </button>
         </section>
 
-        <div className="student-request-list">
-          {hasStudentIdentity && isLoading ? (
-            <article className="student-request-card student-request-card--empty">
-              <p>Loading your requests...</p>
-            </article>
-          ) : hasFilteredRequests ? (
-            filteredRequests.map((request) => {
-              const tone = getStatusTone(request.status)
-              const leadingIcon =
-                tone === 'approved' ? <BookIcon /> : <FileIcon />
+        <div
+          className={
+            selectedRequest
+              ? 'student-requests-content student-requests-content--with-details'
+              : 'student-requests-content'
+          }
+        >
+          <section className="student-requests-table-card">
+            <div className="student-requests-table-wrap">
+              <table className="student-requests-table">
+                <thead>
+                  <tr>
+                    <th>Request ID</th>
+                    <th>Type</th>
+                    <th>Subject</th>
+                    <th>Date Submitted</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hasStudentIdentity && isLoading ? (
+                    <tr>
+                      <td colSpan={6} className="student-requests-empty-cell">
+                        Loading your requests...
+                      </td>
+                    </tr>
+                  ) : paginatedRequests.length ? (
+                    paginatedRequests.map((request) => {
+                      const tone = getStatusTone(request.status)
+                      const isSelected = request.requestId === selectedRequest?.requestId
 
-              return (
-                <article key={request.requestId} className="student-request-card">
-                  <div className={`student-request-icon student-request-icon--${tone}`}>
-                    {leadingIcon}
+                      return (
+                        <tr
+                          key={request.requestId}
+                          className={isSelected ? 'is-selected' : undefined}
+                          onClick={() => setSelectedRequestId(request.requestId)}
+                        >
+                          <td>{request.requestId}</td>
+                          <td>{request.requestType}</td>
+                          <td>{request.subjectCode}</td>
+                          <td>{formatRequestedDate(request.requestedAt)}</td>
+                          <td>
+                            <span className={`student-request-status student-request-status--${tone}`}>
+                              {formatStatusLabel(request.status)}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="student-request-action-button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                setSelectedRequestId(request.requestId)
+                              }}
+                              aria-label={`View ${request.requestId}`}
+                            >
+                              <EyeIcon />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="student-requests-empty-cell">
+                        {tableEmptyMessage}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="student-requests-table-footer">
+              <p className="student-requests-footer">
+                {filteredRequests.length
+                  ? `Showing ${displayStart} to ${displayEnd} of ${filteredRequests.length} requests`
+                  : 'Showing 0 requests'}
+              </p>
+
+              <div className="student-requests-pagination">
+                <button
+                  type="button"
+                  className="student-requests-page-button"
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={safeCurrentPage === 1}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeftIcon />
+                </button>
+                <span className="student-requests-page-indicator">{safeCurrentPage}</span>
+                <button
+                  type="button"
+                  className="student-requests-page-button"
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={safeCurrentPage === totalPages || !filteredRequests.length}
+                  aria-label="Next page"
+                >
+                  <ChevronRightIcon />
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {selectedRequest ? (
+            <aside className="student-request-details-card">
+              <div className="student-request-details-top">
+                <span
+                  className={`student-request-status student-request-status--${getStatusTone(selectedRequest.status)}`}
+                >
+                  {formatStatusLabel(selectedRequest.status)}
+                </span>
+
+                <button
+                  type="button"
+                  className="student-request-details-close"
+                  onClick={() => setSelectedRequestId('')}
+                  aria-label="Close request details"
+                >
+                  <CloseIcon />
+                </button>
+              </div>
+
+              <div className="student-request-details-body">
+                <h2>{selectedRequest.requestId}</h2>
+
+                <div className="student-request-details-list">
+                  <div className="student-request-details-row">
+                    <span className="student-request-details-icon" aria-hidden="true">
+                      <FileIcon />
+                    </span>
+                    <div>
+                      <span className="student-request-details-label">Request Type</span>
+                      <strong>{selectedRequest.requestType}</strong>
+                    </div>
                   </div>
 
-                  <div className="student-request-copy">
-                    <div className="student-request-topline">
-                      <div className="student-request-heading">
-                        <strong>{request.requestId}</strong>
-                        <span>{request.requestType}</span>
-                        <small>{request.subjectCode}</small>
-                      </div>
-
-                      <div className="student-request-status-group">
-                        <span className={`student-request-status student-request-status--${tone}`}>
-                          {request.status.charAt(0).toUpperCase() + request.status.slice(1).toLowerCase()}
-                        </span>
-                        <span className="student-request-chevron" aria-hidden="true">
-                          <ChevronRightIcon />
-                        </span>
-                      </div>
+                  <div className="student-request-details-row">
+                    <span className="student-request-details-icon" aria-hidden="true">
+                      <BookIcon />
+                    </span>
+                    <div>
+                      <span className="student-request-details-label">Subject</span>
+                      <strong>{selectedRequest.subjectCode}</strong>
                     </div>
+                  </div>
 
-                    <div className="student-request-meta">
+                  <div className="student-request-details-row">
+                    <span className="student-request-details-icon" aria-hidden="true">
                       <CalendarIcon />
-                      <span>{formatRequestedAt(request.requestedAt)}</span>
+                    </span>
+                    <div>
+                      <span className="student-request-details-label">Date Submitted</span>
+                      <strong>{formatRequestedDateTime(selectedRequest.requestedAt)}</strong>
                     </div>
                   </div>
-                </article>
-              )
-            })
-          ) : (
-            <article className="student-request-card student-request-card--empty">
-              <p>{emptyStateMessage}</p>
-            </article>
-          )}
-        </div>
+                </div>
 
-        {hasFilteredRequests ? (
-          <p className="student-requests-footer">
-            {`Showing 1 to ${filteredRequests.length} of ${filteredRequests.length} requests`}
-          </p>
-        ) : null}
+                <div className="student-request-details-message">
+                  <span className="student-request-details-label">Message</span>
+                  <p>{buildRequestMessage(selectedRequest)}</p>
+                </div>
+              </div>
+
+              <button type="button" className="student-request-details-button">
+                <MailIcon />
+                <span>View Response</span>
+              </button>
+            </aside>
+          ) : null}
+        </div>
       </section>
     </StudentShell>
   )

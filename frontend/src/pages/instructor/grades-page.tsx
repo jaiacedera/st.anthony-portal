@@ -75,6 +75,7 @@ type StudentGradeSnapshot = {
   subject: InstructorRosterSubject | null
   categories: GradeCategorySnapshot[]
   finalScore: number | null
+  rating: string
   remarks: string
   isIncomplete: boolean
 }
@@ -649,6 +650,10 @@ function formatScore(value: number, decimals = 2) {
   return value.toFixed(decimals)
 }
 
+function formatWholeOrDecimal(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2)
+}
+
 function formatScoreOrPlaceholder(value: number | null, decimals = 2) {
   return value === null ? '--' : formatScore(value, decimals)
 }
@@ -684,6 +689,19 @@ function calculateAverage(values: Array<number | null>) {
     validValues.reduce((sum, value) => sum + value, 0) / validValues.length,
     2,
   )
+}
+
+function toRating(score: number) {
+  if (score >= 97) return '1.00'
+  if (score >= 94) return '1.25'
+  if (score >= 91) return '1.50'
+  if (score >= 88) return '1.75'
+  if (score >= 85) return '2.00'
+  if (score >= 82) return '2.25'
+  if (score >= 79) return '2.50'
+  if (score >= 76) return '2.75'
+  if (score >= 75) return '3.00'
+  return '5.00'
 }
 
 function toRemarks(score: number | null, isIncomplete: boolean) {
@@ -932,6 +950,7 @@ function buildStudentGradeSnapshot(
     subject,
     categories,
     finalScore,
+    rating: finalScore === null || isIncomplete ? '--' : toRating(finalScore),
     remarks: toRemarks(finalScore, isIncomplete),
     isIncomplete,
   }
@@ -1449,6 +1468,8 @@ export default function GradesPage() {
   const displayStart = gradeSnapshots.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0
   const displayEnd = Math.min(safeCurrentPage * rowsPerPage, gradeSnapshots.length)
   const periodLabel = getGradingPeriodLabel(selectedGradingPeriod)
+  const gradeSummaryLabel = `${periodLabel} Final Score`
+  const ratingSummaryLabel = `${periodLabel} Rating`
 
   const gradeDetailsSnapshot =
     gradeDetailsState?.studentId
@@ -2206,6 +2227,13 @@ export default function GradesPage() {
                           {category.label} ({category.weight}%)
                         </th>
                       ))}
+                      <th rowSpan={2} className="grades-table-head-cell grades-table-head-cell--score">
+                        <span>{gradeSummaryLabel}</span>
+                        <small>(100%)</small>
+                      </th>
+                      <th rowSpan={2} className="grades-table-head-cell grades-table-head-cell--rating">
+                        {ratingSummaryLabel}
+                      </th>
                       <th rowSpan={2} className="grades-table-head-cell grades-table-head-cell--remarks">
                         Remarks
                       </th>
@@ -2229,7 +2257,7 @@ export default function GradesPage() {
                   <tbody>
                     {isLoading ? (
                       <tr>
-                        <td colSpan={activeGradeCategories.length * 2 + 4} className="grades-table-empty">
+                        <td colSpan={activeGradeCategories.length * 2 + 6} className="grades-table-empty">
                           Loading gradebook...
                         </td>
                       </tr>
@@ -2257,6 +2285,12 @@ export default function GradesPage() {
                               {formatScoreOrPlaceholder(category.weighted, 2)}
                             </td>,
                           ])}
+                          <td className="grades-table-final-score">
+                            {snapshot.finalScore === null
+                              ? '--'
+                              : formatWholeOrDecimal(snapshot.finalScore)}
+                          </td>
+                          <td className="grades-table-rating">{snapshot.rating}</td>
                           <td className="grades-table-remarks">
                             <span className={getRemarkClassName(snapshot.remarks)}>
                               {snapshot.remarks}
@@ -2284,7 +2318,7 @@ export default function GradesPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={activeGradeCategories.length * 2 + 4} className="grades-table-empty">
+                        <td colSpan={activeGradeCategories.length * 2 + 6} className="grades-table-empty">
                           {selectedSubject
                             ? 'No students are currently enrolled in the selected subject.'
                             : 'No subjects are available for grade posting yet.'}
@@ -2644,6 +2678,20 @@ export default function GradesPage() {
                         </strong>
                       </div>
                     ))}
+                  </div>
+
+                  <div className="summary-score-block">
+                    <span className="summary-label">{gradeSummaryLabel}</span>
+                    <strong className="summary-value">
+                      {gradeDetailsSnapshot.finalScore === null
+                        ? '--'
+                        : `${formatWholeOrDecimal(gradeDetailsSnapshot.finalScore)} / 100`}
+                    </strong>
+                  </div>
+
+                  <div className="summary-score-block">
+                    <span className="summary-label">{ratingSummaryLabel}</span>
+                    <strong className="summary-value">{gradeDetailsSnapshot.rating}</strong>
                   </div>
 
                   <div className="summary-score-block">

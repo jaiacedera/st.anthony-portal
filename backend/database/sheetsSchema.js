@@ -7,6 +7,7 @@ export const SHEET_NAMES = {
   GRADES: 'Grades',
   GRADE_PUBLICATIONS: 'GradePublications',
   GRADE_REQUESTS: 'GradeBreakdownRequests',
+  GRADE_BREAKDOWN_RESPONSES: 'GradeBreakdownResponses',
 }
 
 export const SHEET_HEADERS = {
@@ -102,6 +103,16 @@ export const SHEET_HEADERS = {
     'reviewed_at',
     'reviewed_by',
   ],
+  [SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES]: [
+    'response_id',
+    'request_id',
+    'student_id',
+    'subject_id',
+    'grading_period',
+    'breakdown_payload',
+    'created_at',
+    'updated_at',
+  ],
 }
 
 export const SHEET_ID_COLUMNS = {
@@ -113,6 +124,7 @@ export const SHEET_ID_COLUMNS = {
   [SHEET_NAMES.GRADES]: 'grade_id',
   [SHEET_NAMES.GRADE_PUBLICATIONS]: 'publication_id',
   [SHEET_NAMES.GRADE_REQUESTS]: 'request_id',
+  [SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES]: 'response_id',
 }
 
 export const DATABASE_SHEETS = Object.values(SHEET_NAMES).map((name) => ({

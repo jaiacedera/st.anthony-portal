@@ -226,6 +226,7 @@ export type ReviewInstructorRequestInput = {
   username: string
   requestId: string
   status: 'APPROVED' | 'REJECTED'
+  approvedBreakdown?: Record<string, unknown>
 }
 
 export type ReviewInstructorRequestPayload = {

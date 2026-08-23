@@ -939,6 +939,105 @@ export async function reviewGradeBreakdownRequest({
   )
 }
 
+export async function upsertGradeBreakdownResponse({
+  requestId,
+  studentId,
+  subjectId,
+  gradingPeriod,
+  breakdownPayload,
+}) {
+  const existingResponse = (
+    await findRows(SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES, {
+      request_id: requestId,
+    })
+  )[0]
+  const timestamp = new Date().toISOString()
+  const record = {
+    request_id: requestId,
+    student_id: studentId,
+    subject_id: subjectId,
+    grading_period: gradingPeriod,
+    breakdown_payload: JSON.stringify(breakdownPayload),
+    updated_at: timestamp,
+  }
+
+  if (existingResponse?.response_id) {
+    return updateRowById(
+      SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES,
+      SHEET_ID_COLUMNS[SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES],
+      existingResponse.response_id,
+      {
+        ...record,
+        created_at: existingResponse.created_at || timestamp,
+      },
+    )
+  }
+
+  return appendRow(SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES, {
+    response_id: randomUUID(),
+    ...record,
+    created_at: timestamp,
+  })
+}
+
+export async function deleteGradeBreakdownResponse(requestId) {
+  const existingResponse = (
+    await findRows(SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES, {
+      request_id: requestId,
+    })
+  )[0]
+
+  if (!existingResponse?.response_id) {
+    return false
+  }
+
+  return deleteRowById(
+    SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES,
+    SHEET_ID_COLUMNS[SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES],
+    existingResponse.response_id,
+  )
+}
+
+export async function getStudentApprovedGradeBreakdownResponse({
+  requestId,
+  studentId,
+}) {
+  const approvedRequest = (
+    await findRows(SHEET_NAMES.GRADE_REQUESTS, {
+      request_id: requestId,
+      student_id: studentId,
+      status: 'APPROVED',
+    })
+  )[0]
+
+  if (!approvedRequest) {
+    const error = new Error('Grade breakdown response is not available yet.')
+    error.statusCode = 404
+    throw error
+  }
+
+  const responseRecord = (
+    await findRows(SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES, {
+      request_id: requestId,
+      student_id: studentId,
+    })
+  )[0]
+
+  if (!responseRecord?.breakdown_payload) {
+    const error = new Error('Approved grade breakdown response was not found.')
+    error.statusCode = 404
+    throw error
+  }
+
+  try {
+    return JSON.parse(String(responseRecord.breakdown_payload ?? ''))
+  } catch {
+    const error = new Error('Approved grade breakdown response could not be read.')
+    error.statusCode = 500
+    throw error
+  }
+}
+
 export async function getStudentSubjects(studentId) {
   const subjectLinks = await findRows(SHEET_NAMES.SUBJECT_STUDENTS, {
     student_id: studentId,

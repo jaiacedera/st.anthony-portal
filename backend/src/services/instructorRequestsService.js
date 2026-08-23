@@ -1,8 +1,10 @@
 import { getInstructorAccountByUsername } from '../../database/authStore.js'
 import {
+  deleteGradeBreakdownResponse,
   getAllRows,
   getInstructorSubjects,
   reviewGradeBreakdownRequest,
+  upsertGradeBreakdownResponse,
 } from '../../database/sheetsService.js'
 import { SHEET_NAMES } from '../../database/sheetsSchema.js'
 
@@ -98,6 +100,36 @@ function normalizeRequestStatus(value) {
   }
 
   return 'PENDING'
+}
+
+function assertRestrictedBreakdownPayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Approved grade breakdown payload is required.')
+  }
+
+  const knowledge = payload.knowledge
+  const skills = payload.skills
+  const attitude = payload.attitude
+
+  if (!knowledge || typeof knowledge !== 'object' || !Array.isArray(knowledge.sections)) {
+    throw new Error('Knowledge breakdown data is required.')
+  }
+
+  if (
+    skills &&
+    typeof skills === 'object' &&
+    ('sections' in skills || 'items' in skills || 'details' in skills)
+  ) {
+    throw new Error('Skills breakdown must include only the weighted summary.')
+  }
+
+  if (
+    attitude &&
+    typeof attitude === 'object' &&
+    ('sections' in attitude || 'items' in attitude || 'details' in attitude)
+  ) {
+    throw new Error('Attitude breakdown must include only the weighted summary.')
+  }
 }
 
 async function resolveInstructorContext(username) {
@@ -203,6 +235,7 @@ export async function reviewInstructorRequest({
   username,
   requestId,
   status,
+  approvedBreakdown = null,
 }) {
   const { instructorId } = await resolveInstructorContext(username)
 
@@ -214,11 +247,30 @@ export async function reviewInstructorRequest({
     throw error
   }
 
+  if (status === 'APPROVED') {
+    assertRestrictedBreakdownPayload(approvedBreakdown)
+  }
+
   const updatedRequest = await reviewGradeBreakdownRequest({
     requestId,
     status,
     reviewedBy: instructorId,
   })
+
+  if (status === 'APPROVED' && approvedBreakdown) {
+    await upsertGradeBreakdownResponse({
+      requestId,
+      studentId: String(updatedRequest.student_id ?? '').trim(),
+      subjectId: String(updatedRequest.subject_id ?? '').trim(),
+      gradingPeriod: String(approvedBreakdown.gradingPeriod ?? '').trim().toLowerCase(),
+      breakdownPayload: approvedBreakdown,
+    })
+  }
+
+  if (status === 'REJECTED') {
+    await deleteGradeBreakdownResponse(requestId)
+  }
+
   const instructors = await getAllRows(SHEET_NAMES.INSTRUCTORS)
   const reviewedByRecord = instructors.find(
     (instructor) => String(instructor.instructor_id ?? '').trim() === instructorId,

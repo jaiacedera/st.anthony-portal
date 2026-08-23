@@ -52,6 +52,45 @@ export type StudentDashboardPayload = {
   }>
 }
 
+export type StudentApprovedBreakdownResponse = {
+  requestId: string
+  subjectId: string
+  subjectCode: string
+  subjectTitle: string
+  studentId: string
+  studentName: string
+  gradingPeriod: 'midterm' | 'final'
+  knowledge: {
+    label: string
+    weight: number
+    weighted: number | null
+    sections: Array<{
+      label: string
+      weight: number
+      items: Array<{
+        label: string
+        score: number | null
+      }>
+      average: number | null
+      weighted: number | null
+    }>
+  }
+  skills: {
+    label: string
+    weight: number
+    weighted: number | null
+  } | null
+  attitude: {
+    label: string
+    weight: number
+    weighted: number | null
+  } | null
+  finalGrade: number | null
+  rating: string
+  remarks: string
+  generatedAt: string
+}
+
 export type UpdateStudentProfileInput = {
   studentId?: string
   email?: string
@@ -122,6 +161,49 @@ export async function updateStudentProfile(
   })
 
   const payload = (await response.json()) as UpdateStudentProfilePayload & {
+    message?: string
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? `Backend request failed with ${response.status}`)
+  }
+
+  return payload
+}
+
+export async function fetchStudentRequestResponse(
+  input: {
+    requestId: string
+    studentId?: string
+    email?: string
+  },
+  signal?: AbortSignal,
+): Promise<{ success: boolean; response: StudentApprovedBreakdownResponse }> {
+  const query = new URLSearchParams({
+    requestId: input.requestId,
+  })
+
+  if (input.studentId) {
+    query.set('studentId', input.studentId)
+  }
+
+  if (input.email) {
+    query.set('email', input.email)
+  }
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/student/requests/response?${query.toString()}`,
+    {
+      headers: {
+        Accept: 'application/json',
+      },
+      signal,
+    },
+  )
+
+  const payload = (await response.json()) as {
+    success: boolean
+    response: StudentApprovedBreakdownResponse
     message?: string
   }
 

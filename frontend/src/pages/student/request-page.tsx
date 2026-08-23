@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { StudentShell } from '../../components/student-shell'
 import {
   fetchStudentDashboard,
+  fetchStudentRequestResponse,
+  type StudentApprovedBreakdownResponse,
   type StudentDashboardPayload,
 } from '../../services/studentApi'
 import { navigateTo } from '../../utils/navigation'
@@ -184,6 +186,8 @@ export default function StudentRequestPage() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedRequestId, setSelectedRequestId] = useState('')
+  const [requestResponse, setRequestResponse] = useState<StudentApprovedBreakdownResponse | null>(null)
+  const [isResponseLoading, setIsResponseLoading] = useState(false)
 
   useEffect(() => {
     if (!hasStudentIdentity) {
@@ -262,11 +266,13 @@ export default function StudentRequestPage() {
 
   useEffect(() => {
     if (!selectedRequestId) {
+      setRequestResponse(null)
       return
     }
 
     if (!filteredRequests.some((request) => request.requestId === selectedRequestId)) {
       setSelectedRequestId('')
+      setRequestResponse(null)
     }
   }, [filteredRequests, selectedRequestId])
 
@@ -285,6 +291,33 @@ export default function StudentRequestPage() {
       : 'No requests matched your current filters.'
   const displayStart = filteredRequests.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0
   const displayEnd = Math.min(safeCurrentPage * rowsPerPage, filteredRequests.length)
+
+  async function handleViewResponse() {
+    if (!selectedRequest || selectedRequest.status.toUpperCase() !== 'APPROVED') {
+      return
+    }
+
+    setIsResponseLoading(true)
+    setErrorMessage('')
+
+    try {
+      const payload = await fetchStudentRequestResponse({
+        requestId: selectedRequest.requestId,
+        studentId: auth?.studentId,
+        email: auth?.email ?? auth?.username,
+      })
+
+      setRequestResponse(payload.response)
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to load the approved breakdown response.',
+      )
+    } finally {
+      setIsResponseLoading(false)
+    }
+  }
 
   return (
     <StudentShell
@@ -501,14 +534,158 @@ export default function StudentRequestPage() {
                 </div>
               </div>
 
-              <button type="button" className="student-request-details-button">
+              <button
+                type="button"
+                className="student-request-details-button"
+                onClick={handleViewResponse}
+                disabled={
+                  selectedRequest.status.toUpperCase() !== 'APPROVED' || isResponseLoading
+                }
+              >
                 <MailIcon />
-                <span>View Response</span>
+                <span>
+                  {selectedRequest.status.toUpperCase() === 'APPROVED'
+                    ? isResponseLoading
+                      ? 'Loading Response...'
+                      : 'View Response'
+                    : 'Awaiting Response'}
+                </span>
               </button>
             </aside>
           ) : null}
         </div>
       </section>
+
+      {requestResponse ? (
+        <div
+          className="student-breakdown-response-overlay"
+          onClick={() => setRequestResponse(null)}
+        >
+          <section
+            className="student-breakdown-response-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="student-breakdown-response-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="student-breakdown-response-header">
+              <div>
+                <span className="student-breakdown-response-kicker">
+                  Grade Breakdown
+                </span>
+                <h2 id="student-breakdown-response-title">
+                  {`${requestResponse.subjectCode} - ${requestResponse.subjectTitle}`}
+                </h2>
+                <p>
+                  {`${requestResponse.gradingPeriod === 'final' ? 'Final' : 'Midterm'} Grading Period`}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="student-request-details-close"
+                onClick={() => setRequestResponse(null)}
+                aria-label="Close approved breakdown response"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div className="student-breakdown-response-body">
+              <section className="student-breakdown-response-section">
+                <h3>{requestResponse.knowledge.label}</h3>
+
+                {requestResponse.knowledge.sections.map((section) => (
+                  <div key={section.label} className="student-breakdown-knowledge-card">
+                    <div className="student-breakdown-knowledge-heading">
+                      <strong>{section.label}</strong>
+                    </div>
+
+                    <div className="student-breakdown-rows">
+                      {section.items.map((item) => (
+                        <div key={item.label} className="student-breakdown-row">
+                          <span>{item.label}</span>
+                          <strong>{item.score === null ? '--' : item.score.toFixed(2)}</strong>
+                        </div>
+                      ))}
+
+                      <div className="student-breakdown-row student-breakdown-row--summary">
+                        <span>Average</span>
+                        <strong>{section.average === null ? '--' : section.average.toFixed(2)}</strong>
+                      </div>
+
+                      <div className="student-breakdown-row student-breakdown-row--summary">
+                        <span>Weighted</span>
+                        <strong>{section.weighted === null ? '--' : section.weighted.toFixed(2)}</strong>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="student-breakdown-summary-card">
+                  <span>Knowledge Weighted</span>
+                  <strong>
+                    {requestResponse.knowledge.weighted === null
+                      ? '--'
+                      : `${requestResponse.knowledge.weighted.toFixed(2)} / ${requestResponse.knowledge.weight}`}
+                  </strong>
+                </div>
+              </section>
+
+              {requestResponse.skills ? (
+                <section className="student-breakdown-response-section">
+                  <h3>{requestResponse.skills.label}</h3>
+                  <div className="student-breakdown-summary-card">
+                    <span>Weighted</span>
+                    <strong>
+                      {requestResponse.skills.weighted === null
+                        ? '--'
+                        : `${requestResponse.skills.weighted.toFixed(2)} / ${requestResponse.skills.weight}`}
+                    </strong>
+                  </div>
+                </section>
+              ) : null}
+
+              {requestResponse.attitude ? (
+                <section className="student-breakdown-response-section">
+                  <h3>{requestResponse.attitude.label}</h3>
+                  <div className="student-breakdown-summary-card">
+                    <span>Weighted</span>
+                    <strong>
+                      {requestResponse.attitude.weighted === null
+                        ? '--'
+                        : `${requestResponse.attitude.weighted.toFixed(2)} / ${requestResponse.attitude.weight}`}
+                    </strong>
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="student-breakdown-response-section student-breakdown-response-section--totals">
+                <div className="student-breakdown-summary-card">
+                  <span>
+                    {requestResponse.gradingPeriod === 'final' ? 'Final Grade' : 'Midterm Grade'}
+                  </span>
+                  <strong>
+                    {requestResponse.finalGrade === null ? '--' : requestResponse.finalGrade.toFixed(2)}
+                  </strong>
+                </div>
+
+                <div className="student-breakdown-summary-card">
+                  <span>
+                    {requestResponse.gradingPeriod === 'final' ? 'Final Rating' : 'Midterm Rating'}
+                  </span>
+                  <strong>{requestResponse.rating}</strong>
+                </div>
+
+                <div className="student-breakdown-summary-card">
+                  <span>Remarks</span>
+                  <strong>{requestResponse.remarks}</strong>
+                </div>
+              </section>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </StudentShell>
   )
 }

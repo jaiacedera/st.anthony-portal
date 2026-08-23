@@ -1042,9 +1042,153 @@
   cursor: pointer;
 }
 
+.student-request-details-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .student-request-details-button svg {
   width: 18px;
   height: 18px;
+}
+
+.student-breakdown-response-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1200;
+}
+
+.student-breakdown-response-modal {
+  width: min(720px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.student-breakdown-response-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid #ede6e6;
+}
+
+.student-breakdown-response-kicker {
+  display: inline-block;
+  color: #8e0d0c;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.student-breakdown-response-header h2 {
+  margin: 8px 0 0;
+  color: #1f1f1f;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.student-breakdown-response-header p {
+  margin: 6px 0 0;
+  color: #6b6b6b;
+  font-size: 13px;
+}
+
+.student-breakdown-response-body {
+  display: grid;
+  gap: 18px;
+  padding: 18px 22px 22px;
+  overflow-y: auto;
+}
+
+.student-breakdown-response-section {
+  display: grid;
+  gap: 12px;
+}
+
+.student-breakdown-response-section + .student-breakdown-response-section {
+  padding-top: 18px;
+  border-top: 1px solid #f1eaea;
+}
+
+.student-breakdown-response-section h3 {
+  margin: 0;
+  color: #8e0d0c;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.student-breakdown-knowledge-card {
+  padding: 14px;
+  border: 1px solid #efe6e6;
+  border-radius: 14px;
+  background: #fffdfd;
+}
+
+.student-breakdown-knowledge-heading strong {
+  color: #231f1f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.student-breakdown-rows {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.student-breakdown-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  color: #3b3434;
+  font-size: 13px;
+}
+
+.student-breakdown-row strong {
+  color: #181515;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.student-breakdown-row--summary {
+  padding-top: 8px;
+  border-top: 1px solid #f1e8e8;
+}
+
+.student-breakdown-summary-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid #eee4e4;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.student-breakdown-summary-card span {
+  color: #5d5656;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.student-breakdown-summary-card strong {
+  color: #181515;
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .student-utility-card {
@@ -2241,6 +2385,25 @@
     min-height: 40px;
   }
 
+  .student-breakdown-response-overlay {
+    padding: 12px;
+  }
+
+  .student-breakdown-response-modal {
+    width: min(100%, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+  }
+
+  .student-breakdown-response-header,
+  .student-breakdown-response-body {
+    padding-inline: 16px;
+  }
+
+  .student-breakdown-summary-card,
+  .student-breakdown-row {
+    grid-template-columns: 1fr;
+  }
+
   .student-profile-page {
     height: auto;
     gap: 18px;
@@ -2581,6 +2744,11 @@
 
   .student-requests-pagination {
     align-self: flex-end;
+  }
+
+  .student-breakdown-summary-card,
+  .student-breakdown-row {
+    grid-template-columns: 1fr;
   }
 
   .student-profile-page {

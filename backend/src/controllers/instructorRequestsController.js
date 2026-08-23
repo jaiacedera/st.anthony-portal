@@ -26,6 +26,10 @@ export async function postInstructorRequestReview(req, res) {
   const username = body?.username?.trim?.() ?? ''
   const requestId = body?.requestId?.trim?.() ?? ''
   const status = body?.status?.trim?.().toUpperCase?.() ?? ''
+  const approvedBreakdown =
+    body?.approvedBreakdown && typeof body.approvedBreakdown === 'object'
+      ? body.approvedBreakdown
+      : null
 
   if (!username || !requestId || !status) {
     sendJson(res, 400, {
@@ -39,6 +43,7 @@ export async function postInstructorRequestReview(req, res) {
     username,
     requestId,
     status,
+    approvedBreakdown,
   })
   sendJson(res, 200, payload)
 }

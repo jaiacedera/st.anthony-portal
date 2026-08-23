@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { InstructorShell } from '../../components/instructor-shell'
 import {
+  fetchInstructorGradePublication,
   fetchInstructorRequests,
+  fetchInstructorStudents,
   reviewInstructorRequest,
   type InstructorRequestRecord,
+  type InstructorRosterSubject,
+  type InstructorStudentRecord,
 } from '../../services/instructorApi'
 import { readInstructorAuth } from '../../utils/instructorAuth'
+import {
+  buildApprovedBreakdownResponse,
+  type GradingPeriodKey,
+} from '../../utils/student-breakdown-response'
 
 type RequestTabKey = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'
 
@@ -192,13 +200,18 @@ function getEmptyMessage(activeTab: RequestTabKey, hasFilters: boolean) {
 export default function RequestsPage() {
   const auth = readInstructorAuth()
   const username = auth?.username ?? ''
+  const sessionErrorMessage = username
+    ? ''
+    : 'No instructor session was found. Please sign in again.'
   const [requests, setRequests] = useState<InstructorRequestRecord[]>([])
   const [schoolYearLabel, setSchoolYearLabel] = useState('Not set')
   const [semesterLabel, setSemesterLabel] = useState('Not set')
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(Boolean(username))
   const [errorMessage, setErrorMessage] = useState('')
   const [bindingMessage, setBindingMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [students, setStudents] = useState<InstructorStudentRecord[]>([])
+  const [subjects, setSubjects] = useState<InstructorRosterSubject[]>([])
   const [searchText, setSearchText] = useState('')
   const [activeTab, setActiveTab] = useState<RequestTabKey>('ALL')
   const [subjectFilter, setSubjectFilter] = useState('ALL')
@@ -234,27 +247,32 @@ export default function RequestsPage() {
 
   useEffect(() => {
     if (!username) {
-      setIsLoading(false)
-      setErrorMessage('No instructor session was found. Please sign in again.')
       return
     }
 
     const abortController = new AbortController()
 
-    setIsLoading(true)
-    setErrorMessage('')
-    setBindingMessage('')
-
-    fetchInstructorRequests(username, abortController.signal)
-      .then((payload) => {
+    Promise.all([
+      fetchInstructorRequests(username, abortController.signal),
+      fetchInstructorStudents(username, abortController.signal),
+    ])
+      .then(([requestsPayload, studentsPayload]) => {
         if (abortController.signal.aborted) {
           return
         }
 
-        setRequests(payload.requests)
-        setSchoolYearLabel(payload.header.schoolYear)
-        setSemesterLabel(payload.header.semester)
-        setBindingMessage(payload.needsBinding ? payload.message ?? '' : '')
+        setRequests(requestsPayload.requests)
+        setStudents(studentsPayload.students)
+        setSubjects(studentsPayload.subjects)
+        setSchoolYearLabel(requestsPayload.header.schoolYear)
+        setSemesterLabel(requestsPayload.header.semester)
+        setBindingMessage(
+          requestsPayload.needsBinding
+            ? requestsPayload.message ?? ''
+            : studentsPayload.needsBinding
+              ? studentsPayload.message ?? ''
+              : '',
+        )
       })
       .catch((error: unknown) => {
         if (abortController.signal.aborted) {
@@ -277,10 +295,6 @@ export default function RequestsPage() {
       abortController.abort()
     }
   }, [username])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [activeTab, searchText, subjectFilter])
 
   const filteredRequests = useMemo(() => {
     const normalizedSearch = searchText.trim().toLowerCase()
@@ -312,16 +326,6 @@ export default function RequestsPage() {
         .includes(normalizedSearch)
     })
   }, [activeTab, requests, searchText, subjectFilter])
-
-  useEffect(() => {
-    if (!selectedRequestId) {
-      return
-    }
-
-    if (!requests.some((request) => request.requestId === selectedRequestId)) {
-      setSelectedRequestId('')
-    }
-  }, [requests, selectedRequestId])
 
   useEffect(() => {
     if (!selectedRequestId && !reviewDialogState && !isFilterOpen) {
@@ -378,8 +382,9 @@ export default function RequestsPage() {
     (safeCurrentPage - 1) * rowsPerPage,
     safeCurrentPage * rowsPerPage,
   )
-  const selectedRequest =
-    requests.find((request) => request.requestId === selectedRequestId) ?? null
+  const selectedRequest = selectedRequestId
+    ? requests.find((request) => request.requestId === selectedRequestId) ?? null
+    : null
   const reviewTargetRequest =
     reviewDialogState === null
       ? null
@@ -387,8 +392,37 @@ export default function RequestsPage() {
   const hasActiveFilters = Boolean(searchText.trim()) || subjectFilter !== 'ALL'
   const displayStart = filteredRequests.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0
   const displayEnd = Math.min(safeCurrentPage * rowsPerPage, filteredRequests.length)
-  const alerts = [errorMessage, bindingMessage, successMessage].filter(Boolean)
+  const alerts = [
+    sessionErrorMessage,
+    errorMessage,
+    bindingMessage,
+    successMessage,
+  ].filter(Boolean)
   const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1)
+
+  async function resolveApprovedRequestPeriod(subjectId: string): Promise<GradingPeriodKey> {
+    const finalPublication = await fetchInstructorGradePublication({
+      username,
+      subjectId,
+      gradingPeriod: 'final',
+    }).catch(() => null)
+
+    if (finalPublication?.publication.isPosted) {
+      return 'final'
+    }
+
+    const midtermPublication = await fetchInstructorGradePublication({
+      username,
+      subjectId,
+      gradingPeriod: 'midterm',
+    }).catch(() => null)
+
+    if (midtermPublication?.publication.isPosted) {
+      return 'midterm'
+    }
+
+    throw new Error('No posted grading period is available for this request yet.')
+  }
 
   async function handleConfirmReview() {
     if (!reviewDialogState || !reviewTargetRequest) {
@@ -399,10 +433,45 @@ export default function RequestsPage() {
     setErrorMessage('')
 
     try {
+      const approvedBreakdown =
+        reviewDialogState.nextStatus === 'APPROVED'
+          ? (() => {
+              const subject = subjects.find(
+                (currentSubject) => currentSubject.id === reviewTargetRequest.subjectId,
+              )
+              const student = students.find(
+                (currentStudent) => currentStudent.id === reviewTargetRequest.studentId,
+              )
+
+              if (!subject || !student) {
+                throw new Error(
+                  'The subject or student record for this request could not be resolved.',
+                )
+              }
+
+              return { subject, student }
+            })()
+          : null
+      const gradingPeriod =
+        reviewDialogState.nextStatus === 'APPROVED'
+          ? await resolveApprovedRequestPeriod(reviewTargetRequest.subjectId)
+          : null
       const payload = await reviewInstructorRequest({
         username,
         requestId: reviewDialogState.requestId,
         status: reviewDialogState.nextStatus,
+        approvedBreakdown:
+          reviewDialogState.nextStatus === 'APPROVED' &&
+          approvedBreakdown &&
+          gradingPeriod
+            ? buildApprovedBreakdownResponse({
+                requestId: reviewTargetRequest.requestId,
+                username,
+                subject: approvedBreakdown.subject,
+                student: approvedBreakdown.student,
+                gradingPeriod,
+              })
+            : undefined,
       })
 
       setRequests((current) =>
@@ -475,7 +544,10 @@ export default function RequestsPage() {
                       ? 'instructor-request-tab is-active'
                       : 'instructor-request-tab'
                   }
-                  onClick={() => setActiveTab(tab.key as RequestTabKey)}
+                  onClick={() => {
+                    setActiveTab(tab.key as RequestTabKey)
+                    setCurrentPage(1)
+                  }}
                 >
                   {tab.label}
                 </button>
@@ -490,7 +562,10 @@ export default function RequestsPage() {
                 <input
                   type="search"
                   value={searchText}
-                  onChange={(event) => setSearchText(event.target.value)}
+                  onChange={(event) => {
+                    setSearchText(event.target.value)
+                    setCurrentPage(1)
+                  }}
                   placeholder="Search requests..."
                 />
               </label>
@@ -518,7 +593,10 @@ export default function RequestsPage() {
                       <div className="instructor-requests-filter-select">
                         <select
                           value={subjectFilter}
-                          onChange={(event) => setSubjectFilter(event.target.value)}
+                          onChange={(event) => {
+                            setSubjectFilter(event.target.value)
+                            setCurrentPage(1)
+                          }}
                         >
                           <option value="ALL">All Subjects</option>
                           {subjectOptions.map((subject) => (
@@ -538,6 +616,7 @@ export default function RequestsPage() {
                       className="instructor-requests-filter-clear"
                       onClick={() => {
                         setSubjectFilter('ALL')
+                        setCurrentPage(1)
                         setIsFilterOpen(false)
                       }}
                     >

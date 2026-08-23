@@ -13,6 +13,7 @@ import {
 } from '../controllers/instructorGradesController.js'
 import { postStudentProfile } from '../controllers/studentProfileController.js'
 import { getStudentDashboardData } from '../controllers/studentDashboardController.js'
+import { getStudentRequestResponseData } from '../controllers/studentRequestsController.js'
 import {
   getInstructorSubjectsData,
   postInstructorSubject,
@@ -67,6 +68,11 @@ const routes = [
     method: 'GET',
     pathname: '/api/student/dashboard',
     handler: getStudentDashboardData,
+  },
+  {
+    method: 'GET',
+    pathname: '/api/student/requests/response',
+    handler: getStudentRequestResponseData,
   },
   {
     method: 'POST',

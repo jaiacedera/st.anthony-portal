@@ -111,6 +111,13 @@ export type UpdateStudentProfilePayload = {
   student: StudentDashboardPayload['student']
 }
 
+export type CreateStudentBreakdownRequestInput = {
+  subjectId: string
+  studentId?: string
+  email?: string
+  reason?: string
+}
+
 const apiBaseUrl = getApiBaseUrl()
 
 export async function fetchStudentDashboard(
@@ -205,6 +212,31 @@ export async function fetchStudentRequestResponse(
     success: boolean
     response: StudentApprovedBreakdownResponse
     message?: string
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? `Backend request failed with ${response.status}`)
+  }
+
+  return payload
+}
+
+export async function createStudentBreakdownRequest(
+  input: CreateStudentBreakdownRequestInput,
+): Promise<{ success: boolean; message?: string; requestId?: string }> {
+  const response = await fetch(`${apiBaseUrl}/api/student/requests`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  })
+
+  const payload = (await response.json()) as {
+    success: boolean
+    message?: string
+    requestId?: string
   }
 
   if (!response.ok || !payload.success) {

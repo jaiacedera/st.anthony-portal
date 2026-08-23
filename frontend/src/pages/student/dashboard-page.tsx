@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { StudentShell } from '../../components/student-shell'
 import {
+  createStudentBreakdownRequest,
   fetchStudentDashboard,
   type StudentDashboardSubjectRecord,
   type StudentDashboardPayload,
@@ -151,6 +152,8 @@ export default function StudentDashboardPage() {
   const [dashboard, setDashboard] = useState<StudentDashboardPayload | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [isSubmittingBreakdownRequest, setIsSubmittingBreakdownRequest] = useState(false)
   const [selectedSubject, setSelectedSubject] = useState<StudentDashboardModalSubject | null>(null)
 
   useEffect(() => {
@@ -216,6 +219,18 @@ export default function StudentDashboardPage() {
     }
   }, [selectedSubject])
 
+  useEffect(() => {
+    if (!successMessage) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setSuccessMessage('')
+    }, 7000)
+
+    return () => window.clearTimeout(timer)
+  }, [successMessage])
+
   function openSubjectDetails(subject: StudentDashboardSubjectRecord, index: number) {
     setSelectedSubject({
       ...subject,
@@ -227,25 +242,50 @@ export default function StudentDashboardPage() {
     setSelectedSubject(null)
   }
 
-  function handleRequestBreakdown() {
-    if (!selectedSubject?.hasPostedGrade) {
+  async function reloadDashboard() {
+    if (!hasStudentIdentity) {
       return
     }
 
-    window.sessionStorage.setItem(
-      'student-request-intent',
-      JSON.stringify({
-        type: 'grade-breakdown',
-        subjectId: selectedSubject.subjectId,
-        subjectCode: selectedSubject.subjectCode,
-        subjectTitle: selectedSubject.subjectName,
-      }),
-    )
+    const payload = await fetchStudentDashboard({
+      studentId: auth?.studentId,
+      email: auth?.email ?? auth?.username,
+    })
 
-    closeSubjectDetails()
-    navigateTo(
-      `/student/requests?subjectId=${encodeURIComponent(selectedSubject.subjectId)}&subjectCode=${encodeURIComponent(selectedSubject.subjectCode)}&subjectTitle=${encodeURIComponent(selectedSubject.subjectName)}&open=create`,
-    )
+    setDashboard(payload)
+  }
+
+  async function handleRequestBreakdown() {
+    if (!selectedSubject?.hasPostedGrade || isSubmittingBreakdownRequest) {
+      return
+    }
+
+    setIsSubmittingBreakdownRequest(true)
+    setErrorMessage('')
+
+    try {
+      const payload = await createStudentBreakdownRequest({
+        subjectId: selectedSubject.subjectId,
+        studentId: auth?.studentId,
+        email: auth?.email ?? auth?.username,
+        reason: `Requested ${selectedSubject.subjectCode} grade breakdown from the student dashboard.`,
+      })
+
+      await reloadDashboard()
+      setSuccessMessage(
+        payload.message ||
+          `Grade breakdown requested for ${selectedSubject.subjectCode}.`,
+      )
+      closeSubjectDetails()
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to submit the grade breakdown request.',
+      )
+    } finally {
+      setIsSubmittingBreakdownRequest(false)
+    }
   }
 
   const overviewCards = [
@@ -291,10 +331,12 @@ export default function StudentDashboardPage() {
       notificationCount={dashboard?.stats.pendingRequestCount ?? 0}
     >
       <div className="student-dashboard">
-        {sessionErrorMessage || errorMessage ? (
+        {sessionErrorMessage || errorMessage || successMessage ? (
           <div className="dashboard-alert-stack" aria-live="polite">
             <section className="dashboard-alert-row">
-              <div className="dashboard-alert">{sessionErrorMessage || errorMessage}</div>
+              <div className="dashboard-alert">
+                {sessionErrorMessage || errorMessage || successMessage}
+              </div>
             </section>
           </div>
         ) : null}
@@ -587,10 +629,14 @@ export default function StudentDashboardPage() {
                   type="button"
                   className="request-breakdown-btn"
                   onClick={handleRequestBreakdown}
-                  disabled={!selectedSubject.hasPostedGrade}
+                  disabled={!selectedSubject.hasPostedGrade || isSubmittingBreakdownRequest}
                 >
                   <ClipboardIcon />
-                  <span>Request Breakdown</span>
+                  <span>
+                    {isSubmittingBreakdownRequest
+                      ? 'Requesting...'
+                      : 'Request Breakdown'}
+                  </span>
                 </button>
               </div>
             </section>

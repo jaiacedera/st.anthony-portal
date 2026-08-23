@@ -1424,6 +1424,13 @@
     box-shadow: 0 -8px 24px rgba(51, 28, 28, 0.08);
   }
 
+  .student-portal-page--dashboard-active .student-mobile-nav {
+    min-height: 72px;
+    height: calc(72px + env(safe-area-inset-bottom, 0px));
+    padding: 6px 18px calc(6px + env(safe-area-inset-bottom, 0px));
+    border-radius: 20px 20px 0 0;
+  }
+
   .student-mobile-nav-link {
     display: flex;
     flex-direction: column;
@@ -1435,6 +1442,11 @@
     font-size: 10px;
     font-weight: 500;
     line-height: 1.2;
+  }
+
+  .student-portal-page--dashboard-active .student-mobile-nav-link {
+    gap: 4px;
+    font-size: 10px;
   }
 
   .student-mobile-nav-link.active {
@@ -1454,37 +1466,48 @@
     height: 23px;
   }
 
+  .student-portal-page--dashboard-active .student-mobile-nav-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .student-portal-page--dashboard-active .student-mobile-nav-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
   .student-dashboard {
     height: auto;
     min-height: 0;
-    padding: 16px 16px 110px;
-    gap: 18px;
+    padding: 16px 16px 88px;
+    gap: 16px;
     overflow: visible;
   }
 
   .student-mobile-filters {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin: 0 16px;
+    margin: 16px 16px 0;
     gap: 0;
+    min-height: 78px;
     overflow: hidden;
-    border: 1px solid #e8e8e8;
-    border-radius: 20px;
+    border: 1px solid #e6e6e6;
+    border-radius: 18px;
     background: #ffffff;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   }
 
   .student-mobile-filter-card {
     display: grid;
-    grid-template-columns: 32px minmax(0, 1fr) 18px;
-    column-gap: 14px;
+    grid-template-columns: 24px minmax(0, 1fr) 16px;
+    column-gap: 10px;
     align-items: center;
-    min-height: 96px;
-    padding: 18px;
+    min-height: 78px;
+    padding: 12px 14px;
   }
 
   .student-mobile-filter-card + .student-mobile-filter-card {
-    border-left: 1px solid #ececec;
+    border-left: 1px solid #eeeeee;
   }
 
   .student-mobile-filter-icon,
@@ -1495,31 +1518,46 @@
     color: #8e0d0c;
   }
 
-  .student-mobile-filter-icon svg,
+  .student-mobile-filter-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .student-mobile-filter-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .student-mobile-filter-chevron {
+    width: 14px;
+    height: 14px;
+  }
+
   .student-mobile-filter-chevron svg {
-    width: 28px;
-    height: 28px;
+    width: 14px;
+    height: 14px;
   }
 
   .student-mobile-filter-copy {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0;
     min-width: 0;
   }
 
   .student-mobile-filter-label {
     color: #a11a1a;
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 500;
-    line-height: 1;
+    line-height: 1.1;
   }
 
   .student-mobile-filter-value {
+    margin-top: 4px;
     color: #111827;
-    font-size: 18px;
+    font-size: 14px;
     font-weight: 700;
-    line-height: 1.15;
+    line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1528,55 +1566,60 @@
   .student-dashboard-stats {
     margin: 18px 16px 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
+    gap: 12px;
   }
 
   .student-overview-card {
     align-items: stretch;
-    min-height: 184px;
-    padding: 22px 20px;
-    border-radius: 20px;
+    min-height: 135px;
+    padding: 16px;
+    border-radius: 18px;
     box-shadow: none;
   }
 
   .student-overview-icon {
-    width: 74px;
-    height: 74px;
+    width: 48px;
+    height: 48px;
     flex-shrink: 0;
   }
 
   .student-overview-icon svg {
-    width: 32px;
-    height: 32px;
+    width: 23px;
+    height: 23px;
   }
 
   .student-overview-value {
-    font-size: 28px;
+    font-size: 25px;
     line-height: 1;
   }
 
   .student-overview-title {
     max-width: none;
-    font-size: 16px;
-    line-height: 1.35;
+    margin-top: 6px;
+    font-size: 14px;
+    line-height: 1.25;
     font-weight: 500;
     word-break: normal;
     overflow-wrap: normal;
   }
 
   .student-overview-subtitle {
-    margin-top: 12px;
-    font-size: 13px;
+    margin-top: 7px;
+    font-size: 11px;
     line-height: 1.25;
-    color: #6b7280;
+    color: #737373;
   }
 
   .student-overview-card-inner {
     display: grid;
-    grid-template-columns: 74px minmax(0, 1fr);
-    column-gap: 18px;
-    align-items: start;
+    grid-template-columns: 48px minmax(0, 1fr);
+    column-gap: 12px;
+    align-items: center;
     width: 100%;
+  }
+
+  .student-overview-copy {
+    min-width: 0;
   }
 
   .student-overview-card--rose {
@@ -2161,62 +2204,68 @@
   }
 
   .student-dashboard {
-    padding-inline: 12px;
+    padding: 14px 12px 88px;
   }
 
   .student-mobile-filters {
-    margin-inline: 12px;
+    margin: 16px 12px 0;
   }
 
   .student-mobile-filter-card {
-    grid-template-columns: 28px minmax(0, 1fr) 18px;
-    column-gap: 12px;
-    min-height: 88px;
-    padding: 16px 14px;
+    grid-template-columns: 22px minmax(0, 1fr) 14px;
+    column-gap: 8px;
+    min-height: 78px;
+    padding: 12px;
   }
 
-  .student-mobile-filter-icon svg,
-  .student-mobile-filter-chevron svg {
+  .student-mobile-filter-icon,
+  .student-mobile-filter-icon svg {
     width: 22px;
     height: 22px;
   }
 
+  .student-mobile-filter-chevron,
+  .student-mobile-filter-chevron svg {
+    width: 14px;
+    height: 14px;
+  }
+
   .student-mobile-filter-label {
-    font-size: 13px;
+    font-size: 11px;
   }
 
   .student-mobile-filter-value {
-    font-size: 16px;
+    font-size: 13px;
   }
 
   .student-dashboard-stats {
     margin: 16px 12px 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    gap: 12px;
   }
 
   .student-overview-card {
-    min-height: 160px;
-    padding: 18px 14px;
+    min-height: 132px;
+    padding: 14px;
   }
 
   .student-overview-card-inner {
-    grid-template-columns: 58px minmax(0, 1fr);
-    column-gap: 14px;
+    grid-template-columns: 46px minmax(0, 1fr);
+    column-gap: 10px;
   }
 
   .student-overview-icon {
-    width: 58px;
-    height: 58px;
+    width: 46px;
+    height: 46px;
   }
 
   .student-overview-icon svg {
-    width: 26px;
-    height: 26px;
+    width: 22px;
+    height: 22px;
   }
 
   .student-overview-value {
-    font-size: 22px;
+    font-size: 24px;
   }
 
   .student-overview-title {
@@ -2225,8 +2274,8 @@
   }
 
   .student-overview-subtitle {
-    margin-top: 10px;
-    font-size: 11px;
+    margin-top: 6px;
+    font-size: 10.5px;
   }
 
   .student-mobile-subject-card {

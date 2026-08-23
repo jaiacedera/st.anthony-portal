@@ -74,6 +74,7 @@ export function StudentShell({
   children,
 }: StudentShellProps) {
   const isViewportPage = active === 'dashboard' || active === 'profile'
+  const isDashboardPage = active === 'dashboard'
 
   function handleNavigate(event: MouseEvent<HTMLAnchorElement>, href: string) {
     event.preventDefault()
@@ -90,7 +91,9 @@ export function StudentShell({
     <main
       className={
         isViewportPage
-          ? 'instructor-portal-page instructor-portal-page--dashboard student-portal-page'
+          ? `instructor-portal-page instructor-portal-page--dashboard student-portal-page${
+              isDashboardPage ? ' student-portal-page--dashboard-active' : ''
+            }`
           : 'instructor-portal-page student-portal-page'
       }
     >

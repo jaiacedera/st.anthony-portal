@@ -100,13 +100,13 @@ export function InstructorShell({
   semesterLabel,
   children,
 }: InstructorShellProps) {
-  const isDashboard = active === 'dashboard'
+  const isViewportPage = active === 'dashboard' || active === 'profile'
 
   return (
     <main
       className={[
         'instructor-portal-page',
-        isDashboard ? 'instructor-portal-page--dashboard' : '',
+        isViewportPage ? 'instructor-portal-page--dashboard' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -114,7 +114,7 @@ export function InstructorShell({
       <InstructorSidebar active={active} />
       <section
         className={
-          isDashboard
+          isViewportPage
             ? 'instructor-main-panel instructor-main-panel--dashboard'
             : 'instructor-main-panel'
         }
@@ -125,7 +125,7 @@ export function InstructorShell({
         />
         <div
           className={
-            isDashboard
+            isViewportPage
               ? 'instructor-main-content instructor-main-content--dashboard'
               : 'instructor-main-content'
           }

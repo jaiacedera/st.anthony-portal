@@ -16,6 +16,7 @@ import {
 } from '../../services/instructorApi'
 import { readInstructorAuth } from '../../utils/instructorAuth'
 import { navigateTo } from '../../utils/navigation'
+import './subjects-page.css'
 
 type CreateSubjectFormState = {
   subjectCode: string
@@ -108,11 +109,19 @@ function SearchIcon() {
   )
 }
 
-function PanelLead() {
+function DocumentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5Z" />
+      <path d="M14 3v6h5M9 13h6M9 17h6" />
+    </svg>
+  )
+}
+
+function PanelLead({ document = false }: { document?: boolean }) {
   return (
     <span className="instructor-panel-lead" aria-hidden="true">
-      <BookIcon />
-      <span className="instructor-panel-underline"></span>
+      {document ? <DocumentIcon /> : <BookIcon />}
     </span>
   )
 }
@@ -241,7 +250,9 @@ export default function SubjectsPage() {
   const [semesterLabel, setSemesterLabel] = useState(semesterOptions[0])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(
+    () => new URLSearchParams(window.location.search).get('open') === 'create',
+  )
   const [subjectFormMode, setSubjectFormMode] = useState<SubjectFormMode>('create')
   const [errorMessage, setErrorMessage] = useState('')
   const [bindingMessage, setBindingMessage] = useState('')
@@ -485,6 +496,8 @@ export default function SubjectsPage() {
 
   return (
     <InstructorShell
+      searchValue={searchValue}
+      onSearchChange={setSearchValue}
       active="subjects"
       schoolYearLabel={schoolYearLabel}
       semesterLabel={semesterLabel}
@@ -493,7 +506,10 @@ export default function SubjectsPage() {
         <article className="instructor-panel subjects-management-card subject-management-panel">
           <div className="instructor-panel-header subject-panel-heading panel-title-row">
             <PanelLead />
-            <h2 className="panel-title">Subject Management</h2>
+            <div>
+              <h2 className="panel-title">Subject List</h2>
+              <p className="subject-panel-description">View, search, and manage subjects for the active semester.</p>
+            </div>
           </div>
 
           {alerts.length ? (
@@ -514,7 +530,8 @@ export default function SubjectsPage() {
               <input
                 type="search"
                 name="subject-search"
-                placeholder="Search subject..."
+                placeholder="Search subject code or title..."
+                aria-label="Search subject code or title"
                 value={searchValue}
                 onChange={(event) => setSearchValue(event.target.value)}
               />
@@ -524,6 +541,7 @@ export default function SubjectsPage() {
               <label className="subjects-semester-field semester-filter">
                 <select
                   name="subject-semester"
+                  aria-label="Filter subjects by semester"
                   value={selectedSemester}
                   onChange={(event) => {
                     setSelectedSemester(event.target.value)
@@ -561,7 +579,10 @@ export default function SubjectsPage() {
 
             <div className="subjects-table-body">
               {isLoading ? (
-                <div className="subjects-empty-state">Loading subjects...</div>
+                <div className="subjects-empty-state" role="status">
+                  <BookIcon />
+                  <strong>Loading subjects...</strong>
+                </div>
               ) : filteredSubjects.length ? (
                 filteredSubjects.map((subject) => {
                   const isSelected = subject.id === selectedSubject?.id
@@ -601,10 +622,14 @@ export default function SubjectsPage() {
                   )
                 })
               ) : (
-                <div className="subjects-empty-state">
-                  {subjects.length
+                <div className="subjects-empty-state" role="status">
+                  <BookIcon />
+                  <strong>{errorMessage ? 'Unable to load subjects.' : deferredSearchValue.trim()
                     ? 'No subjects matched your search.'
-                    : 'No subjects created yet.'}
+                    : 'No subjects created yet.'}</strong>
+                  <p>{errorMessage ? 'Please try again after resolving the error above.' : deferredSearchValue.trim()
+                    ? 'Try a different subject code or title.'
+                    : 'Get started by creating a subject for the selected semester.'}</p>
                 </div>
               )}
             </div>
@@ -613,8 +638,11 @@ export default function SubjectsPage() {
 
         <aside className="instructor-panel selected-subject-card selected-subject-panel">
           <div className="instructor-panel-header subject-panel-heading panel-title-row">
-            <PanelLead />
-            <h2 className="panel-title">Selected Subject</h2>
+            <PanelLead document />
+            <div>
+              <h2 className="panel-title">Selected Subject</h2>
+              <p className="subject-panel-description">View subject details, enrolled students, and other information.</p>
+            </div>
           </div>
 
           <div className="selected-subject-body selected-subject-content">
@@ -723,12 +751,15 @@ export default function SubjectsPage() {
             ) : (
               <div className="subjects-empty-state subjects-empty-state--detail">
                 <div className="subject-empty-state-panel">
-                  <p>No subject selected for this semester yet.</p>
+                  <DocumentIcon />
+                  <strong>No subject selected yet.</strong>
+                  <p>Select a subject from the list to view details, or create a new subject.</p>
                   <button
                     type="button"
-                    className="subject-detail-action subject-detail-action--solid"
+                    className="subject-detail-action"
                     onClick={openCreateForm}
                   >
+                    <BookIcon />
                     <span>Create Subject</span>
                   </button>
                 </div>

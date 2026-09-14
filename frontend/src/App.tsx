@@ -43,28 +43,31 @@ function App() {
     }
   }, [])
 
-  if (pathname.startsWith('/instructor/') && pathname !== '/instructor' && !isInstructorSignedIn) {
-    navigateTo('/instructor', { replace: true })
-    return null
-  }
-
-  if (pathname === '/instructor' && isInstructorSignedIn) {
-    navigateTo('/instructor/dashboard', { replace: true })
-    return null
-  }
-
   const isStudentPublicAuthPath =
     pathname === '/student' ||
     pathname === '/student/forgot-password' ||
     pathname === '/student/reset-password'
 
-  if (pathname.startsWith('/student/') && !isStudentPublicAuthPath && !isStudentSignedIn) {
-    navigateTo('/student', { replace: true })
-    return null
+  let redirectPath: string | null = null
+
+  if (pathname.startsWith('/instructor/') && !isInstructorSignedIn) {
+    redirectPath = '/instructor'
+  } else if (pathname === '/instructor' && isInstructorSignedIn) {
+    redirectPath = '/instructor/dashboard'
+  } else if (pathname.startsWith('/student/') && !isStudentPublicAuthPath && !isStudentSignedIn) {
+    redirectPath = '/student'
+  } else if (pathname === '/student' && isStudentSignedIn) {
+    redirectPath = '/student/dashboard'
   }
 
-  if (pathname === '/student' && isStudentSignedIn) {
-    navigateTo('/student/dashboard', { replace: true })
+  // Redirect after the navigation listener is mounted so the URL and rendered route stay in sync.
+  useEffect(() => {
+    if (redirectPath) {
+      navigateTo(redirectPath, { replace: true })
+    }
+  }, [redirectPath])
+
+  if (redirectPath) {
     return null
   }
 

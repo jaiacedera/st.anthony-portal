@@ -17,6 +17,7 @@ import {
   type InstructorStudentRecord,
 } from '../../services/instructorApi'
 import { readInstructorAuth } from '../../utils/instructorAuth'
+import './students-page.css'
 
 type TabKey = 'all' | 'subject'
 
@@ -57,11 +58,11 @@ function createDefaultStudentForm(subjectIds: string[] = []): CreateStudentFormS
   }
 }
 
-function BookIcon() {
+function StudentsIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3.5 5.5A2.5 2.5 0 0 1 6 3h5.5v17H6a2.5 2.5 0 0 0-2.5 2" />
-      <path d="M20.5 5.5A2.5 2.5 0 0 0 18 3h-6.5v17H18a2.5 2.5 0 0 1 2.5 2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M2 21v-2a7 7 0 0 1 14 0v2M17 3a4 4 0 0 1 0 8M22 21v-2a7 7 0 0 0-4-6" />
     </svg>
   )
 }
@@ -134,8 +135,7 @@ function StudentAddIcon() {
 function PanelLead() {
   return (
     <span className="instructor-panel-lead" aria-hidden="true">
-      <BookIcon />
-      <span className="instructor-panel-underline"></span>
+      <StudentsIcon />
     </span>
   )
 }
@@ -183,7 +183,10 @@ export default function StudentsPage() {
   const pageIntent = readStudentsPageIntent()
   const [students, setStudents] = useState<InstructorStudentRecord[]>([])
   const [subjects, setSubjects] = useState<InstructorRosterSubject[]>([])
-  const [searchValue, setSearchValue] = useState('')
+  const [searchValue, setSearchValue] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [activeTab, setActiveTab] = useState<TabKey>(pageIntent.subjectId ? 'subject' : 'all')
   const [selectedSubjectId, setSelectedSubjectId] = useState(pageIntent.subjectId)
   const [schoolYearLabel, setSchoolYearLabel] = useState('Not set')
@@ -221,7 +224,7 @@ export default function StudentsPage() {
     setSelectedSubjectId((current) =>
       payload.subjects.some((subject) => subject.id === current)
         ? current
-        : payload.subjects[0]?.id ?? '',
+        : '',
     )
     setCreateStudentForm((current) => ({
       ...current,
@@ -400,13 +403,19 @@ export default function StudentsPage() {
           .includes(normalizedQuery)
 
       const matchesSubject =
-        activeTab !== 'subject' ||
         !selectedSubjectId ||
         student.subjects.some((subject) => subject.id === selectedSubjectId)
 
-      return matchesQuery && matchesSubject
+      const matchesStatus = statusFilter === 'all' ||
+        (statusFilter === 'enrolled' ? student.subjectCount > 0 : student.subjectCount === 0)
+      return matchesQuery && matchesSubject && matchesStatus
     })
-  }, [activeTab, deferredSearchValue, selectedSubjectId, students])
+  }, [deferredSearchValue, selectedSubjectId, statusFilter, students])
+
+  const pageCount = Math.max(1, Math.ceil(filteredStudents.length / pageSize))
+  const currentPage = Math.min(page, pageCount)
+  const pageOffset = (currentPage - 1) * pageSize
+  const visibleStudents = filteredStudents.slice(pageOffset, pageOffset + pageSize)
 
   const viewedStudent =
     students.find((student) => student.id === viewStudentId) ?? null
@@ -601,12 +610,14 @@ export default function StudentsPage() {
     }
   }
 
-  function renderStudentTableRow(student: InstructorStudentRecord) {
+  function renderStudentTableRow(student: InstructorStudentRecord, index: number) {
     const canAddToSubject = student.subjects.length < subjects.length
     const canRemoveFromSubject = student.subjects.length > 0
 
     return (
       <div key={student.id} className="instructor-table-row table-layout--students student-roster-row">
+        <span>{pageOffset + index + 1}</span>
+        <span>{student.studentId || '—'}</span>
         <div className="student-name-cell">
           <span className="student-avatar">{getInitials(student.fullName)}</span>
           <div className="student-name-copy">
@@ -617,6 +628,7 @@ export default function StudentsPage() {
 
         <span className="student-email-cell">{student.email}</span>
         <span className="student-enrollment-cell">{countLabel(student.subjectCount, 'subject')}</span>
+        <span className={student.subjectCount ? 'roster-status' : 'roster-status roster-status--neutral'}>{student.subjectCount ? 'Enrolled' : 'Not enrolled'}</span>
 
         <div className="table-actions student-table-actions">
           <button
@@ -704,12 +716,14 @@ export default function StudentsPage() {
       active="students"
       schoolYearLabel={schoolYearLabel}
       semesterLabel={semesterLabel}
+      searchValue={searchValue}
+      onSearchChange={value => { setSearchValue(value); setPage(1) }}
     >
-      <section className="students-page students-page-content">
-        <article className="instructor-panel students-management-card">
+      <section className="students-page students-page-content roster-page">
           <div className="instructor-panel-header student-panel-heading">
             <PanelLead />
-            <h2>Student Management</h2>
+            <h1>Student Management</h1>
+            <nav className="roster-breadcrumb" aria-label="Breadcrumb"><a href="/instructor/dashboard">Home</a><span aria-hidden="true">›</span><span aria-current="page">Students</span></nav>
           </div>
 
           {alerts.length ? (
@@ -727,7 +741,7 @@ export default function StudentsPage() {
               <button
                 type="button"
                 className={activeTab === 'all' ? 'student-tab is-active' : 'student-tab'}
-                onClick={() => setActiveTab('all')}
+                onClick={() => { setActiveTab('all'); setSelectedSubjectId(''); setPage(1) }}
                 role="tab"
                 aria-selected={activeTab === 'all'}
               >
@@ -736,44 +750,42 @@ export default function StudentsPage() {
               <button
                 type="button"
                 className={activeTab === 'subject' ? 'student-tab is-active' : 'student-tab'}
-                onClick={() => setActiveTab('subject')}
+                onClick={() => { setActiveTab('subject'); setSelectedSubjectId(subjects[0]?.id ?? ''); setPage(1) }}
                 role="tab"
                 aria-selected={activeTab === 'subject'}
               >
                 By Subject
               </button>
             </div>
-
+          </div>
+        <article className="instructor-panel students-management-card">
             <div className="students-filter-bar">
-              {activeTab === 'subject' ? (
-                <label className="students-subject-filter">
+              <label className="students-search-field">
+                <span className="students-search-icon" aria-hidden="true"><SearchIcon /></span>
+                <input type="search" aria-label="Search student name, ID, or email" value={searchValue} onChange={event => { setSearchValue(event.target.value); setPage(1) }} placeholder="Search student name, ID, or email..." />
+              </label>
+                <label className="roster-select-field">
+                  <span>Select Subject</span>
                   <select
+                    aria-label="Select subject"
                     value={selectedSubjectId}
-                    onChange={(event) => setSelectedSubjectId(event.target.value)}
+                    onChange={(event) => { setSelectedSubjectId(event.target.value); setPage(1) }}
                   >
-                    {subjects.length ? (
+                    <option value="">All Subjects</option>
+                    {
                       subjects.map((subject) => (
                         <option key={subject.id} value={subject.id}>
                           {subject.label}
                         </option>
                       ))
-                    ) : (
-                      <option value="">No subjects available</option>
-                    )}
+                    }
                   </select>
                 </label>
-              ) : null}
-
-              <label className="students-search-field">
-                <span className="students-search-icon" aria-hidden="true">
-                  <SearchIcon />
-                </span>
-                <input
-                  type="search"
-                  value={searchValue}
-                  onChange={(event) => setSearchValue(event.target.value)}
-                  placeholder="Search student..."
-                />
+              <label className="roster-select-field roster-select-status">
+                <span>Status</span>
+                <select value={statusFilter} onChange={event => { setStatusFilter(event.target.value); setPage(1) }}>
+                  <option value="all">All Students</option><option value="enrolled">Enrolled</option><option value="not-enrolled">Not enrolled</option>
+                </select>
               </label>
 
               <button
@@ -784,16 +796,19 @@ export default function StudentsPage() {
                 <span className="subjects-primary-button-plus" aria-hidden="true">
                   +
                 </span>
-                <span>Create Student</span>
+                <span>Add Student</span>
               </button>
+              <details className="roster-options"><summary aria-label="Roster options"><MoreIcon /></summary><div><button type="button" onClick={event => { setSearchValue(''); setSelectedSubjectId(''); setStatusFilter('all'); setActiveTab('all'); setPage(1); event.currentTarget.closest('details')?.removeAttribute('open') }}>Reset filters</button></div></details>
             </div>
-          </div>
 
           <div className="students-table-shell">
             <div className="instructor-table-head table-layout--students student-table-header">
+              <span>#</span>
+              <span>Student ID</span>
               <span>Full Name</span>
               <span>Email</span>
               <span>Subjects Enrolled</span>
+              <span>Status</span>
               <span>Actions</span>
             </div>
 
@@ -805,16 +820,21 @@ export default function StudentsPage() {
                   <div className="dashboard-loading-row student-loading-row" />
                 </div>
               ) : filteredStudents.length ? (
-                filteredStudents.map(renderStudentTableRow)
+                visibleStudents.map(renderStudentTableRow)
               ) : (
-                <div className="dashboard-empty-state">
-                  {students.length
-                    ? 'No students matched the current filters.'
-                    : 'No enrolled students found for this instructor yet.'}
+                <div className="dashboard-empty-state" role="status">
+                  <StudentsIcon />
+                  <strong>{errorMessage ? 'Unable to load students.' : 'No students found.'}</strong>
+                  <p>{errorMessage ? 'Please resolve the error above and try again.' : students.length ? 'No students matched the current filters.' : 'There are no students to display yet.'}</p>
+                  <button type="button" className="roster-empty-add" onClick={openCreateStudentDialog}><span aria-hidden="true">+</span>Add Student</button>
                 </div>
               )}
             </div>
           </div>
+          <footer className="roster-pagination">
+            <span aria-live="polite">Showing {filteredStudents.length ? `${pageOffset + 1}–${pageOffset + visibleStudents.length}` : '0'} of {filteredStudents.length} students</span>
+            <div><button type="button" aria-label="Previous page" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>‹</button><span className="roster-current-page" aria-current="page">{currentPage}</span><button type="button" aria-label="Next page" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>›</button><select aria-label="Students per page" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1) }}><option value={10}>10 / page</option><option value={25}>25 / page</option><option value={50}>50 / page</option></select></div>
+          </footer>
         </article>
       </section>
 

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import logoImage from '../assets/student/logo.png'
 import '../pages/student/student-auth-page.css'
 import { getApiBaseUrl } from '../utils/apiBaseUrl'
+import { getLocalStudentLogin } from '../utils/localStudent'
 import { clearRememberedStudentEmail, readRememberedStudentEmail, writeRememberedStudentEmail } from '../utils/studentAuth'
 
 const apiBaseUrl = getApiBaseUrl()
@@ -142,7 +143,10 @@ export function AuthPortalPage({
     setErrorMessage('')
 
     try {
-      const response = await fetch(
+      const localLogin = isInstructorPortal ? null : getLocalStudentLogin(credential, password)
+      const response = localLogin
+        ? new Response(JSON.stringify(localLogin), { status: localLogin.success ? 200 : 401 })
+        : await fetch(
         isInstructorPortal
           ? `${apiBaseUrl}/api/auth/instructor/login`
           : `${apiBaseUrl}/api/auth/student/login`,

@@ -1,12 +1,12 @@
-import type { MouseEvent, ReactNode } from 'react'
-import logoImage from '../assets/student/logo.png'
-import { InstructorTopBar } from './instructor-shell'
+import { useState, type MouseEvent, type ReactNode } from 'react'
+import { PortalHeader, type PortalSearchProps } from './portal-header'
+
 import { StudentSideBar, type StudentSection } from './student-side-bar'
 import { navigateTo } from '../utils/navigation'
 import '../pages/instructor/instructor-portal.css'
 import '../pages/student/student-portal.css'
 
-type StudentShellProps = {
+type StudentShellProps = PortalSearchProps & {
   active: StudentSection
   schoolYearLabel?: string
   semesterLabel?: string
@@ -45,14 +45,6 @@ function ProfileIcon() {
   )
 }
 
-function BellIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9 20a3 3 0 0 0 6 0" />
-      <path d="M5 17h14l-1.4-2.2A5.6 5.6 0 0 1 17 11.8V10a5 5 0 0 0-10 0v1.8c0 1-.3 2-.8 3L5 17Z" />
-    </svg>
-  )
-}
 
 function renderMobileNavIcon(section: StudentSection) {
   if (section === 'dashboard') {
@@ -72,7 +64,10 @@ export function StudentShell({
   semesterLabel,
   notificationCount = 0,
   children,
+  searchValue,
+  onSearchChange,
 }: StudentShellProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 860)
   const isViewportPage = active === 'dashboard' || active === 'profile'
   const isDashboardPage = active === 'dashboard'
 
@@ -89,15 +84,15 @@ export function StudentShell({
 
   return (
     <main
-      className={
+      className={'portal-shell ' + (sidebarOpen ? '' : 'portal-shell--collapsed ') + (
         isViewportPage
           ? `instructor-portal-page instructor-portal-page--dashboard student-portal-page${
               isDashboardPage ? ' student-portal-page--dashboard-active' : ''
             }`
           : 'instructor-portal-page student-portal-page'
-      }
+      )}
     >
-      <StudentSideBar active={active} />
+      {sidebarOpen && <StudentSideBar active={active} />}
       <section
         className={
           isViewportPage
@@ -105,7 +100,7 @@ export function StudentShell({
             : 'instructor-main-panel'
         }
       >
-        <InstructorTopBar
+        <PortalHeader portal="student" sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(open => !open)} notificationCount={notificationCount} searchValue={searchValue} onSearchChange={onSearchChange}
           schoolYearLabel={schoolYearLabel}
           semesterLabel={semesterLabel}
         />
@@ -116,44 +111,6 @@ export function StudentShell({
               : 'instructor-main-content'
           }
         >
-          <header className="student-mobile-header">
-            <div className="student-mobile-brand">
-              <img
-                src={logoImage}
-                alt="St. Anthony College crest"
-                className="student-mobile-brand-logo"
-              />
-              <div className="student-mobile-brand-copy">
-                <h1>St. Anthony College</h1>
-                <p>CALAPAN CITY INC.</p>
-              </div>
-            </div>
-
-            <div className="student-mobile-header-actions">
-              <button
-                className="student-mobile-header-button"
-                type="button"
-                aria-label="Notifications"
-                onClick={() => navigateTo('/student/requests')}
-              >
-                <BellIcon />
-                {notificationCount > 0 ? (
-                  <span className="student-mobile-badge">
-                    {notificationCount > 99 ? '99+' : notificationCount}
-                  </span>
-                ) : null}
-              </button>
-
-              <button
-                className="student-mobile-header-button student-mobile-header-button--profile"
-                type="button"
-                aria-label="Profile"
-                onClick={() => navigateTo('/student/profile')}
-              >
-                <ProfileIcon />
-              </button>
-            </div>
-          </header>
 
           <div className={`student-page-surface student-page-surface--${active}`}>
             {children}

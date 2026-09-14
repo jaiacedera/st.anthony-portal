@@ -1,0 +1,79 @@
+/* Shared proportions for every instructor and student portal tab. */
+.instructor-portal-page,
+.instructor-portal-page.student-portal-page {
+  --sidebar-width: 200px;
+}
+
+.instructor-portal-page .instructor-sidebar {
+  padding: 18px 14px;
+  background: linear-gradient(155deg, #850c04, #690503);
+  overflow-y: auto;
+}
+
+.instructor-portal-page .instructor-sidebar-logo {
+  width: 72px;
+  height: 72px;
+}
+
+.instructor-portal-page .instructor-sidebar-title {
+  margin-top: 10px;
+}
+
+.instructor-portal-page .instructor-sidebar-title h1 {
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+.instructor-portal-page .instructor-sidebar-title p {
+  font-size: 11px;
+}
+
+.instructor-portal-page .instructor-sidebar-nav {
+  margin-top: 22px;
+  gap: 5px;
+  flex: 1 0 auto;
+}
+
+.instructor-portal-page .instructor-nav-link {
+  width: 100%;
+  min-height: 38px;
+  margin: 0;
+  padding: 0 12px;
+  gap: 12px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.instructor-portal-page .instructor-logout-link {
+  margin-top: 20px;
+  padding-top: 16px;
+  font-size: 14px;
+}
+
+@media (min-width: 861px) {
+  .instructor-portal-page .instructor-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    width: var(--sidebar-width);
+    height: 100dvh;
+  }
+
+  .instructor-portal-page .instructor-main-panel {
+    margin-left: var(--sidebar-width);
+  }
+
+  .instructor-portal-page .instructor-header {
+    position: fixed;
+    top: 0;
+    left: var(--sidebar-width);
+    right: 0;
+    height: var(--header-height);
+    padding: 16px 24px;
+  }
+
+  .instructor-portal-page .instructor-main-content {
+    padding-top: var(--header-height);
+  }
+}

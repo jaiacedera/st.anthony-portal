@@ -1,3 +1,5 @@
+import { isLocalStudentEnvironment, LOCAL_STUDENT_ID } from './localStudent'
+
 export type StudentAuthSession = {
   accountId?: string
   studentId?: string
@@ -25,7 +27,9 @@ export function readStudentAuth(): StudentAuthSession | null {
   }
 
   try {
-    return JSON.parse(rawValue) as StudentAuthSession
+    const session = JSON.parse(rawValue) as StudentAuthSession
+    if (session?.studentId === LOCAL_STUDENT_ID && !isLocalStudentEnvironment()) return null
+    return session
   } catch {
     return null
   }

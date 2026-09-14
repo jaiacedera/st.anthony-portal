@@ -1,0 +1,101 @@
+.subjects-page.subjects-layout {
+  grid-template-columns: minmax(0, 2.18fr) minmax(260px, 1fr);
+  gap: 12px;
+  height: auto;
+  min-height: calc(100dvh - var(--header-height));
+  padding: 20px;
+  align-items: start;
+  background: #f8f8f9;
+  color: #161c39;
+}
+
+.subjects-layout .instructor-panel {
+  min-height: 392px;
+  height: auto;
+  border: 1px solid #e0e5ef;
+  border-radius: 7px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.subjects-layout .subject-panel-heading {
+  min-height: 40px;
+  padding: 0;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.subjects-layout .instructor-panel-lead {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  background: #fae8e8;
+  color: #ad0004;
+}
+
+.subjects-layout .instructor-panel-lead svg { width: 24px; height: 24px; }
+.subjects-layout .subject-panel-heading h2 { margin: 2px 0 3px; color: #171d3d; font: 700 16px/1.25 Georgia, serif; text-transform: none; letter-spacing: -.4px; }
+.subjects-layout .subject-panel-description { margin: 0; font-size: 11px; line-height: 1.35; color: #6578ad; }
+.subjects-layout .subjects-toolbar { min-height: 0; padding: 12px 0 14px; gap: 10px; flex-wrap: nowrap; }
+.subjects-layout .subjects-search-field { width: auto; min-width: 0; flex: 1; height: 35px; padding: 0 11px; border-color: #dce2ee; border-radius: 6px; gap: 10px; }
+.subjects-layout .subjects-search-icon { color: #172247; }
+.subjects-layout .subjects-search-icon svg { width: 16px; height: 16px; }
+.subjects-layout .subjects-search-field input { min-width: 0; font-size: 11px; color: #28345b; }
+.subjects-layout .subjects-search-field input::placeholder { color: #7082b4; }
+.subjects-layout .subjects-toolbar-actions { width: auto; flex: none; display: flex; flex-direction: row; gap: 10px; }
+.subjects-layout .subjects-semester-field { min-width: 112px; width: 112px; }
+.subjects-layout .subjects-semester-field select { height: 35px; border-color: #dce2ee; color: #20294c; font-size: 11px; font-weight: 500; }
+.subjects-layout .subjects-semester-field::after { width: 6px; height: 6px; border-color: #20294c; }
+.subjects-layout .subjects-primary-button { min-width: 124px; width: auto; height: 35px; padding: 0 12px; font-size: 11px; font-weight: 500; background: #a00608; box-shadow: 0 2px 5px #8a080816; }
+.subjects-layout .subjects-primary-button-plus { font-size: 20px; font-weight: 400; }
+.subjects-layout .subjects-table-shell { flex: auto; min-height: 263px; overflow-x: auto; }
+.subjects-layout .subjects-table-layout { grid-template-columns: minmax(78px, 1fr) minmax(100px, 1.3fr) 48px minmax(76px, 1fr) 64px 62px; column-gap: 10px; min-width: 478px; }
+.subjects-layout .subject-table-header { min-height: 34px; padding: 0 11px; border-radius: 6px; background: #f0f1f4; color: #26375d; font-size: 9px; font-weight: 500; text-transform: uppercase; }
+.subjects-layout .subjects-table-body { overflow-y: auto; max-height: 440px; }
+.subjects-layout .subjects-table-row { min-height: 48px; padding: 9px 11px; border-color: #edf0f5; }
+.subjects-layout .subjects-table-row:hover { background: #faf6f6; }
+.subjects-layout .subjects-table-row.is-selected { background: #fff0f0; box-shadow: inset 3px 0 #a00608; }
+.subjects-layout .subject-code-pill { min-width: 0; max-width: 100%; height: auto; min-height: 26px; padding: 4px 7px; font-size: 10px; overflow-wrap: anywhere; }
+.subjects-layout .subjects-inline-title { font-size: 12px; }
+.subjects-layout .subjects-inline-meta, .subjects-layout .student-count { font-size: 11px; }
+.subjects-layout .subjects-empty-state { min-height: 229px; padding: 28px 12px; flex-direction: column; gap: 0; color: #6578ad; }
+.subjects-layout .subjects-empty-state > svg { width: 53px; height: 53px; margin-bottom: 16px; color: #acb2c7; }
+.subjects-layout .subjects-empty-state strong { color: #171d3d; font: 700 16px/1.3 Georgia, serif; }
+.subjects-layout .subjects-empty-state p { margin: 5px 0 0; font-size: 11px; line-height: 1.4; }
+.subjects-layout .selected-subject-panel .subject-panel-heading { min-height: 65px; padding-bottom: 14px; border-bottom: 1px solid #e6eaf2; }
+.subjects-layout .selected-subject-body { padding: 18px 2px 0; gap: 16px; }
+.subjects-layout .subjects-empty-state--detail { min-height: 278px; padding: 36px 0 0; justify-content: flex-start; }
+.subjects-layout .subject-empty-state-panel { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.subjects-layout .subject-empty-state-panel > svg { width: 48px; height: 48px; margin-bottom: 17px; color: #acb2c7; }
+.subjects-layout .subject-empty-state-panel strong { font: 600 13px/1.4 'Lato', sans-serif; }
+.subjects-layout .subject-empty-state-panel p { max-width: 220px; color: #6578ad; }
+.subjects-layout .subject-empty-state-panel .subject-detail-action { margin-top: 36px; }
+.subjects-layout .subject-detail-action { height: 36px; font-size: 12px; font-weight: 500; color: #ae0004; border-color: #ffb8bc; background: #fff3f3; cursor: pointer; }
+.subjects-layout .subject-detail-action > svg { width: 20px; height: 20px; }
+.subjects-layout .subject-detail-action--solid { color: #fff; background: #a00608; border-color: #a00608; }
+.subjects-layout .selected-subject-headline { flex-direction: column; align-items: flex-start; gap: 8px; }
+.subjects-layout .selected-subject-name { font-size: 15px; text-transform: none; color: #20294c; }
+.subjects-layout .selected-subject-detail-list { gap: 8px; }
+.subjects-layout .selected-subject-detail-row { grid-template-columns: 18px 67px minmax(0, 1fr); min-height: 26px; gap: 7px; }
+.subjects-layout .selected-subject-detail-label, .subjects-layout .selected-subject-detail-value { font-size: 11px; overflow-wrap: anywhere; }
+.subjects-layout .selected-subject-action-list { gap: 8px; padding-top: 0; }
+.subjects-layout .subject-alert-stack { position: static; width: 100%; padding: 10px 0 0; }
+.subjects-layout .dashboard-alert { width: 100%; padding: 8px 10px; font-size: 11px; }
+.subjects-layout button:focus-visible, .subjects-layout select:focus-visible, .subjects-layout [role='button']:focus-visible { outline: 2px solid #a00608; outline-offset: 3px; }
+.subjects-layout .subjects-search-field:focus-within { outline: 2px solid #a00608; outline-offset: 2px; }
+
+@media (max-width: 1200px) {
+  .subjects-page.subjects-layout { grid-template-columns: minmax(0, 1fr) 260px; padding: 16px; }
+  .subjects-layout .subjects-toolbar { flex-wrap: wrap; }
+  .subjects-layout .subjects-search-field { flex-basis: 100%; }
+  .subjects-layout .subjects-toolbar-actions { width: 100%; justify-content: space-between; }
+}
+
+@media (max-width: 960px) {
+  .subjects-page.subjects-layout { grid-template-columns: minmax(0, 1fr); }
+  .subjects-layout .selected-subject-panel { min-height: 340px; }
+  .subjects-layout .subjects-empty-state--detail { min-height: 240px; padding-top: 20px; }
+}

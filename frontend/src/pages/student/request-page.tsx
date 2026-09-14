@@ -392,6 +392,8 @@ export default function StudentRequestPage() {
 
   return (
     <StudentShell
+      searchValue={searchText}
+      onSearchChange={setSearchText}
       active="requests"
       schoolYearLabel={dashboard?.header.schoolYear ?? 'Loading...'}
       semesterLabel={dashboard?.header.semester ?? 'Loading...'}

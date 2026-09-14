@@ -168,6 +168,7 @@ function getSubjectSwatchTone(index: number): SubjectSwatchTone {
 }
 
 export default function StudentDashboardPage() {
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '')
   const auth = readStudentAuth()
   const hasStudentIdentity = Boolean(auth?.studentId || auth?.email || auth?.username)
   const sessionErrorMessage = hasStudentIdentity
@@ -364,8 +365,14 @@ export default function StudentDashboardPage() {
     },
   ] as const
 
+  const matchingSubjects = dashboard?.subjects.filter(subject =>
+    [subject.subjectCode, subject.subjectName, subject.instructorName].some(value => value.toLowerCase().includes(search.trim().toLowerCase())),
+  ) ?? []
+
   return (
     <StudentShell
+      searchValue={search}
+      onSearchChange={setSearch}
       active="dashboard"
       schoolYearLabel={dashboard?.header.schoolYear ?? 'Loading...'}
       semesterLabel={dashboard?.header.semester ?? 'Loading...'}
@@ -447,8 +454,8 @@ export default function StudentDashboardPage() {
           <div className="student-mobile-subjects-list">
             {hasStudentIdentity && isLoading ? (
               <div className="student-dashboard-empty">Loading student subjects...</div>
-            ) : dashboard?.subjects.length ? (
-              dashboard.subjects.map((subject, index) => (
+            ) : matchingSubjects.length ? (
+              matchingSubjects.map((subject, index) => (
                 <article key={`${subject.subjectId}-mobile`} className="student-mobile-subject-card">
                   <div className="student-mobile-subject-top">
                     <div className="student-mobile-subject-main">
@@ -531,8 +538,8 @@ export default function StudentDashboardPage() {
             <div className="student-subjects-table-body">
               {hasStudentIdentity && isLoading ? (
                 <div className="student-dashboard-empty">Loading student subjects...</div>
-              ) : dashboard?.subjects.length ? (
-                dashboard.subjects.map((subject, index) => (
+              ) : matchingSubjects.length ? (
+                matchingSubjects.map((subject, index) => (
                   <div key={subject.subjectId} className="student-subject-row">
                     <div className="student-subject-code-cell">
                       <span

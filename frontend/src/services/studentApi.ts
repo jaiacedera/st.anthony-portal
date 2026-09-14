@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '../utils/apiBaseUrl'
+import { getLocalStudentDashboard, isLocalStudent, updateLocalStudentProfile } from '../utils/localStudent'
 
 export type StudentDashboardSubjectRecord = {
   subjectId: string
@@ -133,6 +134,8 @@ export async function fetchStudentDashboard(
   },
   signal?: AbortSignal,
 ): Promise<StudentDashboardPayload> {
+  if (isLocalStudent(input.studentId)) return getLocalStudentDashboard()
+
   const query = new URLSearchParams()
 
   if (input.studentId) {
@@ -164,6 +167,8 @@ export async function fetchStudentDashboard(
 export async function updateStudentProfile(
   input: UpdateStudentProfileInput,
 ): Promise<UpdateStudentProfilePayload> {
+  if (isLocalStudent(input.studentId)) return updateLocalStudentProfile(input)
+
   const response = await fetch(`${apiBaseUrl}/api/student/profile`, {
     method: 'POST',
     headers: {
@@ -192,6 +197,8 @@ export async function fetchStudentRequestResponse(
   },
   signal?: AbortSignal,
 ): Promise<{ success: boolean; response: StudentApprovedBreakdownResponse }> {
+  if (isLocalStudent(input.studentId)) throw new Error('No grade responses are available for the local demo account.')
+
   const query = new URLSearchParams({
     requestId: input.requestId,
   })
@@ -230,6 +237,8 @@ export async function fetchStudentRequestResponse(
 export async function createStudentBreakdownRequest(
   input: CreateStudentBreakdownRequestInput,
 ): Promise<{ success: boolean; message?: string; requestId?: string }> {
+  if (isLocalStudent(input.studentId)) throw new Error('The local demo account has no enrolled subjects to request grades for.')
+
   const response = await fetch(`${apiBaseUrl}/api/student/requests`, {
     method: 'POST',
     headers: {

@@ -506,6 +506,8 @@ export default function RequestsPage() {
 
   return (
     <InstructorShell
+      searchValue={searchText}
+      onSearchChange={setSearchText}
       active="requests"
       schoolYearLabel={schoolYearLabel}
       semesterLabel={semesterLabel}

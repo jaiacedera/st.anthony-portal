@@ -30,7 +30,10 @@ services:
     staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_BASE_URL
-        sync: false
+        fromService:
+          type: web
+          name: st-anthony-backend
+          property: host
     routes:
       - type: rewrite
         source: /*

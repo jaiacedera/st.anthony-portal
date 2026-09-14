@@ -1939,8 +1939,8 @@
   }
 
   .student-portal-page .instructor-sidebar,
-  .student-portal-page .instructor-header {
-    display: none;
+  .student-portal-page .portal-header {
+    display: none !important;
   }
 
   .student-portal-page .instructor-main-panel,
@@ -1961,13 +1961,21 @@
       linear-gradient(180deg, #7a0605 0%, #930d0b 54%, #930d0b 100%);
   }
 
+  .student-portal-page.portal-shell .instructor-main-content,
+  .student-portal-page.portal-shell .instructor-main-content--dashboard {
+    padding-top: 0 !important;
+  }
+
   .student-mobile-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 14px;
-    padding: 18px 16px 24px;
+    min-height: 72px;
+    box-sizing: border-box;
+    padding: 10px 16px 12px;
     color: #ffffff;
+    background: linear-gradient(180deg, #7a0605 0%, #930d0b 100%);
   }
 
   .student-mobile-brand {
@@ -2138,7 +2146,7 @@
   .student-dashboard {
     height: auto;
     min-height: 0;
-    padding: 16px 16px 88px;
+    padding: 16px 12px 88px;
     gap: 16px;
     overflow: visible;
   }
@@ -2146,9 +2154,9 @@
   .student-mobile-filters {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin: 16px 16px 0;
+    margin: 0;
     gap: 0;
-    min-height: 78px;
+    min-height: 58px;
     overflow: hidden;
     border: 1px solid #e6e6e6;
     border-radius: 18px;
@@ -2161,8 +2169,8 @@
     grid-template-columns: 24px minmax(0, 1fr) 16px;
     column-gap: 10px;
     align-items: center;
-    min-height: 78px;
-    padding: 12px 14px;
+    min-height: 58px;
+    padding: 8px 14px;
   }
 
   .student-mobile-filter-card + .student-mobile-filter-card {
@@ -2223,22 +2231,24 @@
   }
 
   .student-dashboard-stats {
-    margin: 18px 16px 0;
+    margin: 18px 0 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
 
   .student-overview-card {
     align-items: stretch;
-    min-height: 135px;
-    padding: 16px;
+    height: 120px;
+    min-height: 120px;
+    padding: 14px;
+    overflow: hidden;
     border-radius: 18px;
     box-shadow: none;
   }
 
   .student-overview-icon {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
     flex-shrink: 0;
   }
 
@@ -2248,7 +2258,7 @@
   }
 
   .student-overview-value {
-    font-size: 25px;
+    font-size: 27px;
     line-height: 1;
   }
 
@@ -2271,7 +2281,7 @@
 
   .student-overview-card-inner {
     display: grid;
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: 52px minmax(0, 1fr);
     column-gap: 12px;
     align-items: center;
     width: 100%;
@@ -2367,8 +2377,9 @@
 
   .student-mobile-subject-card {
     display: grid;
+    min-height: 104px;
     gap: 16px;
-    padding: 16px;
+    padding: 10px;
     border: 1px solid #ece4e4;
     border-radius: 18px;
     background: #ffffff;
@@ -2391,8 +2402,8 @@
   }
 
   .student-mobile-subject-main .student-subject-swatch {
-    width: 62px;
-    height: 62px;
+    width: 44px;
+    height: 44px;
     border-radius: 12px;
   }
 
@@ -2405,20 +2416,20 @@
 
   .student-mobile-subject-copy strong {
     color: #8e0d0c;
-    font-size: 15px;
+    font-size: 12px;
     font-weight: 700;
   }
 
   .student-mobile-subject-copy span {
     color: #171717;
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 700;
     line-height: 1.3;
   }
 
   .student-mobile-subject-copy small {
     color: #6c6c6c;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 500;
     line-height: 1.35;
   }
@@ -2456,7 +2467,7 @@
     grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 10px;
     align-items: center;
-    padding-top: 16px;
+    padding-top: 10px;
     border-top: 1px solid #efebeb;
   }
 
@@ -2503,8 +2514,24 @@
   }
 
   .student-requests-page {
-    padding: 18px 16px 96px;
-    gap: 16px;
+    padding: 10px 12px 96px;
+    gap: 10px;
+  }
+
+  .student-requests-heading {
+    display: block;
+  }
+
+  .student-requests-heading h1 {
+    color: #171717;
+    font-size: 18px;
+    line-height: 1.1;
+  }
+
+  .student-requests-heading p {
+    margin-top: 3px;
+    color: #606060;
+    font-size: 10px;
   }
 
   .student-requests-toolbar {
@@ -2623,7 +2650,7 @@
   .student-profile-page {
     height: auto;
     gap: 18px;
-    padding: 20px 16px 120px;
+    padding: 10px 12px 96px;
     overflow: visible;
   }
 
@@ -2635,14 +2662,14 @@
 
   .student-profile-summary {
     display: grid;
-    grid-template-columns: 105px minmax(0, 1fr);
-    column-gap: 18px;
+    grid-template-columns: 72px minmax(0, 1fr);
+    column-gap: 12px;
     align-items: center;
-    min-height: 190px;
+    min-height: 100px;
     width: 100%;
     max-width: 100%;
     margin: 0 auto;
-    padding: 20px 18px;
+    padding: 10px 12px;
     border: 1px solid #e6e6e6;
     border-radius: 18px;
     box-sizing: border-box;
@@ -2651,22 +2678,22 @@
   }
 
   .student-profile-avatar-shell {
-    width: 104px;
-    height: 104px;
+    width: 72px;
+    height: 72px;
   }
 
   .student-profile-avatar-ring {
-    width: 104px;
-    height: 104px;
+    width: 72px;
+    height: 72px;
     background: #fff3f3;
     border-color: #efcccc;
   }
 
   .student-profile-avatar-core {
-    width: 84px;
-    height: 84px;
+    width: 58px;
+    height: 58px;
     background: #9e0000;
-    font-size: 28px;
+    font-size: 20px;
   }
 
   .student-profile-avatar-chip {
@@ -2712,12 +2739,12 @@
 
   .student-profile-summary-meta {
     width: 100%;
-    margin-top: 14px;
+    margin-top: 6px;
     border-top: none;
     display: flex;
     min-width: 0;
     flex-direction: column;
-    gap: 10px;
+    gap: 4px;
   }
 
   .student-profile-summary-meta-row {
@@ -2727,7 +2754,7 @@
     grid-template-columns: 18px minmax(0, 1fr);
     align-items: center;
     column-gap: 10px;
-    font-size: 12px;
+    font-size: 9px;
     line-height: 1.3;
     color: #4b5563;
     border-bottom: none;
@@ -2763,14 +2790,14 @@
   }
 
   .student-profile-card-header {
-    min-height: 74px;
-    padding: 0 16px;
+    min-height: 44px;
+    padding: 0 12px;
     flex-direction: row;
     align-items: center;
   }
 
   .student-profile-card-header h3 {
-    font-size: 16px;
+    font-size: 11px;
   }
 
   .student-profile-outline-button,
@@ -2782,15 +2809,15 @@
   }
 
   .student-profile-info-row {
-    grid-template-columns: 110px minmax(0, 1fr);
-    gap: 14px;
-    min-height: 52px;
-    padding: 0 16px;
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 12px;
   }
 
   .student-profile-info-label,
   .student-profile-info-value {
-    font-size: 13px;
+    font-size: 9px;
   }
 
   .student-profile-card--security {
@@ -2818,7 +2845,8 @@
 
 @media (max-width: 390px) {
   .student-mobile-header {
-    padding: 20px 14px 26px;
+    min-height: 72px;
+    padding: 10px 14px 12px;
   }
 
   .student-mobile-brand {
@@ -2853,8 +2881,8 @@
   .student-mobile-filter-card {
     grid-template-columns: 22px minmax(0, 1fr) 14px;
     column-gap: 8px;
-    min-height: 78px;
-    padding: 12px;
+    min-height: 54px;
+    padding: 8px 12px;
   }
 
   .student-mobile-filter-icon,
@@ -2878,24 +2906,25 @@
   }
 
   .student-dashboard-stats {
-    margin: 16px 12px 0;
+    margin: 18px 0 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
 
   .student-overview-card {
-    min-height: 132px;
+    height: 120px;
+    min-height: 120px;
     padding: 14px;
   }
 
   .student-overview-card-inner {
-    grid-template-columns: 46px minmax(0, 1fr);
+    grid-template-columns: 52px minmax(0, 1fr);
     column-gap: 10px;
   }
 
   .student-overview-icon {
-    width: 46px;
-    height: 46px;
+    width: 52px;
+    height: 52px;
   }
 
   .student-overview-icon svg {
@@ -2904,33 +2933,33 @@
   }
 
   .student-overview-value {
-    font-size: 24px;
+    font-size: 26px;
   }
 
   .student-overview-title {
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.3;
   }
 
   .student-overview-subtitle {
     margin-top: 6px;
-    font-size: 10.5px;
+    font-size: 11px;
   }
 
   .student-mobile-subject-card {
-    padding: 16px 14px;
+    padding: 10px;
   }
 
   .student-mobile-subject-top {
-    flex-direction: column;
+    flex-direction: row;
   }
 
   .student-mobile-grade {
-    align-items: flex-start;
+    align-items: center;
   }
 
   .student-mobile-subject-footer {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
   .student-requests-page {

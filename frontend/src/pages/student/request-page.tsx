@@ -410,6 +410,11 @@ export default function StudentRequestPage() {
           </div>
         ) : null}
 
+        <header className="student-requests-heading">
+          <h1>Requests</h1>
+          <p>View and manage your requests.</p>
+        </header>
+
         <section className="student-requests-toolbar">
           <label className="student-requests-search">
             <span className="student-requests-search-icon" aria-hidden="true">

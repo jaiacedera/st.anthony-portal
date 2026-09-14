@@ -2,6 +2,7 @@ import { useState, type MouseEvent, type ReactNode } from 'react'
 import { PortalHeader, type PortalSearchProps } from './portal-header'
 
 import { StudentSideBar, type StudentSection } from './student-side-bar'
+import logoImage from '../assets/student/logo.png'
 import { navigateTo } from '../utils/navigation'
 import '../pages/instructor/instructor-portal.css'
 import '../pages/student/student-portal.css'
@@ -92,6 +93,26 @@ export function StudentShell({
           : 'instructor-portal-page student-portal-page'
       )}
     >
+        <header className="student-mobile-header">
+          <div className="student-mobile-brand">
+            <img src={logoImage} alt="St. Anthony College crest" className="student-mobile-brand-logo" />
+            <div className="student-mobile-brand-copy">
+              <h1>St. Anthony College</h1>
+              <p>CALAPAN CITY INC.</p>
+            </div>
+          </div>
+
+          <div className="student-mobile-header-actions">
+            <a className="student-mobile-header-button" href="/student/requests" aria-label="View requests">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
+              {notificationCount > 0 && <span className="student-mobile-badge">{notificationCount}</span>}
+            </a>
+            <a className="student-mobile-header-button student-mobile-header-button--profile" href="/student/profile" aria-label="Your profile">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="7" r="5" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+            </a>
+          </div>
+        </header>
+
       {sidebarOpen && <StudentSideBar active={active} />}
       <section
         className={

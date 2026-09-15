@@ -1738,6 +1738,29 @@ export default function GradesPage() {
     useState<GradingPeriodKey>('midterm')
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [viewportCapacity, setViewportCapacity] = useState(50)
+  const gradeTableShellRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const shell = gradeTableShellRef.current
+    const heading = shell?.querySelector('thead')
+    if (!shell || !heading) return
+
+    const updateCapacity = () => {
+      const rowHeight = Number.parseFloat(getComputedStyle(shell).getPropertyValue('--grade-row-height'))
+      const availableHeight = shell.clientHeight - heading.getBoundingClientRect().height - 2
+      setViewportCapacity(rowHeight ? Math.max(1, Math.floor(availableHeight / rowHeight)) : 50)
+    }
+    const observer = new ResizeObserver(updateCapacity)
+    observer.observe(shell)
+    observer.observe(heading)
+    window.addEventListener('resize', updateCapacity)
+    updateCapacity()
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', updateCapacity)
+    }
+  }, [activeTab])
   const [schoolYearLabel, setSchoolYearLabel] = useState('Not set')
   const [semesterLabel, setSemesterLabel] = useState('Not set')
   const [isLoading, setIsLoading] = useState(true)
@@ -2085,7 +2108,10 @@ export default function GradesPage() {
     ],
   )
 
-  const totalPages = Math.max(1, Math.ceil(gradeSnapshots.length / rowsPerPage))
+  const effectiveRowsPerPage = Math.min(rowsPerPage, viewportCapacity)
+  const pageSizeOptions = [...new Set([Math.min(10, viewportCapacity), 10, 20, 50, effectiveRowsPerPage])]
+    .filter(size => size <= viewportCapacity).sort((a, b) => a - b)
+  const totalPages = Math.max(1, Math.ceil(gradeSnapshots.length / effectiveRowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const firstVisiblePage = Math.max(1, Math.min(safeCurrentPage - 2, totalPages - 5))
   const pageNumbers = Array.from(
@@ -2093,11 +2119,11 @@ export default function GradesPage() {
     (_, index) => firstVisiblePage + index,
   )
   const paginatedSnapshots = gradeSnapshots.slice(
-    (safeCurrentPage - 1) * rowsPerPage,
-    safeCurrentPage * rowsPerPage,
+    (safeCurrentPage - 1) * effectiveRowsPerPage,
+    safeCurrentPage * effectiveRowsPerPage,
   )
-  const displayStart = gradeSnapshots.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0
-  const displayEnd = Math.min(safeCurrentPage * rowsPerPage, gradeSnapshots.length)
+  const displayStart = gradeSnapshots.length ? (safeCurrentPage - 1) * effectiveRowsPerPage + 1 : 0
+  const displayEnd = Math.min(safeCurrentPage * effectiveRowsPerPage, gradeSnapshots.length)
   const periodLabel = getGradingPeriodLabel(selectedGradingPeriod)
   const gradeSummaryLabel =
     selectedGradingPeriod === 'midterm' ? 'Midterm Grade' : `${periodLabel} Final Score`
@@ -2922,7 +2948,7 @@ export default function GradesPage() {
       schoolYearLabel={schoolYearLabel}
       semesterLabel={semesterLabel}
     >
-      <section className={`grades-page grades-page--${selectedGradingPeriod}`}>
+      <section className={`grades-page grades-page--${selectedGradingPeriod}${activeTab === 'gradebook' ? ' grades-page--gradebook' : ''}`}>
         {alerts.length ? (
           <div className="dashboard-alert-stack" aria-live="polite">
             {alerts.map((message, index) => (
@@ -3074,7 +3100,7 @@ export default function GradesPage() {
 
           {activeTab === 'gradebook' ? (
             <div className="grades-tab-panel">
-              <div className="grades-table-shell">
+              <div className="grades-table-shell" ref={gradeTableShellRef}>
                 <table className="grades-table">
                   <thead>
                     <tr>
@@ -3132,11 +3158,11 @@ export default function GradesPage() {
                       paginatedSnapshots.map((snapshot, index) => (
                         <tr key={snapshot.student.id}>
                           <td className="grades-table-number">
-                            {(safeCurrentPage - 1) * rowsPerPage + index + 1}
+                            {(safeCurrentPage - 1) * effectiveRowsPerPage + index + 1}
                           </td>
                           <td className="grades-table-student">
-                            <strong>{snapshot.student.fullName}</strong>
-                            <span>{snapshot.student.studentId}</span>
+                            <strong title={snapshot.student.fullName}>{snapshot.student.fullName}</strong>
+                            <span title={snapshot.student.studentId}>{snapshot.student.studentId}</span>
                           </td>
                           {snapshot.categories.flatMap((category) => [
                             <td
@@ -3203,7 +3229,7 @@ export default function GradesPage() {
                   <button
                     type="button"
                     className="grades-pagination-button"
-                    onClick={() => setCurrentPage((current) => Math.max(1, current - 1))}
+                    onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
                     disabled={safeCurrentPage === 1}
                     aria-label="Previous page"
                   >
@@ -3231,7 +3257,7 @@ export default function GradesPage() {
                     type="button"
                     className="grades-pagination-button"
                     onClick={() =>
-                      setCurrentPage((current) => Math.min(totalPages, current + 1))
+                      setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))
                     }
                     disabled={safeCurrentPage === totalPages}
                     aria-label="Next page"
@@ -3242,10 +3268,10 @@ export default function GradesPage() {
                   <label className="grades-page-size-select">
                     <select
                       aria-label="Students per page"
-                      value={rowsPerPage}
+                      value={effectiveRowsPerPage}
                       onChange={(event) => setRowsPerPage(Number(event.target.value))}
                     >
-                      {[10, 20, 50].map((value) => (
+                      {pageSizeOptions.map((value) => (
                         <option key={value} value={value}>
                           {value} / page
                         </option>

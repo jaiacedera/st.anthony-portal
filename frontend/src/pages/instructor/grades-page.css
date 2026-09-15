@@ -11,6 +11,26 @@
 @media (max-width: 560px) { .grades-page-heading h1 { font-size: 21px; } }
 .grades-page :is(button, select):focus-visible { outline: 2px solid #950b0b; outline-offset: 3px; }
 
+@media (min-width: 861px) and (min-height: 600px) {
+  .grades-page.grades-page--gradebook {
+    height: calc(100dvh - var(--header-height));
+    min-height: 0;
+    padding-block: 16px;
+    gap: 12px;
+  }
+  .grades-page--gradebook > .dashboard-alert-stack,
+  .grades-page--gradebook .grades-page-toolbar,
+  .grades-page--gradebook .grades-page-tabs-row,
+  .grades-page--gradebook .grades-table-footer { flex-shrink: 0; }
+  .grades-page.grades-page--gradebook .grades-page-panel { flex: 1; min-height: 0; }
+  .grades-page--gradebook .grades-tab-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .grades-page--gradebook .grades-table-shell { --grade-row-height: 46px; flex: 1; min-height: 0; }
+  .grades-page--gradebook .grades-table { table-layout: fixed; }
+  .grades-page.grades-page--gradebook .grades-table tbody td { height: var(--grade-row-height); padding-block: 4px; }
+  .grades-page--gradebook .grades-table-student strong,
+  .grades-page--gradebook .grades-table-student span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+}
+
 @media (min-width: 801px) {
   .grades-page { gap: 12px; padding: 18px 10px 28px; background: #f6f7fa; min-height: calc(100vh - var(--header-height)); }
   .grades-page .grades-page-toolbar {

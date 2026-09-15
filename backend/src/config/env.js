@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createAbuseConfig } from './abuseLimits.js'
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 const backendRoot = path.resolve(currentDir, '..', '..')
@@ -44,6 +45,7 @@ function loadEnvFile(filePath) {
 const fileEnv = loadEnvFile(envPath)
 
 export const env = {
+  abuseLimits: createAbuseConfig({ ...fileEnv, ...process.env }),
   port: Number(process.env.PORT ?? fileEnv.PORT ?? 3000),
   frontendOrigin:
     process.env.FRONTEND_ORIGIN ??

@@ -557,11 +557,8 @@ export default function RequestsPage() {
         ) : null}
 
         <header className="instructor-requests-heading">
-          <span className="instructor-requests-heading-icon"><FileIcon /></span>
-          <div>
-            <h1>Student Requests</h1>
-            <p>Review and manage student requests for grade breakdowns and other academic concerns.</p>
-          </div>
+          <span className="instructor-requests-heading-icon" aria-hidden="true"><FileIcon /></span>
+          <h1>Student Requests</h1>
         </header>
 
           <div className="instructor-requests-toolbar">

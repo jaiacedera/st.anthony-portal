@@ -24,7 +24,7 @@
   .grades-page--gradebook .grades-table-footer { flex-shrink: 0; }
   .grades-page.grades-page--gradebook .grades-page-panel { flex: 1; min-height: 0; }
   .grades-page--gradebook .grades-tab-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-  .grades-page--gradebook .grades-table-shell { --grade-row-height: 34px; flex: 1; min-height: 0; }
+  .grades-page--gradebook .grades-table-shell { --grade-row-height: 34px; flex: 0 0 auto; min-height: 0; }
   .grades-page--gradebook .grades-table { table-layout: fixed; }
   .grades-page.grades-page--gradebook .grades-table tbody td { height: var(--grade-row-height); padding-block: 2px; }
   .grades-page--gradebook .grades-table-student strong,

@@ -1744,16 +1744,28 @@ export default function GradesPage() {
   useEffect(() => {
     const shell = gradeTableShellRef.current
     const heading = shell?.querySelector('thead')
-    if (!shell || !heading) return
+    const panel = shell?.parentElement
+    const footer = panel?.querySelector('.grades-table-footer')
+    if (!shell || !heading || !panel || !footer) return
 
     const updateCapacity = () => {
       const rowHeight = Number.parseFloat(getComputedStyle(shell).getPropertyValue('--grade-row-height'))
-      const availableHeight = shell.clientHeight - heading.getBoundingClientRect().height - 2
+      const panelStyle = getComputedStyle(panel)
+      // Measure the available space independently of the number of rendered rows.
+      const availableHeight = panel.clientHeight
+        - Number.parseFloat(panelStyle.paddingTop)
+        - Number.parseFloat(panelStyle.paddingBottom)
+        - footer.getBoundingClientRect().height
+        - heading.getBoundingClientRect().height
+        - (shell.offsetHeight - shell.clientHeight)
+        - 2
       setViewportCapacity(rowHeight ? Math.max(1, Math.min(10, Math.floor(availableHeight / rowHeight))) : 10)
     }
     const observer = new ResizeObserver(updateCapacity)
     observer.observe(shell)
     observer.observe(heading)
+    observer.observe(panel)
+    observer.observe(footer)
     window.addEventListener('resize', updateCapacity)
     updateCapacity()
     return () => {

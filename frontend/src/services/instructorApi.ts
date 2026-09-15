@@ -30,6 +30,7 @@ export type InstructorRequestRecord = {
   subjectCode: string
   subjectTitle: string
   requestType: string
+  gradingPeriod?: string
   message: string
   status: string
   requestedAt: string

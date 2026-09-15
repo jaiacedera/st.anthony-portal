@@ -472,6 +472,34 @@ function normalizeFinalKnowledgeMajorExamStructure(
 ) {
   const nextSections = cloneSections(sections)
   const nextComponents = cloneComponents(components)
+  // Older saved Final configurations may omit or disable the entire Attitude category.
+  if (!nextSections.some((section) => section.category === 'attitude' && section.isActive)) {
+    const attitudeDefaults = buildDefaultGradeSections('final').filter(
+      (section) => section.category === 'attitude',
+    )
+    const componentDefaults = buildDefaultGradeComponents('final')
+
+    for (const defaultSection of attitudeDefaults) {
+      const existingSection = nextSections.find((section) => section.id === defaultSection.id)
+      if (existingSection) {
+        Object.assign(existingSection, defaultSection)
+      } else {
+        nextSections.push({ ...defaultSection })
+      }
+
+      for (const defaultComponent of componentDefaults.filter(
+        (component) => component.sectionId === defaultSection.id,
+      )) {
+        const existingComponent = nextComponents.find((component) => component.id === defaultComponent.id)
+        if (existingComponent) {
+          Object.assign(existingComponent, defaultComponent)
+        } else {
+          nextComponents.push({ ...defaultComponent })
+        }
+      }
+    }
+  }
+
   let majorExamSection = nextSections.find(
     (section) => section.id === 'knowledge-major-exam' && section.category === 'knowledge',
   )
@@ -663,20 +691,6 @@ function getScoreOverrideKey(
   return [studentId, subjectId, gradingPeriod, componentId].join('::')
 }
 
-function hashString(value: string) {
-  let hash = 0
-
-  for (const character of value) {
-    hash = (hash * 31 + character.charCodeAt(0)) | 0
-  }
-
-  return Math.abs(hash)
-}
-
-function clampNumber(value: number, minimum: number, maximum: number) {
-  return Math.min(maximum, Math.max(minimum, value))
-}
-
 function roundTo(value: number, decimals = 2) {
   const factor = 10 ** decimals
   return Math.round((value + Number.EPSILON) * factor) / factor
@@ -690,23 +704,6 @@ function calculateAverage(values: Array<number | null>) {
   }
 
   return roundTo(validValues.reduce((sum, value) => sum + value, 0) / validValues.length, 2)
-}
-
-function getComponentBaseScore(
-  student: InstructorStudentRecord,
-  subjectId: string,
-  gradingPeriod: GradingPeriodKey,
-  sections: GradeSectionConfig[],
-  component: GradeComponentConfig,
-) {
-  const section = sections.find((currentSection) => currentSection.id === component.sectionId)
-  const seed = `${student.studentId}:${subjectId}:${gradingPeriod}:${component.id}`
-  const hash = hashString(seed)
-  const categoryOffset =
-    section?.category === 'knowledge' ? 0 : section?.category === 'skills' ? 2 : -1
-  const periodOffset = gradingPeriod === 'final' ? 3 : 0
-
-  return clampNumber(60 + (hash % 31) + categoryOffset + periodOffset, 45, 99)
 }
 
 function buildSkillsScoreInput(
@@ -758,17 +755,9 @@ function buildStudentGradeSnapshot({
             component.id,
           )
           const savedScore = overrides[overrideKey]
-          const score =
-            savedScore !== undefined
-              ? roundTo(savedScore, 2)
-              : component.isCustom
-                ? null
-                : roundTo(
-                    getComponentBaseScore(student, subject.id, gradingPeriod, sections, component),
-                    2,
-                  )
+          const score = roundTo(savedScore ?? 0, 2)
 
-          return {
+            return {
             ...component,
             displayLabel: getDisplayComponentLabel(component, gradingPeriod),
             score,

@@ -1,0 +1,75 @@
+.grades-page .grades-page-heading { padding: 0 10px; }
+.grades-page-heading h1 { margin: 0 0 3px; color: #263143; font-size: 28px; line-height: 1.2; }
+.grades-page-heading p { margin: 0; color: #747e8e; font-size: 13px; line-height: 1.5; }
+.grades-page :is(button, select):focus-visible { outline: 2px solid #950b0b; outline-offset: 3px; }
+
+@media (min-width: 801px) {
+  .grades-page { gap: 12px; padding: 18px 10px 28px; background: #f6f7fa; min-height: calc(100vh - var(--header-height)); }
+  .grades-page .grades-page-toolbar {
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 14px 20px;
+    border: 1px solid #eef0f4;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgb(25 35 55 / 2%);
+  }
+  .grades-page .grades-page-toolbar-filters { flex: 1; min-width: 0; flex-wrap: nowrap; gap: 20px; }
+  .grades-page .grades-filter-field { flex: 1; min-width: 200px; gap: 3px; }
+  .grades-page .grades-filter-field--period { flex: 0 0 150px; min-width: 150px; }
+  .grades-page .grades-filter-label { color: #6a7381; font-size: 12px; font-weight: 400; }
+  .grades-page .grades-filter-field select { min-height: 32px; height: 32px; max-width: 100%; padding: 0 10px; border-color: #dfe2e9; border-radius: 5px; font-size: 12px; text-overflow: ellipsis; }
+  .grades-page .grades-page-toolbar-actions { align-items: center; gap: 10px; margin-left: 20px; }
+  .grades-page .grades-page-toolbar-actions .grades-toolbar-button { min-height: 38px; height: 38px; padding: 0 14px; border-radius: 6px; font-size: 12px; white-space: nowrap; }
+  .grades-page .grades-page-toolbar-actions .save-changes-btn { background: #950b0b; border-color: #950b0b; }
+  .grades-page .grades-page-toolbar-actions .save-changes-btn:disabled { background: #cfa5a7; border-color: #cfa5a7; opacity: 1; }
+  .grades-page .grades-posting-group { position: relative; }
+  .grades-page .grades-posting-status { max-width: 220px; font-size: 10px; }
+  .grades-page .grades-page-panel { height: auto; border: 1px solid #edf0f4; border-radius: 8px; background: #fff; box-shadow: 0 2px 8px rgb(25 35 55 / 2%); }
+  .grades-page .grades-page-tabs-row { padding: 10px 15px 0; gap: 12px; }
+  .grades-page .grades-page-tabs { gap: 24px; }
+  .grades-page .grades-page-tab { padding: 8px 5px 14px; color: #596273; font-size: 12px; font-weight: 600; }
+  .grades-page .grades-page-tab.is-active { color: #8e0d0c; font-weight: 700; }
+  .grades-page .grades-tab-action-button { min-height: 32px; padding: 0 10px; border-color: #e2e5eb; border-radius: 5px; font-size: 11px; color: #364152; }
+  .grades-page .grades-tab-action-button--icon { width: 32px; padding: 0; }
+  .grades-page .grades-tab-panel { padding: 0 15px 14px; }
+  .grades-page .grades-table-shell { border-color: #e9ecf1; border-radius: 0 0 6px 6px; }
+  .grades-page .grades-table { min-width: 950px; }
+  .grades-page .grades-table thead th { border: 1px solid #edf0f3; }
+  .grades-page .grades-table-head-cell,
+  .grades-page .grades-table-subhead { padding: 7px 8px; background: #f8f9fb; color: #465162; font-size: 12px; font-weight: 600; }
+  .grades-page .grades-table-head-cell small,
+  .grades-page .grades-table-subhead small { margin-top: 2px; color: #778090; font-size: 11px; font-weight: 400; }
+  .grades-page .grades-table-head-cell--number { width: 5%; }
+  .grades-page .grades-table-head-cell--student { width: 22%; }
+  .grades-page .grades-table-head-cell--knowledge { background: #fceeee; color: #963939; }
+  .grades-page .grades-table-head-cell--skills { background: #e8f3ff; color: #356b8c; }
+  .grades-page .grades-table-head-cell--attitude { background: #fff7e9; color: #98641b; }
+  .grades-page .grades-table tbody td { height: 38px; padding: 4px 10px; border: 1px solid #edf0f3; color: #354052; font-size: 12px; font-weight: 400; }
+  .grades-page .grades-table tbody .grades-table-student { text-align: left; padding-left: 18px; }
+  .grades-page .grades-table-student strong { font-size: 12px; color: #354052; font-weight: 600; }
+  .grades-page .grades-table-student span { margin-top: 2px; color: #78818f; font-size: 10px; }
+  .grades-page .grades-table-actions .icon-action-button { width: 28px; height: 26px; color: #303943; }
+  .grades-page .grades-table-actions .icon-action-button svg { width: 18px; height: 18px; }
+  .grades-page .grades-table-remarks span { padding: 5px 8px; border-radius: 5px; font-size: 10px; }
+  .grades-page .grades-table-footer { padding-top: 12px; }
+  .grades-page .grades-table-footer-copy { color: #687384; font-size: 12px; }
+  .grades-page .grades-pagination { gap: 4px; flex-wrap: wrap; }
+  .grades-page .grades-pagination-button,
+  .grades-page .grades-pagination-page { width: 30px; height: 30px; border-color: #e1e5eb; border-radius: 5px; font-size: 12px; }
+  .grades-page .grades-page-size-select select { min-height: 30px; font-size: 11px; }
+}
+
+@media (min-width: 801px) and (max-width: 1200px) {
+  .grades-page .grades-page-toolbar { flex-direction: column; align-items: stretch; }
+  .grades-page .grades-page-toolbar-actions { margin-left: 0; justify-content: flex-end; }
+}
+
+@media (max-width: 800px) {
+  .grades-page-heading h1 { font-size: 23px; }
+  .grades-page .grades-page-toolbar { background: #fff; border-radius: 8px; }
+  .grades-page .grades-page-toolbar-filters { width: 100%; }
+  .grades-page .grades-filter-field { min-width: 0; width: 100%; }
+  .grades-page .grades-filter-field select { max-width: 100%; }
+  .grades-page .grades-pagination { flex-wrap: wrap; }
+}

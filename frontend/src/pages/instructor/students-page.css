@@ -43,7 +43,7 @@
 .roster-options button { width: 100%; padding: 8px; border: 0; background: #fff; text-align: left; font: inherit; cursor: pointer; }
 .roster-options button:hover { background: #fff3f3; }
 .roster-page .students-table-shell { margin: 0; padding: 14px 14px 0; overflow-x: auto; flex: auto; }
-.roster-page .table-layout--students { display: grid; grid-template-columns: 28px minmax(88px, .8fr) minmax(140px, 1.3fr) minmax(150px, 1.4fr) minmax(110px, 1fr) 86px 70px; gap: 10px; min-width: 745px; align-items: center; }
+.roster-page .table-layout--students { display: grid; grid-template-columns: 5% 27% 28% 18% 13% 9%; gap: 0; min-width: 800px; align-items: center; }
 .roster-page .student-table-header { min-height: 37px; padding: 0 12px; border-radius: 7px 7px 0 0; background: #f2f3f6; font-size: 9px; color: #45516b; text-transform: uppercase; }
 .roster-page .students-table-body { display: block; overflow: visible; min-height: 205px; }
 .roster-page .student-roster-row { min-height: 60px; padding: 10px 12px; border-bottom: 1px solid #edf0f5; font-size: 11px; }
@@ -78,3 +78,81 @@
 @media (max-width: 1100px) { .instructor-portal-page--compact-toolbar .instructor-main-content { padding-top: var(--header-height); } }
 @media (max-width: 860px) { .roster-topbar { left: 0; } .instructor-portal-page--compact-toolbar > .instructor-sidebar { padding-top: 76px; } .roster-semester { min-width: 0; } .roster-global-search { flex: 1; } .roster-breadcrumb { display: none; } }
 @media (max-width: 560px) { .students-page.roster-page { padding: 12px; } .roster-page .student-panel-heading h1 { font-size: 21px; } .roster-topbar { padding: 0 12px; gap: 8px; } .roster-global-search { width: 100%; } .roster-semester { display: none; } .roster-page .students-filter-bar { gap: 10px; } .roster-page .create-subject-button { margin-left: 0; flex: 1; } .roster-pagination { flex-wrap: wrap; } }
+
+.roster-page .student-avatar--0 { background: #ffd9dc; }
+.roster-page .student-avatar--1 { background: #d5effc; }
+.roster-page .student-avatar--2 { background: #d5f4e0; }
+.roster-page .student-avatar--3 { background: #e3dcfa; }
+.roster-page .student-avatar--4 { background: #ffe2c3; }
+.roster-page .student-avatar--5 { background: #d1f1f4; }
+.roster-page .student-avatar--6 { background: #fff1c6; }
+.roster-pagination svg { width: 16px; height: 16px; }
+.roster-pagination .roster-page-number { font-size: 12px; }
+.roster-pagination > div { flex-wrap: wrap; }
+.roster-page .student-table-actions { justify-content: flex-start; }
+.roster-page .student-email-cell { padding-right: 14px; }
+
+@media (min-width: 861px) {
+  .students-page.roster-page {
+    padding: 24px 22px;
+    background: #f8f9fb;
+    font-size: 13px;
+  }
+
+  .roster-page .student-panel-heading { min-height: 60px; gap: 20px; margin-bottom: 6px; }
+  .roster-page .instructor-panel-lead { width: 60px; height: 60px; border-radius: 8px; background: #fbe4e3; }
+  .roster-page .instructor-panel-lead svg { width: 34px; height: 34px; }
+  .roster-page .student-panel-heading h1 { margin: 0; font-size: 28px; letter-spacing: -.4px; }
+  .roster-page .students-management-toolbar { margin-bottom: 0; }
+  .roster-page .student-tab-list { gap: 14px; border-bottom: 0; }
+  .roster-page .student-tab { min-height: 44px; padding: 0 14px; font-size: 15px; color: #778091; }
+  .roster-page .student-tab.is-active { color: #942020; }
+
+  .roster-page .students-management-card {
+    min-height: 0;
+    border-color: #e5e7ed;
+    border-radius: 6px;
+    box-shadow: 0 1px 5px rgb(25 35 55 / 2%);
+  }
+
+  .roster-page .students-filter-bar { gap: 28px; padding: 18px 18px 20px; border-bottom: 0; }
+  .roster-page .students-search-field { min-height: 40px; flex: 2.2; padding: 0 13px; gap: 14px; border-color: #e0e3e9; border-radius: 5px; }
+  .roster-page .students-search-field input { font-size: 13px; }
+  .roster-page .students-search-field input::placeholder { color: #798292; }
+  .roster-page .students-search-icon { color: #344054; }
+  .roster-page .students-search-icon svg { width: 19px; height: 19px; }
+  .roster-page .roster-select-field { gap: 2px; }
+  .roster-page .roster-select-field > span { color: #626c7c; font-size: 12px; }
+  .roster-page .roster-select-field select { height: 38px; font-size: 12px; border-color: #e0e3e9; }
+  .roster-page .roster-select-status { flex: .95; }
+  .roster-page .create-subject-button { min-width: 150px; height: 38px; margin-left: 48px; font-size: 13px; box-shadow: none; }
+  .roster-page .roster-options summary { width: 38px; height: 38px; border-color: #e0e3e9; }
+
+  .roster-page .students-table-shell { padding: 0 18px; }
+  .roster-page .student-table-header { min-height: 36px; padding: 0 8px; border-radius: 4px 4px 0 0; background: #f5f6f8; color: #505b6b; font-size: 10px; }
+  .roster-page .students-table-body { min-height: 0; }
+  .roster-page .student-roster-row { min-height: 39px; padding: 4px 8px; font-size: 13px; }
+  .roster-page .student-name-cell { gap: 28px; padding-right: 12px; }
+  .roster-page .student-avatar { width: 30px; height: 30px; color: #263341; font-size: 11px; font-weight: 600; }
+  .roster-page .student-name-copy strong { color: #263143; font-size: 13px; font-weight: 600; }
+  .roster-page .student-email-cell { color: #717989; font-size: 13px; font-weight: 400; }
+  .roster-page .student-enrollment-cell { color: #263143; font-size: 13px; font-weight: 500; }
+  .roster-page .roster-status { padding: 4px 8px; border-radius: 4px; color: #26744b; background: #def6e8; font-size: 11px; }
+  .roster-page .roster-status--neutral { background: #f0f2f6; color: #778097; }
+  .roster-page .student-table-actions { gap: 12px; }
+  .roster-page .student-action-button { width: 28px; height: 28px; }
+  .roster-page .student-action-button svg { width: 19px; height: 19px; }
+
+  .roster-page .roster-pagination { margin: 0 18px; padding: 24px 0; border-top: 0; color: #344054; font-size: 13px; }
+  .roster-page .roster-pagination > div { gap: 4px; }
+  .roster-page .roster-pagination button { width: 34px; height: 36px; border-color: #e1e5eb; border-radius: 5px; font-size: 13px; }
+  .roster-page .roster-pagination .roster-current-page { background: #a5090c; border-color: #a5090c; }
+  .roster-page .roster-pagination select { width: 112px; height: 36px; margin-left: 20px; font-size: 12px; }
+}
+
+@media (min-width: 861px) and (max-width: 1200px) {
+  .roster-page .students-filter-bar { gap: 16px; }
+  .roster-page .students-search-field { flex-basis: 100%; }
+  .roster-page .create-subject-button { margin-left: 0; }
+  .roster-page .student-name-cell { gap: 14px; }
+}

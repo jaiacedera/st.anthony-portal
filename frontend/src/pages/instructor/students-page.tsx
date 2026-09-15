@@ -158,6 +158,18 @@ function countLabel(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`
 }
 
+function getAvatarTone(id: string) {
+  return Array.from(id).reduce((total, character) => total + character.charCodeAt(0), 0) % 7
+}
+
+function PaginationChevron({ direction }: { direction: 'left' | 'right' }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={direction === 'left' ? 'm15 18-6-6 6-6' : 'm9 18 6-6-6-6'} />
+    </svg>
+  )
+}
+
 function sortStudentsByName(records: InstructorStudentRecord[]) {
   return [...records].sort((left, right) => left.fullName.localeCompare(right.fullName))
 }
@@ -416,6 +428,11 @@ export default function StudentsPage() {
   const currentPage = Math.min(page, pageCount)
   const pageOffset = (currentPage - 1) * pageSize
   const visibleStudents = filteredStudents.slice(pageOffset, pageOffset + pageSize)
+  const firstVisiblePage = Math.max(1, Math.min(currentPage - 2, pageCount - 5))
+  const pageNumbers = Array.from(
+    { length: Math.min(6, pageCount) },
+    (_, index) => firstVisiblePage + index,
+  )
 
   const viewedStudent =
     students.find((student) => student.id === viewStudentId) ?? null
@@ -617,9 +634,8 @@ export default function StudentsPage() {
     return (
       <div key={student.id} className="instructor-table-row table-layout--students student-roster-row">
         <span>{pageOffset + index + 1}</span>
-        <span>{student.studentId || '—'}</span>
         <div className="student-name-cell">
-          <span className="student-avatar">{getInitials(student.fullName)}</span>
+          <span className={`student-avatar student-avatar--${getAvatarTone(student.id)}`} aria-hidden="true">{getInitials(student.fullName)}</span>
           <div className="student-name-copy">
             <strong>{student.fullName}</strong>
             <span>{student.studentId}</span>
@@ -657,6 +673,7 @@ export default function StudentsPage() {
                 )
               }}
               aria-label={`More actions for ${student.fullName}`}
+              aria-expanded={openMenuStudentId === student.id}
             >
               <MoreIcon />
             </button>
@@ -723,7 +740,6 @@ export default function StudentsPage() {
           <div className="instructor-panel-header student-panel-heading">
             <PanelLead />
             <h1>Student Management</h1>
-            <nav className="roster-breadcrumb" aria-label="Breadcrumb"><a href="/instructor/dashboard">Home</a><span aria-hidden="true">›</span><span aria-current="page">Students</span></nav>
           </div>
 
           {alerts.length ? (
@@ -737,13 +753,12 @@ export default function StudentsPage() {
           ) : null}
 
           <div className="students-management-toolbar">
-            <div className="student-tab-list" role="tablist" aria-label="Student roster views">
+            <div className="student-tab-list" role="group" aria-label="Student roster views">
               <button
                 type="button"
                 className={activeTab === 'all' ? 'student-tab is-active' : 'student-tab'}
                 onClick={() => { setActiveTab('all'); setSelectedSubjectId(''); setPage(1) }}
-                role="tab"
-                aria-selected={activeTab === 'all'}
+                aria-pressed={activeTab === 'all'}
               >
                 All Students
               </button>
@@ -751,8 +766,7 @@ export default function StudentsPage() {
                 type="button"
                 className={activeTab === 'subject' ? 'student-tab is-active' : 'student-tab'}
                 onClick={() => { setActiveTab('subject'); setSelectedSubjectId(subjects[0]?.id ?? ''); setPage(1) }}
-                role="tab"
-                aria-selected={activeTab === 'subject'}
+                aria-pressed={activeTab === 'subject'}
               >
                 By Subject
               </button>
@@ -762,14 +776,18 @@ export default function StudentsPage() {
             <div className="students-filter-bar">
               <label className="students-search-field">
                 <span className="students-search-icon" aria-hidden="true"><SearchIcon /></span>
-                <input type="search" aria-label="Search student name, ID, or email" value={searchValue} onChange={event => { setSearchValue(event.target.value); setPage(1) }} placeholder="Search student name, ID, or email..." />
+                <input type="search" aria-label="Search student name or email" value={searchValue} onChange={event => { setSearchValue(event.target.value); setPage(1) }} placeholder="Search student name or email..." />
               </label>
                 <label className="roster-select-field">
                   <span>Select Subject</span>
                   <select
                     aria-label="Select subject"
                     value={selectedSubjectId}
-                    onChange={(event) => { setSelectedSubjectId(event.target.value); setPage(1) }}
+                    onChange={(event) => {
+                      setSelectedSubjectId(event.target.value)
+                      setActiveTab(event.target.value ? 'subject' : 'all')
+                      setPage(1)
+                    }}
                   >
                     <option value="">All Subjects</option>
                     {
@@ -804,7 +822,6 @@ export default function StudentsPage() {
           <div className="students-table-shell">
             <div className="instructor-table-head table-layout--students student-table-header">
               <span>#</span>
-              <span>Student ID</span>
               <span>Full Name</span>
               <span>Email</span>
               <span>Subjects Enrolled</span>
@@ -833,7 +850,31 @@ export default function StudentsPage() {
           </div>
           <footer className="roster-pagination">
             <span aria-live="polite">Showing {filteredStudents.length ? `${pageOffset + 1}–${pageOffset + visibleStudents.length}` : '0'} of {filteredStudents.length} students</span>
-            <div><button type="button" aria-label="Previous page" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>‹</button><span className="roster-current-page" aria-current="page">{currentPage}</span><button type="button" aria-label="Next page" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>›</button><select aria-label="Students per page" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1) }}><option value={10}>10 / page</option><option value={25}>25 / page</option><option value={50}>50 / page</option></select></div>
+            <div>
+              <button type="button" aria-label="Previous page" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>
+                <PaginationChevron direction="left" />
+              </button>
+              {pageNumbers.map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  className={pageNumber === currentPage ? 'roster-current-page' : 'roster-page-number'}
+                  aria-label={`Page ${pageNumber}`}
+                  aria-current={pageNumber === currentPage ? 'page' : undefined}
+                  onClick={() => setPage(pageNumber)}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button type="button" aria-label="Next page" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>
+                <PaginationChevron direction="right" />
+              </button>
+              <select aria-label="Students per page" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1) }}>
+                <option value={10}>10 / page</option>
+                <option value={25}>25 / page</option>
+                <option value={50}>50 / page</option>
+              </select>
+            </div>
           </footer>
         </article>
       </section>

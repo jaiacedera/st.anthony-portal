@@ -411,17 +411,41 @@ export default function StudentRequestPage() {
         ) : null}
 
         <header className="student-requests-heading">
-          <h1>Requests</h1>
-          <p>View and manage your requests.</p>
+          <span className="student-requests-heading-icon"><FileIcon /></span>
+          <div>
+            <h1><span className="student-requests-desktop-copy">My </span>Requests</h1>
+            <p className="student-requests-desktop-copy">View and track your submitted academic requests.</p>
+            <p className="student-requests-mobile-copy">View and manage your requests.</p>
+          </div>
         </header>
 
+        <div className="student-requests-panel">
         <section className="student-requests-toolbar">
+          <div className="student-requests-tabs" role="group" aria-label="Filter requests by status">
+            {[
+              ['ALL', 'All Requests'],
+              ['PENDING', 'Pending'],
+              ['APPROVED', 'Approved'],
+              ['REJECTED', 'Rejected'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={statusFilter === value ? 'is-active' : undefined}
+                aria-pressed={statusFilter === value}
+                onClick={() => setStatusFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <label className="student-requests-search">
             <span className="student-requests-search-icon" aria-hidden="true">
               <SearchIcon />
             </span>
             <input
               type="search"
+              aria-label="Search requests"
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
               placeholder="Search requests..."
@@ -430,6 +454,7 @@ export default function StudentRequestPage() {
 
           <label className="student-requests-select">
             <select
+              aria-label="Request status"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
             >
@@ -496,7 +521,7 @@ export default function StudentRequestPage() {
                         >
                           <td>{request.requestId}</td>
                           <td>{request.requestType}</td>
-                          <td>{request.subjectCode}</td>
+                          <td>{request.subjectCode || 'N/A'}</td>
                           <td>{formatRequestedDate(request.requestedAt)}</td>
                           <td>
                             <span className={`student-request-status student-request-status--${tone}`}>
@@ -533,8 +558,8 @@ export default function StudentRequestPage() {
             <div className="student-requests-table-footer">
               <p className="student-requests-footer">
                 {filteredRequests.length
-                  ? `Showing ${displayStart} to ${displayEnd} of ${filteredRequests.length} requests`
-                  : 'Showing 0 requests'}
+                  ? `Showing ${displayStart}–${displayEnd} of ${filteredRequests.length} requests.`
+                  : 'Showing 0 requests.'}
               </p>
 
               <div className="student-requests-pagination">
@@ -547,7 +572,7 @@ export default function StudentRequestPage() {
                 >
                   <ChevronLeftIcon />
                 </button>
-                <span className="student-requests-page-indicator">{safeCurrentPage}</span>
+                <span className="student-requests-page-indicator" aria-current="page">{safeCurrentPage}</span>
                 <button
                   type="button"
                   className="student-requests-page-button"
@@ -650,6 +675,7 @@ export default function StudentRequestPage() {
               </button>
             </aside>
           ) : null}
+        </div>
         </div>
       </section>
 

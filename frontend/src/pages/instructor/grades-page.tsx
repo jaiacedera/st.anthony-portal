@@ -27,6 +27,7 @@ import {
   type SkillsGradeResult,
 } from '../../utils/skills-grade.js'
 import { gradeToRating, gradeToRemarks } from '../../utils/grade-rating'
+import './grades-page.css'
 
 type GradebookTabKey = 'gradebook' | 'requests' | 'history'
 type GradingPeriodKey = 'midterm' | 'final'
@@ -616,14 +617,7 @@ function getConfiguredCategories(
     }))
 }
 
-function formatCategoryHeading(
-  category: GradeCategoryDefinition,
-  gradingPeriod: GradingPeriodKey,
-) {
-  if (gradingPeriod === 'midterm' && category.key === 'knowledge') {
-    return category.label
-  }
-
+function formatCategoryHeading(category: GradeCategoryDefinition) {
   return `${category.label} (${category.weight}%)`
 }
 
@@ -706,16 +700,6 @@ function getHistoryKey(
   gradingPeriod: GradingPeriodKey,
 ) {
   return [studentId, subjectId, gradingPeriod].join('::')
-}
-
-function hashString(value: string) {
-  let hash = 0
-
-  for (const character of value) {
-    hash = (hash * 31 + character.charCodeAt(0)) | 0
-  }
-
-  return Math.abs(hash)
 }
 
 function clampNumber(value: number, minimum: number, maximum: number) {
@@ -824,6 +808,35 @@ function normalizeFinalKnowledgeMajorExamStructure(
   const nextSections = cloneSections(sections)
   const nextComponents = cloneComponents(components)
   let didMigrate = false
+
+  // Older saved Final configurations may omit or disable the entire Attitude category.
+  if (!nextSections.some((section) => section.category === 'attitude' && section.isActive)) {
+    const attitudeDefaults = buildDefaultGradeSections('final').filter(
+      (section) => section.category === 'attitude',
+    )
+    const componentDefaults = buildDefaultGradeComponents('final')
+
+    for (const defaultSection of attitudeDefaults) {
+      const existingSection = nextSections.find((section) => section.id === defaultSection.id)
+      if (existingSection) {
+        Object.assign(existingSection, defaultSection)
+      } else {
+        nextSections.push({ ...defaultSection })
+      }
+
+      for (const defaultComponent of componentDefaults.filter(
+        (component) => component.sectionId === defaultSection.id,
+      )) {
+        const existingComponent = nextComponents.find((component) => component.id === defaultComponent.id)
+        if (existingComponent) {
+          Object.assign(existingComponent, defaultComponent)
+        } else {
+          nextComponents.push({ ...defaultComponent })
+        }
+      }
+    }
+    didMigrate = true
+  }
 
   let majorExamSection = nextSections.find(
     (section) => section.id === 'knowledge-major-exam' && section.category === 'knowledge',
@@ -1119,27 +1132,6 @@ function serializeComponents(components: GradeComponentConfig[]) {
   )
 }
 
-function getComponentBaseScore(
-  student: InstructorStudentRecord,
-  subjectId: string,
-  gradingPeriod: GradingPeriodKey,
-  sections: GradeSectionConfig[],
-  component: GradeComponentConfig,
-) {
-  const section = getSectionConfig(sections, component.sectionId)
-  const seed = `${student.studentId}:${subjectId}:${gradingPeriod}:${component.id}`
-  const hash = hashString(seed)
-  const categoryOffset =
-    section?.category === 'knowledge'
-      ? 0
-      : section?.category === 'skills'
-        ? 2
-        : -1
-  const periodOffset = gradingPeriod === 'final' ? 3 : 0
-
-  return clampNumber(60 + (hash % 31) + categoryOffset + periodOffset, 45, 99)
-}
-
 function buildStudentGradeSnapshot(
   student: InstructorStudentRecord,
   subject: InstructorRosterSubject | null,
@@ -1164,21 +1156,7 @@ function buildStudentGradeSnapshot(
               component.id,
             )
             const savedScore = overrides[overrideKey]
-            const score =
-              savedScore !== undefined
-                ? roundTo(savedScore, 2)
-                : component.isCustom
-                  ? null
-                  : roundTo(
-                      getComponentBaseScore(
-                        student,
-                        subject?.id ?? 'unassigned',
-                        gradingPeriod,
-                        sections,
-                        component,
-                      ),
-                      2,
-                    )
+            const score = roundTo(savedScore ?? 0, 2)
 
             return {
               ...component,
@@ -1759,7 +1737,7 @@ export default function GradesPage() {
   const [selectedGradingPeriod, setSelectedGradingPeriod] =
     useState<GradingPeriodKey>('midterm')
   const [currentPage, setCurrentPage] = useState(1)
-  const [rowsPerPage, setRowsPerPage] = useState(20)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
   const [schoolYearLabel, setSchoolYearLabel] = useState('Not set')
   const [semesterLabel, setSemesterLabel] = useState('Not set')
   const [isLoading, setIsLoading] = useState(true)
@@ -2109,6 +2087,11 @@ export default function GradesPage() {
 
   const totalPages = Math.max(1, Math.ceil(gradeSnapshots.length / rowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
+  const firstVisiblePage = Math.max(1, Math.min(safeCurrentPage - 2, totalPages - 5))
+  const pageNumbers = Array.from(
+    { length: Math.min(6, totalPages) },
+    (_, index) => firstVisiblePage + index,
+  )
   const paginatedSnapshots = gradeSnapshots.slice(
     (safeCurrentPage - 1) * rowsPerPage,
     safeCurrentPage * rowsPerPage,
@@ -2215,7 +2198,7 @@ export default function GradesPage() {
 
       nextDraftValues[component.id] =
         currentComponent?.score === null || currentComponent?.score === undefined
-          ? ''
+          ? '0'
           : formatScore(currentComponent.score, 2)
     }
 
@@ -2939,7 +2922,7 @@ export default function GradesPage() {
       schoolYearLabel={schoolYearLabel}
       semesterLabel={semesterLabel}
     >
-      <section className="grades-page">
+      <section className={`grades-page grades-page--${selectedGradingPeriod}`}>
         {alerts.length ? (
           <div className="dashboard-alert-stack" aria-live="polite">
             {alerts.map((message, index) => (
@@ -2950,7 +2933,11 @@ export default function GradesPage() {
           </div>
         ) : null}
 
-        <article className="instructor-panel grades-page-panel">
+        <header className="grades-page-heading">
+          <h1>Grades</h1>
+          <p>Encode, review, and manage your students’ grades for the selected subject and grading period.</p>
+        </header>
+
           <div className="grades-page-toolbar">
             <div className="grades-page-toolbar-filters">
               <label className="grades-filter-field">
@@ -3033,14 +3020,15 @@ export default function GradesPage() {
                   {hasPostedGrades && !hasSavedChangesSincePosting ? <CheckIcon /> : <PostIcon />}
                   <span>{isPosting ? 'Posting...' : postButtonLabel}</span>
                 </button>
-                <div className="grades-posting-status">
+                {hasPostedGrades || hasUnsavedChanges ? <div className="grades-posting-status">
                   <span>{postStatusText}</span>
                   {postStatusMeta ? <small>{postStatusMeta}</small> : null}
-                </div>
+                </div> : null}
               </div>
             </div>
           </div>
 
+        <article className="instructor-panel grades-page-panel">
           <div className="grades-page-tabs-row">
             <div className="grades-page-tabs" role="tablist" aria-label="Instructor grades sections">
               {(['gradebook', 'requests', 'history'] as GradebookTabKey[]).map((tab) => (
@@ -3072,6 +3060,8 @@ export default function GradesPage() {
               <button
                 type="button"
                 className="grades-tab-action-button grades-tab-action-button--icon"
+                aria-label="Gradebook settings"
+                onClick={() => setIsColumnSettingsOpen(true)}
               >
                 <MoreIcon />
               </button>
@@ -3097,7 +3087,7 @@ export default function GradesPage() {
                           colSpan={2}
                           className={`grades-table-head-cell grades-table-head-cell--group grades-table-head-cell--${category.key}`}
                         >
-                          {formatCategoryHeading(category, selectedGradingPeriod)}
+                          {formatCategoryHeading(category)}
                         </th>
                       ))}
                       <th rowSpan={2} className="grades-table-head-cell grades-table-head-cell--score">
@@ -3159,9 +3149,7 @@ export default function GradesPage() {
                             </td>,
                           ])}
                           <td className="grades-table-final-score">
-                            {snapshot.finalScore === null
-                              ? '--'
-                              : formatWholeOrDecimal(snapshot.finalScore)}
+                            {formatScoreOrPlaceholder(snapshot.finalScore, 2)}
                           </td>
                           <td className="grades-table-rating">{snapshot.rating}</td>
                           <td className="grades-table-remarks">
@@ -3204,7 +3192,7 @@ export default function GradesPage() {
 
               <div className="grades-table-footer">
                 <p className="grades-table-footer-copy">
-                  Showing {displayStart} to {displayEnd} of {gradeSnapshots.length} students
+                  Showing {displayStart}–{displayEnd} of {gradeSnapshots.length} students.
                 </p>
 
                 <div className="grades-pagination">
@@ -3218,9 +3206,7 @@ export default function GradesPage() {
                     <ChevronLeftIcon />
                   </button>
 
-                  {Array.from({ length: totalPages }, (_, index) => index + 1)
-                    .slice(0, 5)
-                    .map((pageNumber) => (
+                  {pageNumbers.map((pageNumber) => (
                       <button
                         key={pageNumber}
                         type="button"
@@ -3230,6 +3216,8 @@ export default function GradesPage() {
                             : 'grades-pagination-page'
                         }
                         onClick={() => setCurrentPage(pageNumber)}
+                        aria-label={`Page ${pageNumber}`}
+                        aria-current={pageNumber === safeCurrentPage ? 'page' : undefined}
                       >
                         {pageNumber}
                       </button>
@@ -3249,6 +3237,7 @@ export default function GradesPage() {
 
                   <label className="grades-page-size-select">
                     <select
+                      aria-label="Students per page"
                       value={rowsPerPage}
                       onChange={(event) => setRowsPerPage(Number(event.target.value))}
                     >
@@ -3440,7 +3429,7 @@ export default function GradesPage() {
               {activeGradeCategories.map((category) => (
                 <section key={category.key} className="grade-settings-section">
                   <h3>
-                    {formatCategoryHeading(category, selectedGradingPeriod)}
+                    {formatCategoryHeading(category)}
                   </h3>
                   <div className="grade-settings-tree">
                     {gradeSections
@@ -3533,7 +3522,7 @@ export default function GradesPage() {
                       className={`grade-section grade-section--${category.key}`}
                     >
                       <header className="grade-section-title">
-                        {formatCategoryHeading(category, selectedGradingPeriod)}
+                        {formatCategoryHeading(category)}
                       </header>
                       <div className="grade-section-content">
                         {category.key === 'skills' && category.skillsComputation ? (
@@ -3633,7 +3622,7 @@ export default function GradesPage() {
                         <div className="summary-category-label">
                           <span className={getSummaryDotClassName(category.key)}></span>
                           <span>
-                            {formatCategoryHeading(category, selectedGradingPeriod)}
+                            {formatCategoryHeading(category)}
                           </span>
                         </div>
                         <strong>
@@ -3743,7 +3732,7 @@ export default function GradesPage() {
                   <header
                     className={`score-section-header score-section-header--${category.key}`}
                   >
-                    <span>{formatCategoryHeading(category, selectedGradingPeriod)}</span>
+                    <span>{formatCategoryHeading(category)}</span>
 
                     <button
                       type="button"
@@ -3799,7 +3788,7 @@ export default function GradesPage() {
                                     max="100"
                                     step="0.01"
                                     className="grade-edit-score-input"
-                                    value={editDraftValues[component.id] ?? ''}
+                                    value={editDraftValues[component.id] ?? '0'}
                                     onChange={(event) =>
                                       handleEditInputChange(component.id, event)
                                     }

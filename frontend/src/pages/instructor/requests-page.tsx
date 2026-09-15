@@ -10,6 +10,7 @@ import {
   type InstructorStudentRecord,
 } from '../../services/instructorApi'
 import { readInstructorAuth } from '../../utils/instructorAuth'
+import './requests-page.css'
 import {
   buildApprovedBreakdownResponse,
   type GradingPeriodKey,
@@ -22,7 +23,23 @@ type ReviewDialogState = {
   nextStatus: 'APPROVED' | 'REJECTED'
 } | null
 
-const rowsPerPage = 5
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </svg>
+  )
+}
+
+function getRequestTypeTone(type: string) {
+  switch (type.trim().toLowerCase()) {
+    case 'grade breakdown': return 'breakdown'
+    case 'completion': return 'completion'
+    case 'reconsideration': return 'reconsideration'
+    default: return 'inquiry'
+  }
+}
 
 function SearchIcon() {
   return (
@@ -36,9 +53,7 @@ function SearchIcon() {
 function FilterIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 6h16" />
-      <path d="M7 12h10" />
-      <path d="M10 18h4" />
+      <path d="M3 4h18l-7 8v8l-4-2v-6Z" />
     </svg>
   )
 }
@@ -216,6 +231,7 @@ export default function RequestsPage() {
   const [activeTab, setActiveTab] = useState<RequestTabKey>('ALL')
   const [subjectFilter, setSubjectFilter] = useState('ALL')
   const [currentPage, setCurrentPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(5)
   const [selectedRequestId, setSelectedRequestId] = useState('')
   const [reviewDialogState, setReviewDialogState] = useState<ReviewDialogState>(null)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -296,6 +312,17 @@ export default function RequestsPage() {
     }
   }, [username])
 
+  const studentEmails = useMemo(
+    () => new Map(students.map((student) => [student.id, student.email])),
+    [students],
+  )
+  const statusCounts = useMemo(() => ({
+    ALL: requests.length,
+    PENDING: requests.filter((request) => getStatusTone(request.status) === 'pending').length,
+    APPROVED: requests.filter((request) => getStatusTone(request.status) === 'approved').length,
+    REJECTED: requests.filter((request) => getStatusTone(request.status) === 'rejected').length,
+  }), [requests])
+
   const filteredRequests = useMemo(() => {
     const normalizedSearch = searchText.trim().toLowerCase()
 
@@ -317,6 +344,8 @@ export default function RequestsPage() {
       return [
         request.requestId,
         request.studentName,
+        studentEmails.get(request.studentId),
+        request.message,
         request.subjectCode,
         request.subjectTitle,
         request.requestType,
@@ -325,7 +354,7 @@ export default function RequestsPage() {
         .toLowerCase()
         .includes(normalizedSearch)
     })
-  }, [activeTab, requests, searchText, subjectFilter])
+  }, [activeTab, requests, searchText, subjectFilter, studentEmails])
 
   useEffect(() => {
     if (!selectedRequestId && !reviewDialogState && !isFilterOpen) {
@@ -398,7 +427,11 @@ export default function RequestsPage() {
     bindingMessage,
     successMessage,
   ].filter(Boolean)
-  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1)
+  const firstPageNumber = Math.max(1, Math.min(safeCurrentPage - 2, totalPages - 4))
+  const pageNumbers = Array.from(
+    { length: Math.min(5, totalPages) },
+    (_, index) => firstPageNumber + index,
+  )
 
   async function resolveApprovedRequestPeriod(subjectId: string): Promise<GradingPeriodKey> {
     const finalPublication = await fetchInstructorGradePublication({
@@ -507,7 +540,7 @@ export default function RequestsPage() {
   return (
     <InstructorShell
       searchValue={searchText}
-      onSearchChange={setSearchText}
+      onSearchChange={(value) => { setSearchText(value); setCurrentPage(1) }}
       active="requests"
       schoolYearLabel={schoolYearLabel}
       semesterLabel={semesterLabel}
@@ -523,11 +556,18 @@ export default function RequestsPage() {
           </div>
         ) : null}
 
-        <article className="instructor-panel instructor-requests-panel">
+        <header className="instructor-requests-heading">
+          <span className="instructor-requests-heading-icon"><FileIcon /></span>
+          <div>
+            <h1>Student Requests</h1>
+            <p>Review and manage student requests for grade breakdowns and other academic concerns.</p>
+          </div>
+        </header>
+
           <div className="instructor-requests-toolbar">
             <div
               className="instructor-requests-tabs"
-              role="tablist"
+              role="group"
               aria-label="Instructor request status filters"
             >
               {[
@@ -539,8 +579,7 @@ export default function RequestsPage() {
                 <button
                   key={tab.key}
                   type="button"
-                  role="tab"
-                  aria-selected={activeTab === tab.key}
+                  aria-pressed={activeTab === tab.key}
                   className={
                     activeTab === tab.key
                       ? 'instructor-request-tab is-active'
@@ -552,6 +591,9 @@ export default function RequestsPage() {
                   }}
                 >
                   {tab.label}
+                  <span className={`instructor-request-tab-count instructor-request-tab-count--${tab.key.toLowerCase()}`}>
+                    {statusCounts[tab.key as RequestTabKey]}
+                  </span>
                 </button>
               ))}
             </div>
@@ -563,6 +605,7 @@ export default function RequestsPage() {
                 </span>
                 <input
                   type="search"
+                  aria-label="Search requests"
                   value={searchText}
                   onChange={(event) => {
                     setSearchText(event.target.value)
@@ -582,6 +625,7 @@ export default function RequestsPage() {
                 >
                   <FilterIcon />
                   <span>Filter</span>
+                  <ChevronDownIcon />
                 </button>
 
                 {isFilterOpen ? (
@@ -630,14 +674,17 @@ export default function RequestsPage() {
             </div>
           </div>
 
+        <article className="instructor-panel instructor-requests-panel">
           <div className="instructor-requests-table-wrap">
             <table className="instructor-requests-table">
               <thead>
                 <tr>
-                  <th>Request ID</th>
-                  <th>Type</th>
-                  <th>Subject / Details</th>
+                  <th>#</th>
                   <th>Date Requested</th>
+                  <th>Student Name<span className="instructor-requests-email-label">Email</span></th>
+                  <th>Subject / Details</th>
+                  <th>Type</th>
+                  <th>Message</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -645,36 +692,46 @@ export default function RequestsPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="instructor-requests-empty-cell">
+                    <td colSpan={8} className="instructor-requests-empty-cell">
                       Loading requests...
                     </td>
                   </tr>
                 ) : paginatedRequests.length ? (
-                  paginatedRequests.map((request) => {
+                  paginatedRequests.map((request, index) => {
                     const requestedDate = formatRequestDate(request.requestedAt)
 
                     return (
                       <tr key={request.requestId}>
-                        <td className="instructor-request-id-cell">{request.requestId}</td>
-                        <td>
-                          <div className="instructor-request-type">
-                            <span className="instructor-request-type-icon" aria-hidden="true">
-                              <FileIcon />
-                            </span>
-                            <span>{request.requestType}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="instructor-request-subject">
-                            <strong>{`${request.subjectCode} - ${request.subjectTitle}`}</strong>
-                            <span>{`Student: ${request.studentName}`}</span>
-                          </div>
-                        </td>
+                        <td className="instructor-request-id-cell">{displayStart + index}</td>
                         <td>
                           <div className="instructor-request-datetime">
                             <strong>{requestedDate.date}</strong>
                             <span>{requestedDate.time}</span>
                           </div>
+                        </td>
+                        <td>
+                          <div className="instructor-request-subject">
+                            <strong>{request.studentName}</strong>
+                            <span>{studentEmails.get(request.studentId) || 'Email unavailable'}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="instructor-request-subject">
+                            <strong>{request.subjectCode}</strong>
+                            <span>{request.gradingPeriod
+                              ? `${request.requestType} for ${request.gradingPeriod.charAt(0).toUpperCase()}${request.gradingPeriod.slice(1)}`
+                              : request.subjectTitle}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`instructor-request-type-badge instructor-request-type-badge--${getRequestTypeTone(request.requestType)}`}>
+                            {request.requestType}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="instructor-request-message-preview" title={request.message || 'No message provided'}>
+                            {request.message || 'No message provided'}
+                          </span>
                         </td>
                         <td>
                           <span
@@ -684,6 +741,15 @@ export default function RequestsPage() {
                           </span>
                         </td>
                         <td>
+                          <div className="instructor-request-row-actions">
+                          <button
+                            type="button"
+                            className="instructor-request-more"
+                            onClick={() => setSelectedRequestId(request.requestId)}
+                            aria-label={`View ${request.requestId}`}
+                          >
+                            <EyeIcon />
+                          </button>
                           <button
                             type="button"
                             className="instructor-request-more"
@@ -692,13 +758,14 @@ export default function RequestsPage() {
                           >
                             <MoreIcon />
                           </button>
+                          </div>
                         </td>
                       </tr>
                     )
                   })
                 ) : (
                   <tr>
-                    <td colSpan={6} className="instructor-requests-empty-cell">
+                    <td colSpan={8} className="instructor-requests-empty-cell">
                       {getEmptyMessage(activeTab, hasActiveFilters)}
                     </td>
                   </tr>
@@ -755,7 +822,7 @@ export default function RequestsPage() {
           <div className="instructor-requests-footer">
             <p className="instructor-requests-count">
               {filteredRequests.length
-                ? `Showing ${displayStart} to ${displayEnd} of ${filteredRequests.length} requests`
+                ? `Showing ${displayStart}–${displayEnd} of ${filteredRequests.length} requests`
                 : 'Showing 0 requests'}
             </p>
 
@@ -780,6 +847,8 @@ export default function RequestsPage() {
                       : 'instructor-requests-pagination-page'
                   }
                   onClick={() => setCurrentPage(pageNumber)}
+                  aria-label={`Page ${pageNumber}`}
+                  aria-current={pageNumber === safeCurrentPage ? 'page' : undefined}
                 >
                   {pageNumber}
                 </button>
@@ -794,6 +863,19 @@ export default function RequestsPage() {
               >
                 <ChevronRightIcon />
               </button>
+              <label className="instructor-requests-page-size">
+                <select
+                  aria-label="Requests per page"
+                  value={rowsPerPage}
+                  onChange={(event) => {
+                    setRowsPerPage(Number(event.target.value))
+                    setCurrentPage(1)
+                  }}
+                >
+                  {[5, 10, 25].map((size) => <option key={size} value={size}>{size} / page</option>)}
+                </select>
+                <ChevronDownIcon />
+              </label>
             </div>
           </div>
         </article>

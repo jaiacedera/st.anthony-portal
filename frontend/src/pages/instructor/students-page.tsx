@@ -199,6 +199,27 @@ export default function StudentsPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [viewportCapacity, setViewportCapacity] = useState(50)
+  const tableBodyRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const body = tableBodyRef.current
+    if (!body) return
+
+    const updateCapacity = () => {
+      const rowHeight = Number.parseFloat(getComputedStyle(body).getPropertyValue('--roster-row-height'))
+      const capacity = rowHeight ? Math.max(1, Math.floor(body.clientHeight / rowHeight)) : 50
+      setViewportCapacity(capacity)
+    }
+    const observer = new ResizeObserver(updateCapacity)
+    observer.observe(body)
+    window.addEventListener('resize', updateCapacity)
+    updateCapacity()
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', updateCapacity)
+    }
+  }, [])
   const [activeTab, setActiveTab] = useState<TabKey>(pageIntent.subjectId ? 'subject' : 'all')
   const [selectedSubjectId, setSelectedSubjectId] = useState(pageIntent.subjectId)
   const [schoolYearLabel, setSchoolYearLabel] = useState('Not set')
@@ -424,10 +445,13 @@ export default function StudentsPage() {
     })
   }, [deferredSearchValue, selectedSubjectId, statusFilter, students])
 
-  const pageCount = Math.max(1, Math.ceil(filteredStudents.length / pageSize))
+  const effectivePageSize = Math.min(pageSize, viewportCapacity)
+  const pageSizeOptions = [...new Set([Math.min(10, viewportCapacity), 10, 25, 50])]
+    .filter(size => size <= viewportCapacity)
+  const pageCount = Math.max(1, Math.ceil(filteredStudents.length / effectivePageSize))
   const currentPage = Math.min(page, pageCount)
-  const pageOffset = (currentPage - 1) * pageSize
-  const visibleStudents = filteredStudents.slice(pageOffset, pageOffset + pageSize)
+  const pageOffset = (currentPage - 1) * effectivePageSize
+  const visibleStudents = filteredStudents.slice(pageOffset, pageOffset + effectivePageSize)
   const firstVisiblePage = Math.max(1, Math.min(currentPage - 2, pageCount - 5))
   const pageNumbers = Array.from(
     { length: Math.min(6, pageCount) },
@@ -637,12 +661,12 @@ export default function StudentsPage() {
         <div className="student-name-cell">
           <span className={`student-avatar student-avatar--${getAvatarTone(student.id)}`} aria-hidden="true">{getInitials(student.fullName)}</span>
           <div className="student-name-copy">
-            <strong>{student.fullName}</strong>
+            <strong title={student.fullName}>{student.fullName}</strong>
             <span>{student.studentId}</span>
           </div>
         </div>
 
-        <span className="student-email-cell">{student.email}</span>
+        <span className="student-email-cell" title={student.email}>{student.email}</span>
         <span className="student-enrollment-cell">{countLabel(student.subjectCount, 'subject')}</span>
         <span className={student.subjectCount ? 'roster-status' : 'roster-status roster-status--neutral'}>{student.subjectCount ? 'Enrolled' : 'Not enrolled'}</span>
 
@@ -829,7 +853,7 @@ export default function StudentsPage() {
               <span>Actions</span>
             </div>
 
-            <div className="dashboard-panel-content students-table-body">
+            <div className="dashboard-panel-content students-table-body" ref={tableBodyRef}>
               {isLoading ? (
                 <div className="dashboard-loading-block">
                   <div className="dashboard-loading-row student-loading-row" />
@@ -869,10 +893,10 @@ export default function StudentsPage() {
               <button type="button" aria-label="Next page" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>
                 <PaginationChevron direction="right" />
               </button>
-              <select aria-label="Students per page" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1) }}>
-                <option value={10}>10 / page</option>
-                <option value={25}>25 / page</option>
-                <option value={50}>50 / page</option>
+              <select aria-label="Students per page" value={effectivePageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1) }}>
+                {[...new Set([...pageSizeOptions, effectivePageSize])].sort((a, b) => a - b).map(size => (
+                  <option key={size} value={size}>{size} / page</option>
+                ))}
               </select>
             </div>
           </footer>

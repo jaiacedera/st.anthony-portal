@@ -156,3 +156,67 @@
   .roster-page .create-subject-button { margin-left: 0; }
   .roster-page .student-name-cell { gap: 14px; }
 }
+
+/* Keep the desktop roster and pagination inside the available viewport. */
+@media (min-width: 861px) and (min-height: 600px) {
+  .students-page.roster-page {
+    height: calc(100dvh - var(--header-height));
+    min-height: 0;
+    padding-block: 16px;
+  }
+
+  .roster-page > .student-panel-heading,
+  .roster-page > .students-management-toolbar,
+  .roster-page > .student-alert-stack,
+  .roster-page .students-filter-bar,
+  .roster-page .student-table-header,
+  .roster-page .roster-pagination {
+    flex-shrink: 0;
+  }
+
+  .roster-page .students-management-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .roster-page .students-table-shell {
+    flex: 1;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .roster-page .table-layout--students {
+    min-width: 0;
+    grid-template-columns: 4% minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(90px, .9fr) 90px 72px;
+  }
+
+  .roster-page .students-table-body {
+    --roster-row-height: 40px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .roster-page .student-roster-row {
+    height: var(--roster-row-height);
+    min-height: var(--roster-row-height);
+  }
+
+  .roster-page .student-name-copy strong,
+  .roster-page .student-email-cell {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .roster-page .student-roster-row:nth-last-child(-n + 3) .student-action-menu {
+    top: auto;
+    bottom: 100%;
+  }
+
+  .roster-page .roster-pagination { padding-block: 12px; }
+  .roster-page .dashboard-empty-state { min-height: 0; height: 100%; padding-block: 8px; }
+  .roster-page .dashboard-loading-block { max-height: 100%; overflow: hidden; }
+}

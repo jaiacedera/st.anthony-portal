@@ -2934,8 +2934,12 @@ export default function GradesPage() {
         ) : null}
 
         <header className="grades-page-heading">
+          <span className="grades-heading-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 20V12M12 20V7M19 20V3" />
+            </svg>
+          </span>
           <h1>Grades</h1>
-          <p>Encode, review, and manage your students’ grades for the selected subject and grading period.</p>
         </header>
 
           <div className="grades-page-toolbar">

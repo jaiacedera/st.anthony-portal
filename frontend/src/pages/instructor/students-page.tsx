@@ -754,8 +754,8 @@ export default function StudentsPage() {
     >
       <section className="students-page students-page-content roster-page">
           <header className="students-page-heading">
+            <span className="students-heading-icon" aria-hidden="true"><StudentsIcon /></span>
             <h1>Student Management</h1>
-            <p>View and manage your students and their subject enrollments.</p>
           </header>
 
           {alerts.length ? (

@@ -1,6 +1,14 @@
-.grades-page .grades-page-heading { padding: 0 10px; }
-.grades-page-heading h1 { margin: 0 0 3px; color: #263143; font-size: 28px; line-height: 1.2; }
-.grades-page-heading p { margin: 0; color: #747e8e; font-size: 13px; line-height: 1.5; }
+.grades-page .grades-page-heading { display: flex; align-items: center; flex-shrink: 0; min-height: 56px; gap: 16px; padding: 0 10px; }
+.grades-heading-icon { display: grid; place-items: center; flex: none; width: 52px; height: 52px; color: var(--portal-red); background: #f7e3e3; border-radius: 7px; }
+.grades-heading-icon svg { width: 30px; height: 30px; }
+.grades-page-heading h1 { margin: 0; color: #121a2c; font-size: 25px; letter-spacing: -.5px; line-height: 1.2; }
+@media (min-width: 861px) {
+  .grades-page .grades-page-heading { min-height: 60px; gap: 20px; }
+  .grades-heading-icon { width: 60px; height: 60px; border-radius: 8px; background: #fbe4e3; }
+  .grades-heading-icon svg { width: 34px; height: 34px; }
+  .grades-page-heading h1 { font-size: 28px; letter-spacing: -.4px; }
+}
+@media (max-width: 560px) { .grades-page-heading h1 { font-size: 21px; } }
 .grades-page :is(button, select):focus-visible { outline: 2px solid #950b0b; outline-offset: 3px; }
 
 @media (min-width: 801px) {
@@ -66,7 +74,6 @@
 }
 
 @media (max-width: 800px) {
-  .grades-page-heading h1 { font-size: 23px; }
   .grades-page .grades-page-toolbar { background: #fff; border-radius: 8px; }
   .grades-page .grades-page-toolbar-filters { width: 100%; }
   .grades-page .grades-filter-field { min-width: 0; width: 100%; }

@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react'
 import logoImage from '../assets/student/logo.png'
 import { navigateTo } from '../utils/navigation'
+import { useLogout } from '../context/logout'
 
 export type StudentSection = 'dashboard' | 'requests' | 'profile'
 
@@ -74,6 +75,7 @@ function renderIcon(section: StudentSection) {
 }
 
 export function StudentSideBar({ active }: StudentSideBarProps) {
+  const logout = useLogout()
   function handleNavigate(event: MouseEvent<HTMLAnchorElement>, href: string) {
     event.preventDefault()
     navigateTo(href)
@@ -81,9 +83,7 @@ export function StudentSideBar({ active }: StudentSideBarProps) {
 
   function handleLogout(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault()
-    window.localStorage.removeItem('student-auth')
-    window.sessionStorage.removeItem('student-auth')
-    navigateTo('/student', { replace: true })
+    logout('student')
   }
 
   return (

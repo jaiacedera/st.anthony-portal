@@ -1738,7 +1738,7 @@ export default function GradesPage() {
     useState<GradingPeriodKey>('midterm')
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
-  const [viewportCapacity, setViewportCapacity] = useState(50)
+  const [viewportCapacity, setViewportCapacity] = useState(10)
   const gradeTableShellRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -1749,7 +1749,7 @@ export default function GradesPage() {
     const updateCapacity = () => {
       const rowHeight = Number.parseFloat(getComputedStyle(shell).getPropertyValue('--grade-row-height'))
       const availableHeight = shell.clientHeight - heading.getBoundingClientRect().height - 2
-      setViewportCapacity(rowHeight ? Math.max(1, Math.floor(availableHeight / rowHeight)) : 50)
+      setViewportCapacity(rowHeight ? Math.max(1, Math.min(10, Math.floor(availableHeight / rowHeight))) : 10)
     }
     const observer = new ResizeObserver(updateCapacity)
     observer.observe(shell)
@@ -1846,7 +1846,11 @@ export default function GradesPage() {
           return
         }
 
-        setStudents(studentsPayload.students)
+        setStudents(studentsPayload.students.map(student => {
+          const name = student.fullName.trim()
+          const hasName = name && !['unnamed student', 'not set'].includes(name.toLowerCase())
+          return { ...student, fullName: hasName ? name : student.email }
+        }))
         setSubjects(studentsPayload.subjects)
         setSchoolYearLabel(studentsPayload.header.schoolYear)
         setSemesterLabel(studentsPayload.header.semester)
@@ -2108,8 +2112,8 @@ export default function GradesPage() {
     ],
   )
 
-  const effectiveRowsPerPage = Math.min(rowsPerPage, viewportCapacity)
-  const pageSizeOptions = [...new Set([Math.min(10, viewportCapacity), 10, 20, 50, effectiveRowsPerPage])]
+  const effectiveRowsPerPage = Math.min(10, rowsPerPage, viewportCapacity)
+  const pageSizeOptions = [...new Set([5, 10, effectiveRowsPerPage])]
     .filter(size => size <= viewportCapacity).sort((a, b) => a - b)
   const totalPages = Math.max(1, Math.ceil(gradeSnapshots.length / effectiveRowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -3109,7 +3113,6 @@ export default function GradesPage() {
                       </th>
                       <th rowSpan={2} className="grades-table-head-cell grades-table-head-cell--student">
                         <span>Student Name</span>
-                        <small>Student ID</small>
                       </th>
                       {activeGradeCategories.map((category) => (
                         <th
@@ -3162,7 +3165,6 @@ export default function GradesPage() {
                           </td>
                           <td className="grades-table-student">
                             <strong title={snapshot.student.fullName}>{snapshot.student.fullName}</strong>
-                            <span title={snapshot.student.studentId}>{snapshot.student.studentId}</span>
                           </td>
                           {snapshot.categories.flatMap((category) => [
                             <td

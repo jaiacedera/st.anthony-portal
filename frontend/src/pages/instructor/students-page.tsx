@@ -132,14 +132,6 @@ function StudentAddIcon() {
   )
 }
 
-function PanelLead() {
-  return (
-    <span className="instructor-panel-lead" aria-hidden="true">
-      <StudentsIcon />
-    </span>
-  )
-}
-
 function getInitials(name: string) {
   const parts = name
     .split(' ')
@@ -761,10 +753,10 @@ export default function StudentsPage() {
       onSearchChange={value => { setSearchValue(value); setPage(1) }}
     >
       <section className="students-page students-page-content roster-page">
-          <div className="instructor-panel-header student-panel-heading">
-            <PanelLead />
+          <header className="students-page-heading">
             <h1>Student Management</h1>
-          </div>
+            <p>View and manage your students and their subject enrollments.</p>
+          </header>
 
           {alerts.length ? (
             <div className="dashboard-alert-stack student-alert-stack" aria-live="polite">

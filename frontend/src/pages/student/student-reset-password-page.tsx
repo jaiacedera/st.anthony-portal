@@ -28,6 +28,15 @@ export default function StudentResetPasswordPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isSubmitting || successMessage || !token) return
+    if (password.length < 8) {
+      setErrorMessage('Use at least 8 characters for your new password.')
+      return
+    }
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match.')
+      return
+    }
     setIsSubmitting(true)
     setErrorMessage('')
     setSuccessMessage('')
@@ -80,10 +89,11 @@ export default function StudentResetPasswordPage() {
             <strong>Reset Password</strong>
           </h2>
           <p className="auth-subtitle auth-subtitle--static">
-            Choose a new password for your student portal account.
+            Choose a new password with at least 8 characters, then enter it again to confirm.
           </p>
 
           <form className="support-auth-form" onSubmit={handleSubmit}>
+            {!token ? <p role="alert" className="auth-error-message auth-error-message--static">This page needs the reset link from your email. Request a new link below.</p> : null}
             <label className="support-auth-field">
               <span>New Password</span>
               <span className="field-shell">
@@ -93,6 +103,9 @@ export default function StudentResetPasswordPage() {
                 <input
                   type="password"
                   name="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  disabled={!token || isSubmitting || Boolean(successMessage)}
                   placeholder="New password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -110,6 +123,9 @@ export default function StudentResetPasswordPage() {
                 <input
                   type="password"
                   name="confirmPassword"
+                  autoComplete="new-password"
+                  minLength={8}
+                  disabled={!token || isSubmitting || Boolean(successMessage)}
                   placeholder="Confirm password"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
@@ -125,16 +141,17 @@ export default function StudentResetPasswordPage() {
                 onClick={() => navigateTo('/student')}
                 disabled={isSubmitting}
               >
-                Cancel
+                Back to Login
               </button>
-              <button type="submit" className="support-auth-button" disabled={isSubmitting}>
+              <button type="submit" className="support-auth-button" disabled={!token || isSubmitting || Boolean(successMessage)}>
                 {isSubmitting ? 'Saving...' : 'Save New Password'}
               </button>
             </div>
 
-            {errorMessage ? <p className="auth-error-message auth-error-message--static">{errorMessage}</p> : null}
+            {errorMessage ? <p role="alert" className="auth-error-message auth-error-message--static">{errorMessage}</p> : null}
+            {!successMessage ? <button type="button" className="support-auth-link" disabled={isSubmitting} onClick={() => navigateTo('/student/forgot-password')}>Request a new reset link</button> : null}
             {successMessage ? (
-              <div className="support-auth-success-stack">
+              <div role="status" className="support-auth-success-stack">
                 <p className="auth-success-message auth-success-message--static">{successMessage}</p>
                 <button type="button" className="support-auth-link" onClick={() => navigateTo('/student')}>
                   Back to Student Login

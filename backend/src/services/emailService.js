@@ -143,6 +143,7 @@ export async function sendStudentPasswordResetEmail({
               <p>We received a request to reset your St. Anthony College student portal password.</p>
               <p>Use the link below to choose a new password:</p>
               <p><a href="${escapeHtml(resetUrl)}">${escapeHtml(resetUrl)}</a></p>
+              <p>This link expires in one hour. After choosing your new password, return to the portal and sign in.</p>
               <p>If you did not request this, you can safely ignore this email.</p>
             </body>
           </html>
@@ -153,6 +154,7 @@ export async function sendStudentPasswordResetEmail({
           'We received a request to reset your St. Anthony College student portal password.',
           'Use the link below to choose a new password:',
           resetUrl,
+          'This link expires in one hour. After choosing your new password, return to the portal and sign in.',
           '',
           'If you did not request this, you can safely ignore this email.',
         ].join('\n'),

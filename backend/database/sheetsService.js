@@ -299,6 +299,16 @@ async function ensureSheetInitialized(sheetName) {
 
 async function getSheetMatrix(sheetName) {
   await ensureSheetInitialized(sheetName)
+  // Passwords and reset tokens must reflect changes made by other Vercel instances.
+  if (sheetName === SHEET_NAMES.STUDENT_AUTH_ACCOUNTS) {
+    const sheets = createSheetsClient()
+    const spreadsheetId = getSpreadsheetId()
+    const response = await runSheetsRequest(() => sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: getSheetRange(sheetName, 'A:ZZ'),
+    }))
+    return { sheets, spreadsheetId, values: response.data.values ?? [] }
+  }
   const cachedValues = getCachedSheetMatrix(sheetName)
 
   if (cachedValues) {

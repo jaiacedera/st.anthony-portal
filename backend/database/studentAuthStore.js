@@ -282,7 +282,9 @@ export async function setStudentAccountPasswordByStudentId(studentId, password) 
 }
 
 export async function setStudentPasswordResetTokenByEmail(email, token, expiresAt) {
-  const account = await findStudentAccountByEmail(email)
+  const account = (await getStoredStudentAccounts()).find(candidate =>
+    normalizeEmail(candidate.email) === normalizeEmail(email) && candidate.status.toUpperCase() === 'ACTIVE',
+  )
 
   if (!account?.account_id) {
     return null
@@ -296,25 +298,26 @@ export async function setStudentPasswordResetTokenByEmail(email, token, expiresA
     updated_at: new Date().toISOString(),
   }
 
-  await updateRowById(
+  const saved = await updateRowById(
     SHEET_NAMES.STUDENT_AUTH_ACCOUNTS,
     SHEET_ID_COLUMNS[SHEET_NAMES.STUDENT_AUTH_ACCOUNTS],
     account.account_id,
     nextAccount,
   )
 
-  return nextAccount
+  return saved ? nextAccount : null
 }
 
 export async function setStudentAccountPasswordByResetToken(token, password) {
   const normalizedTokenHash = hashResetToken(token)
-  const accounts = await getAllStudentAccounts()
+  const accounts = await getStoredStudentAccounts()
   const now = Date.now()
   const account =
     accounts.find((candidate) => {
       const expiresAt = Date.parse(String(candidate.password_reset_expires_at ?? '').trim())
 
       return (
+        candidate.status.toUpperCase() === 'ACTIVE' &&
         String(candidate.password_reset_token_hash ?? '').trim() === normalizedTokenHash &&
         Number.isFinite(expiresAt) &&
         expiresAt > now
@@ -338,14 +341,14 @@ export async function setStudentAccountPasswordByResetToken(token, password) {
     password_reset_requested_at: '',
   }
 
-  await updateRowById(
+  const saved = await updateRowById(
     SHEET_NAMES.STUDENT_AUTH_ACCOUNTS,
     SHEET_ID_COLUMNS[SHEET_NAMES.STUDENT_AUTH_ACCOUNTS],
     account.account_id,
     nextAccount,
   )
 
-  return nextAccount
+  return saved ? nextAccount : null
 }
 
 export async function deleteStudentAccountByStudentId(studentId) {

@@ -23,6 +23,7 @@ export default function StudentForgotPasswordPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isSubmitting) return
     setIsSubmitting(true)
     setErrorMessage('')
     setSuccessMessage('')
@@ -33,7 +34,7 @@ export default function StudentForgotPasswordPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim() }),
       })
       const payload = (await response.json()) as { success?: boolean; message?: string }
 
@@ -43,7 +44,7 @@ export default function StudentForgotPasswordPage() {
       }
 
       setSuccessMessage(
-        payload.message ?? 'Password reset instructions have been sent to your email.',
+        payload.message ?? 'If an active account uses that email, you will receive a password reset link.',
       )
     } catch {
       setErrorMessage('Password reset is unavailable right now. Please try again later.')
@@ -71,7 +72,7 @@ export default function StudentForgotPasswordPage() {
             <strong>Forgot Password</strong>
           </h2>
           <p className="auth-subtitle auth-subtitle--static">
-            Enter your student login email and we&apos;ll send reset instructions.
+            Enter your registered email to receive a link where you can choose a new password.
           </p>
 
           <form className="support-auth-form" onSubmit={handleSubmit}>
@@ -84,6 +85,8 @@ export default function StudentForgotPasswordPage() {
                 <input
                   type="email"
                   name="email"
+                  autoComplete="email"
+                  disabled={isSubmitting}
                   placeholder="student@email.com"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
@@ -99,15 +102,20 @@ export default function StudentForgotPasswordPage() {
                 onClick={() => navigateTo('/student')}
                 disabled={isSubmitting}
               >
-                Cancel
+                Back to Login
               </button>
               <button type="submit" className="support-auth-button" disabled={isSubmitting}>
                 {isSubmitting ? 'Sending...' : 'Send Reset Link'}
               </button>
             </div>
 
-            {errorMessage ? <p className="auth-error-message auth-error-message--static">{errorMessage}</p> : null}
-            {successMessage ? <p className="auth-success-message auth-success-message--static">{successMessage}</p> : null}
+            {errorMessage ? <p role="alert" className="auth-error-message auth-error-message--static">{errorMessage}</p> : null}
+            {successMessage ? (
+              <div role="status" className="support-auth-success-stack">
+                <p className="auth-success-message auth-success-message--static">{successMessage}</p>
+                <p>Check your inbox and spam folder. The link expires in one hour. If you request another link, use the most recent email.</p>
+              </div>
+            ) : null}
           </form>
         </section>
       </div>

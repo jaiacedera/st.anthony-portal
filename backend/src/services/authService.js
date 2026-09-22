@@ -86,7 +86,7 @@ export async function authenticateStudent(email, password) {
 function buildStudentPasswordResetSuccessPayload() {
   return {
     success: true,
-    message: 'Password reset instructions have been sent to your email.',
+    message: 'If an active account uses that email, you will receive a password reset link.',
   }
 }
 
@@ -245,9 +245,10 @@ export async function requestStudentPasswordReset(email) {
 
   const token = randomBytes(32).toString('hex')
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
-  await setStudentPasswordResetTokenByEmail(normalizedEmail, token, expiresAt)
+  const savedAccount = await setStudentPasswordResetTokenByEmail(normalizedEmail, token, expiresAt)
+  if (!savedAccount) throw new Error('Unable to prepare a reset link. Please try again later.')
 
-  const resetUrl = `${String(env.frontendOrigin || 'http://localhost:5173').trim()}/student/reset-password?token=${encodeURIComponent(token)}`
+  const resetUrl = `${String(env.frontendOrigin || 'http://localhost:5173').trim().replace(/\/+$/, '')}/student/reset-password?token=${encodeURIComponent(token)}`
   const emailResult = await sendStudentPasswordResetEmail({
     recipientEmail: normalizedEmail,
     resetUrl,

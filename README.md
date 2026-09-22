@@ -99,6 +99,23 @@ and [rewrites](https://vercel.com/docs/rewrites).
 
 ## Backend environment variables
 
+### Student password recovery
+
+Students can open `/student/forgot-password` from the login page, enter their
+registered email, and receive a Brevo email linking to `/student/reset-password`.
+The email link expires after one hour. Students enter and confirm a password of
+at least eight characters, then return to student login. Missing or expired links
+can be replaced through the request page.
+
+Set `FRONTEND_ORIGIN=https://st-anthony-portal.vercel.app` and the `BREVO_*`
+variables in Vercel, then redeploy. Student accounts must exist in the
+`StudentAuthAccounts` sheet. Reset requests store only a token hash; successful
+resets clear it and update the password hash. Authentication data is read fresh
+from Sheets so another function instance sees password and token changes.
+
+`npm test` covers the reset flow using mocked Sheets and email delivery. A live
+delivery check still requires a registered test account and working Brevo credentials.
+
 Set these in `backend/.env`:
 
 ```env

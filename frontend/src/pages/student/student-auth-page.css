@@ -348,7 +348,7 @@ body,
 
 .login-container--support {
   height: auto;
-  min-height: 430px;
+  min-height: 0;
   padding: 34px 30px 28px;
   display: flex;
   flex-direction: column;

@@ -1,4 +1,5 @@
 import {
+  postStudentPasswordChange,
   postInstructorLogin,
   postStudentForgotPassword,
   postStudentLogin,
@@ -68,6 +69,11 @@ const routes = [
     method: 'POST',
     pathname: '/api/auth/student/reset-password',
     handler: postStudentResetPassword,
+  },
+  {
+    method: 'POST',
+    pathname: '/api/auth/student/change-password',
+    handler: postStudentPasswordChange,
   },
   {
     method: 'GET',

@@ -33,7 +33,7 @@ test('student reset request, email link, password change, and failure cases', as
     },
   } })
   try {
-    const { requestStudentPasswordReset, resetStudentPassword } = await import('./authService.js')
+    const { requestStudentPasswordReset, resetStudentPassword, changeStudentPassword, authenticateStudentWithResolver } = await import('./authService.js')
     const { verifyAccountPassword } = await import('../../database/studentAuthStore.js')
     assert.equal((await requestStudentPasswordReset('invalid')).success, false)
     const unknown = await requestStudentPasswordReset('missing@example.test')
@@ -75,6 +75,41 @@ test('student reset request, email link, password change, and failure cases', as
     writeFails = false
     emailFails = true
     assert.equal((await requestStudentPasswordReset('student@example.test')).success, false)
+
+    const change = {
+      email: 'student@example.test', studentId: 'test-student', currentPassword: 'new-password',
+      newPassword: 'profile-password', confirmPassword: 'profile-password',
+    }
+    const before = { ...account }
+    for (const invalid of [
+      { currentPassword: 'wrong-password' }, { studentId: 'another-student' },
+      { email: 'another@example.test' }, { currentPassword: '' },
+      { newPassword: 'short', confirmPassword: 'short' }, { confirmPassword: 'mismatch' },
+      { newPassword: 'new-password', confirmPassword: 'new-password' },
+    ]) {
+      assert.equal((await changeStudentPassword({ ...change, ...invalid })).success, false)
+      assert.deepEqual(account, before)
+    }
+    account.status = 'INACTIVE'
+    assert.equal((await changeStudentPassword(change)).success, false)
+    account.status = 'ACTIVE'
+    writeFails = true
+    assert.equal((await changeStudentPassword(change)).success, false)
+    writeFails = false
+    const emailsBeforeChange = sent.length
+    assert.equal((await changeStudentPassword(change)).success, true)
+    assert.equal(sent.length, emailsBeforeChange)
+    assert.equal(account.password_reset_token_hash, '')
+    assert.equal(account.password_reset_expires_at, '')
+    assert.equal(verifyAccountPassword(account, 'profile-password'), true)
+    assert.equal(verifyAccountPassword(account, 'new-password'), false)
+    assert.notEqual(account.password_salt, before.password_salt)
+    const reloaded = await import('../../database/studentAuthStore.js?profile-change')
+    const persisted = await reloaded.getStudentAccountByStudentId(change.studentId)
+    assert.equal(reloaded.verifyAccountPassword(persisted, 'profile-password'), true)
+    const resolver = { loadStudentAccountsByEmail: reloaded.getStudentAccountsByEmail, loadStudentById: async () => ({ status: 'ACTIVE' }) }
+    assert.equal((await authenticateStudentWithResolver(change.email, 'profile-password', resolver)).success, true)
+    assert.equal((await authenticateStudentWithResolver(change.email, 'new-password', resolver)).success, false)
   } finally {
     sheets.restore()
     email.restore()

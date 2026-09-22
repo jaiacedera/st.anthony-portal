@@ -1942,6 +1942,36 @@
   border-bottom: 1px solid #ece6e6;
 }
 
+.student-password-dialog {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  color: #161616;
+  font-family: 'Lato', 'Segoe UI', sans-serif;
+}
+
+.student-password-dialog::backdrop {
+  background: rgba(25, 10, 10, 0.5);
+}
+
+.student-password-dialog .student-profile-form-field input:focus-visible,
+.student-password-dialog button:focus-visible {
+  outline: 2px solid #800a09;
+  outline-offset: 2px;
+}
+
+.student-password-success {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #d5e4da;
+  border-radius: 12px;
+  background: #edf5ef;
+  color: #245b3b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .student-profile-modal-header h3 {
   margin: 0;
   color: #800a09;

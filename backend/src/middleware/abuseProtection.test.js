@@ -26,6 +26,15 @@ function attempt(limiter, path = '/api/instructor/dashboard', ip, method) {
   return { allowed, res }
 }
 
+test('student password changes limit repeated attempts against the same email across IPs', () => {
+  const limiter = createAbuseProtection({ ...createAbuseConfig(), loginTargetPerWindow: 1 })
+  const path = '/api/auth/student/change-password'
+  assert.equal(limiter.beforeBodyAction(req('192.0.2.1', 'POST'), response(), path, { email: ' Student@Example.com ' }), true)
+  const blocked = response()
+  assert.equal(limiter.beforeBodyAction(req('192.0.2.2', 'POST'), blocked, path, { email: 'student@example.com' }), false)
+  assert.equal(blocked.status, 429)
+})
+
 test('IP burst limits reset and cannot be bypassed by switching routes or user identifiers', () => {
   let time = 1000
   const limiter = createAbuseProtection({ ...createAbuseConfig(), ipPerMinute: 2 }, () => time)

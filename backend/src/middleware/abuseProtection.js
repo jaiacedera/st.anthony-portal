@@ -132,6 +132,7 @@ export function createAbuseProtection(config = createAbuseConfig(), now = Date.n
     if (pathname === '/api/auth/student/login') target = typeof body.email === 'string' ? body.email : body.credential
     if (pathname === '/api/auth/student/forgot-password') { target = body.email; reset = true }
     if (pathname === '/api/auth/student/reset-password') target = body.token
+    if (pathname === '/api/auth/student/change-password') target = body.email
     if (typeof target !== 'string' || !target.trim()) return true
     const normalized = pathname.endsWith('/reset-password') ? target.trim() : target.trim().toLowerCase()
     const hash = createHash('sha256').update(normalized).digest('hex')

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { StudentShell } from '../../components/student-shell'
+import { StudentPasswordDialog } from '../../components/student-password-dialog'
 import {
   fetchStudentDashboard,
   updateStudentProfile,
@@ -190,6 +191,7 @@ export default function StudentProfilePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [isEditing, setIsEditing] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
   const [profileForm, setProfileForm] = useState<StudentProfileFormState>(
@@ -428,7 +430,7 @@ export default function StudentProfilePage() {
               </div>
 
               <div className="student-profile-security-actions">
-                <button type="button" className="student-profile-solid-button">
+                <button type="button" className="student-profile-solid-button" disabled={!profile?.id || !profile?.email} onClick={() => setIsChangingPassword(true)}>
                   <LockIcon />
                   <span>Change Password</span>
                 </button>
@@ -436,6 +438,10 @@ export default function StudentProfilePage() {
             </article>
           </div>
         </div>
+
+        {isChangingPassword && profile ? (
+          <StudentPasswordDialog email={profile.email} studentId={profile.id} onClose={() => setIsChangingPassword(false)} />
+        ) : null}
 
         {isEditing ? (
           <div className="student-profile-modal-backdrop" role="presentation">

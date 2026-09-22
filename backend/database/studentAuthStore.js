@@ -308,6 +308,30 @@ export async function setStudentPasswordResetTokenByEmail(email, token, expiresA
   return saved ? nextAccount : null
 }
 
+export async function changeStudentAccountPassword({ email, studentId, currentPassword, newPassword }) {
+  const account = (await getStoredStudentAccounts()).find(candidate =>
+    normalizeEmail(candidate.email) === normalizeEmail(email) &&
+    normalizeStudentId(candidate.student_id) === normalizeStudentId(studentId) &&
+    candidate.status.toUpperCase() === 'ACTIVE' &&
+    verifyAccountPassword(candidate, currentPassword),
+  )
+  if (!account) return null
+  const salt = randomBytes(16).toString('hex')
+  return updateRowById(
+    SHEET_NAMES.STUDENT_AUTH_ACCOUNTS,
+    SHEET_ID_COLUMNS[SHEET_NAMES.STUDENT_AUTH_ACCOUNTS],
+    account.account_id,
+    {
+      password_salt: salt,
+      password_hash: hashPassword(newPassword, salt),
+      updated_at: new Date().toISOString(),
+      password_reset_token_hash: '',
+      password_reset_expires_at: '',
+      password_reset_requested_at: '',
+    },
+  )
+}
+
 export async function setStudentAccountPasswordByResetToken(token, password) {
   const normalizedTokenHash = hashResetToken(token)
   const accounts = await getStoredStudentAccounts()

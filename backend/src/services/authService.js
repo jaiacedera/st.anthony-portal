@@ -4,6 +4,7 @@ import {
   verifyInstructorPassword,
 } from '../../database/instructorAuthStore.js'
 import {
+  changeStudentAccountPassword,
   getStudentAccountsByEmail,
   setStudentAccountPasswordByResetToken,
   setStudentPasswordResetTokenByEmail,
@@ -303,4 +304,16 @@ export async function resetStudentPassword(token, password, confirmPassword) {
     success: true,
     message: 'Your password has been reset successfully. You can now sign in.',
   }
+}
+
+export async function changeStudentPassword({ email, studentId, currentPassword, newPassword, confirmPassword }) {
+  if (!email?.trim() || !studentId?.trim() || !currentPassword || !newPassword || !confirmPassword) {
+    return { success: false, message: 'Your student account and all password fields are required.' }
+  }
+  if (newPassword.length < 8) return { success: false, message: 'Use at least 8 characters for your new password.' }
+  if (newPassword !== confirmPassword) return { success: false, message: 'Passwords do not match.' }
+  if (currentPassword === newPassword) return { success: false, message: 'Choose a password different from your current password.' }
+  const saved = await changeStudentAccountPassword({ email, studentId, currentPassword, newPassword })
+  if (!saved) return { success: false, message: 'Unable to change password. Check your current password and student account, then try again.' }
+  return { success: true, message: 'Password changed successfully. Use your new password the next time you sign in.' }
 }

@@ -1,4 +1,5 @@
 import {
+  changeStudentPassword,
   authenticateInstructor,
   authenticateStudent,
   requestStudentPasswordReset,
@@ -6,6 +7,16 @@ import {
 } from '../services/authService.js'
 import { sendJson } from '../utils/http.js'
 import { readJsonBody } from '../utils/request.js'
+
+export async function postStudentPasswordChange(req, res) {
+  const body = await readJsonBody(req)
+  const input = Object.fromEntries(
+    ['email', 'studentId', 'currentPassword', 'newPassword', 'confirmPassword']
+      .map(key => [key, typeof body[key] === 'string' ? body[key] : '']),
+  )
+  const payload = await changeStudentPassword(input)
+  sendJson(res, payload.success ? 200 : 400, payload)
+}
 
 export async function postInstructorLogin(req, res) {
   try {

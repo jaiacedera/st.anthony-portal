@@ -127,6 +127,23 @@ export type CreateStudentBreakdownRequestInput = {
 
 const apiBaseUrl = getApiBaseUrl()
 
+export async function changeStudentPassword(input: {
+  email: string
+  studentId: string
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+}): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${apiBaseUrl}/api/auth/student/change-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const payload = await response.json() as { success: boolean; message: string }
+  if (!response.ok || !payload.success) throw new Error(payload.message || 'Unable to change password. Please try again.')
+  return payload
+}
+
 export async function fetchStudentDashboard(
   input: {
     studentId?: string

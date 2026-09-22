@@ -1,6 +1,7 @@
 export const SHEET_NAMES = {
   STUDENTS: 'Students',
   STUDENT_AUTH_ACCOUNTS: 'StudentAuthAccounts',
+  INSTRUCTOR_AUTH_ACCOUNTS: 'InstructorAuthAccounts',
   INSTRUCTORS: 'Instructors',
   SUBJECTS: 'Subjects',
   SUBJECT_STUDENTS: 'SubjectStudents',
@@ -11,6 +12,11 @@ export const SHEET_NAMES = {
 }
 
 export const SHEET_HEADERS = {
+  [SHEET_NAMES.INSTRUCTOR_AUTH_ACCOUNTS]: [
+    'account_id', 'role', 'username', 'email', 'instructor_id',
+    'password_salt', 'password_hash', 'status', 'created_at', 'updated_at',
+    'last_login', 'phone', 'date_of_birth', 'gender', 'address',
+  ],
   [SHEET_NAMES.STUDENTS]: [
     'student_id',
     'student_number',
@@ -120,6 +126,7 @@ export const SHEET_HEADERS = {
 }
 
 export const SHEET_ID_COLUMNS = {
+  [SHEET_NAMES.INSTRUCTOR_AUTH_ACCOUNTS]: 'account_id',
   [SHEET_NAMES.STUDENTS]: 'student_id',
   [SHEET_NAMES.STUDENT_AUTH_ACCOUNTS]: 'account_id',
   [SHEET_NAMES.INSTRUCTORS]: 'instructor_id',

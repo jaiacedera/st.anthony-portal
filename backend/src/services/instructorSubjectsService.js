@@ -1,4 +1,4 @@
-import { getInstructorAccountByUsername } from '../../database/authStore.js'
+import { getInstructorAccountByUsername } from '../../database/instructorAuthStore.js'
 import { SHEET_NAMES } from '../../database/sheetsSchema.js'
 import {
   createSubject,
@@ -105,7 +105,7 @@ function mapSubjectRecord(subject, studentCountById, instructorName) {
 
 async function resolveInstructorContext(username) {
   const normalizedUsername = username.trim()
-  const account = getInstructorAccountByUsername(normalizedUsername)
+  const account = await getInstructorAccountByUsername(normalizedUsername)
 
   if (!account) {
     const error = new Error('Instructor account was not found.')

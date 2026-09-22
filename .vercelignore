@@ -1,0 +1,5 @@
+backend/.env
+frontend/.env
+backend/database/authAccounts.json
+**/*.test.js
+**/*.test.mjs

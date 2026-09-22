@@ -2,7 +2,7 @@ import {
   findInstructorAccountByUsername,
   touchInstructorAccountLastLogin,
   verifyInstructorPassword,
-} from '../../database/authStore.js'
+} from '../../database/instructorAuthStore.js'
 import {
   getStudentAccountsByEmail,
   setStudentAccountPasswordByResetToken,
@@ -55,9 +55,9 @@ export async function authenticateInstructor(username, password) {
     }
   }
 
-  const account = findInstructorAccountByUsername(normalizedUsername)
+  const account = await findInstructorAccountByUsername(normalizedUsername)
 
-  if (!account || !verifyInstructorPassword(normalizedUsername, password)) {
+  if (!account || !(await verifyInstructorPassword(normalizedUsername, password))) {
     return {
       success: false,
       message: 'Invalid username or password.',
@@ -65,7 +65,7 @@ export async function authenticateInstructor(username, password) {
   }
 
   const refreshedAccount =
-    touchInstructorAccountLastLogin(normalizedUsername) ?? account
+    await touchInstructorAccountLastLogin(normalizedUsername) ?? account
 
   return {
     success: true,

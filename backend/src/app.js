@@ -9,11 +9,11 @@ import { createAbuseProtection } from './middleware/abuseProtection.js'
 import { readJsonBody } from './utils/request.js'
 import { sendJson } from './utils/http.js'
 
-export function createApp({ limits = env.abuseLimits, routeResolver = findRoute } = {}) {
+export function createRequestHandler({ limits = env.abuseLimits, routeResolver = findRoute } = {}) {
   const protection = createAbuseProtection(limits)
-  return createServer({ requestTimeout: 15000, headersTimeout: 10000, connectionsCheckingInterval: 1000, maxHeaderSize: 16384 }, (req, res) => {
+  return (req, res) => {
     applyCors(res)
-    Promise.resolve().then(async () => {
+    return Promise.resolve().then(async () => {
       const requestUrl = new URL(req.url ?? '/', 'http://localhost')
       if (!protection.beforeRequest(req, res, requestUrl.pathname)) return
       if (req.method === 'OPTIONS') {
@@ -40,5 +40,9 @@ export function createApp({ limits = env.abuseLimits, routeResolver = findRoute 
         handleServerError(res, error)
       }
     })
-  })
+  }
+}
+
+export function createApp(options) {
+  return createServer({ requestTimeout: 15000, headersTimeout: 10000, connectionsCheckingInterval: 1000, maxHeaderSize: 16384 }, createRequestHandler(options))
 }

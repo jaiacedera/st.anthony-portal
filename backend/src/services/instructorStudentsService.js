@@ -1,6 +1,6 @@
 import {
   getInstructorAccountByUsername,
-} from '../../database/authStore.js'
+} from '../../database/instructorAuthStore.js'
 import { randomBytes } from 'node:crypto'
 import {
   deleteAccountByAccountId,
@@ -139,7 +139,7 @@ function formatInstructorName(instructor, username) {
 
 async function resolveInstructorContext(username) {
   const normalizedUsername = username.trim()
-  const account = getInstructorAccountByUsername(normalizedUsername)
+  const account = await getInstructorAccountByUsername(normalizedUsername)
 
   if (!account) {
     const error = new Error('Instructor account was not found.')

@@ -42,9 +42,10 @@ function loadEnvFile(filePath) {
     }, {})
 }
 
-const fileEnv = loadEnvFile(envPath)
+const fileEnv = process.env.VERCEL ? {} : loadEnvFile(envPath)
 
 export const env = {
+  authStore: process.env.AUTH_STORE ?? fileEnv.AUTH_STORE ?? 'local',
   abuseLimits: createAbuseConfig({ ...fileEnv, ...process.env }),
   port: Number(process.env.PORT ?? fileEnv.PORT ?? 3000),
   frontendOrigin:

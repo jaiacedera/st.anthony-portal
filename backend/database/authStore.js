@@ -20,11 +20,14 @@ function ensureAuthAccountsFile() {
 }
 
 export function getAuthAccounts() {
+  // Deployed accounts live in Sheets; never read or recreate a bundled legacy file.
+  if (process.env.VERCEL) return []
   ensureAuthAccountsFile()
   return JSON.parse(readFileSync(getAuthAccountsPath(), 'utf8'))
 }
 
 function saveAuthAccounts(accounts) {
+  if (process.env.VERCEL) throw new Error('Local account writes are unavailable on Vercel. Use Google Sheets.')
   ensureAuthAccountsFile()
   writeFileSync(getAuthAccountsPath(), JSON.stringify(accounts, null, 2))
 }

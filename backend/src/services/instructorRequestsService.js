@@ -1,4 +1,4 @@
-import { getInstructorAccountByUsername } from '../../database/authStore.js'
+import { getInstructorAccountByUsername } from '../../database/instructorAuthStore.js'
 import {
   deleteGradeBreakdownResponse,
   getAllRows,
@@ -145,7 +145,7 @@ function assertRestrictedBreakdownPayload(payload) {
 }
 
 async function resolveInstructorContext(username) {
-  const account = getInstructorAccountByUsername(username)
+  const account = await getInstructorAccountByUsername(username)
 
   if (!account) {
     const error = new Error('Instructor account was not found.')

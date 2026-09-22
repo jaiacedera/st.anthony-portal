@@ -3,7 +3,7 @@ import {
   setInstructorAccountPasswordByUsername,
   updateInstructorAccountByUsername,
   verifyInstructorPassword,
-} from '../../database/authStore.js'
+} from '../../database/instructorAuthStore.js'
 import { SHEET_ID_COLUMNS, SHEET_NAMES } from '../../database/sheetsSchema.js'
 import {
   getAllRows,
@@ -131,7 +131,7 @@ function splitFullName(fullName) {
 
 async function resolveInstructorContext(username) {
   const normalizedUsername = String(username ?? '').trim()
-  const account = getInstructorAccountByUsername(normalizedUsername)
+  const account = await getInstructorAccountByUsername(normalizedUsername)
 
   if (!account) {
     const error = new Error('Instructor account was not found.')
@@ -247,7 +247,7 @@ export async function updateInstructorProfile({
     }
   }
 
-  updateInstructorAccountByUsername(normalizedUsername, {
+  await updateInstructorAccountByUsername(normalizedUsername, {
     phone: getOptionalValue(phone),
     date_of_birth: getOptionalValue(dateOfBirth),
     gender: getOptionalValue(gender),
@@ -295,7 +295,7 @@ export async function changeInstructorPassword({
     throw error
   }
 
-  const account = getInstructorAccountByUsername(normalizedUsername)
+  const account = await getInstructorAccountByUsername(normalizedUsername)
 
   if (!account) {
     const error = new Error('Instructor account was not found.')
@@ -303,19 +303,19 @@ export async function changeInstructorPassword({
     throw error
   }
 
-  if (!verifyInstructorPassword(normalizedUsername, currentPassword)) {
+  if (!(await verifyInstructorPassword(normalizedUsername, currentPassword))) {
     const error = new Error('Current password is incorrect.')
     error.statusCode = 401
     throw error
   }
 
-  if (verifyInstructorPassword(normalizedUsername, newPassword)) {
+  if (await verifyInstructorPassword(normalizedUsername, newPassword)) {
     const error = new Error('New password must be different from the current password.')
     error.statusCode = 400
     throw error
   }
 
-  const updatedAccount = setInstructorAccountPasswordByUsername(normalizedUsername, newPassword)
+  const updatedAccount = await setInstructorAccountPasswordByUsername(normalizedUsername, newPassword)
 
   if (!updatedAccount) {
     const error = new Error('Unable to update instructor password.')

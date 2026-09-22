@@ -1,6 +1,5 @@
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import {
-  createHash,
   deleteAccountByAccountId as deleteLegacyAccountByAccountId,
   deleteStudentAccountByStudentId as deleteLegacyStudentAccountByStudentId,
   getAuthAccounts as getLegacyAuthAccounts,

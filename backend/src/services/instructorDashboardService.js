@@ -1,4 +1,4 @@
-import { getInstructorAccountByUsername } from '../../database/authStore.js'
+import { getInstructorAccountByUsername } from '../../database/instructorAuthStore.js'
 import { SHEET_NAMES } from '../../database/sheetsSchema.js'
 import { getAllRows, getInstructorSubjects } from '../../database/sheetsService.js'
 
@@ -72,7 +72,7 @@ function resolveInstructorId(account, instructors) {
 }
 
 export async function getInstructorDashboard(username) {
-  const account = getInstructorAccountByUsername(username)
+  const account = await getInstructorAccountByUsername(username)
 
   if (!account) {
     const error = new Error('Instructor account was not found.')

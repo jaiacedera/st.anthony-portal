@@ -111,9 +111,13 @@ export default function StudentForgotPasswordPage() {
 
             {errorMessage ? <p role="alert" className="auth-error-message auth-error-message--static">{errorMessage}</p> : null}
             {successMessage ? (
-              <div role="status" className="support-auth-success-stack">
-                <p className="auth-success-message auth-success-message--static">{successMessage}</p>
-                <p>Check your inbox and spam folder. The link expires in one hour. If you request another link, use the most recent email.</p>
+              <div role="status" className="reset-email-notice">
+                <div className="reset-email-notice-heading">
+                  <span className="reset-email-notice-icon"><EmailIcon /></span>
+                  <strong>Check your email</strong>
+                </div>
+                <p>{successMessage}</p>
+                <p className="reset-email-notice-hint">Check spam too. Links expire in 1 hour; use the latest email.</p>
               </div>
             ) : null}
           </form>

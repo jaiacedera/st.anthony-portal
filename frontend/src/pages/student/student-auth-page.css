@@ -453,6 +453,46 @@ body,
   gap: 12px;
 }
 
+.reset-email-notice {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #d5e4da;
+  border-radius: 14px;
+  background: #edf5ef;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #365443;
+  text-align: left;
+}
+
+.reset-email-notice-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #245b3b;
+  font-size: 14px;
+}
+
+.reset-email-notice-icon,
+.reset-email-notice-icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.reset-email-notice p {
+  margin: 0;
+  font: inherit;
+}
+
+.reset-email-notice .reset-email-notice-hint {
+  color: #596b60;
+  font-size: 12px;
+}
+
 .support-auth-link {
   background: transparent;
   border: 1px solid var(--brand-red);

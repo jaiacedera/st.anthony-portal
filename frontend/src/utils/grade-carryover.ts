@@ -37,11 +37,20 @@ export function inheritMidtermConfig<
   return { sections, components }
 }
 
-export function compareStudentsByLastName(
-  left: { lastName?: string; fullName: string; studentId: string },
-  right: { lastName?: string; fullName: string; studentId: string },
+type GradeStudentName = { firstName: string; lastName: string; email: string }
+
+export function getGradeStudentDisplayName(student: GradeStudentName) {
+  const name = [student.lastName, student.firstName]
+    .map(part => (part ?? '').trim())
+    .filter(part => part && !['not set', 'unnamed student'].includes(part.toLowerCase()))
+    .join(', ')
+  return name || student.email.trim()
+}
+
+export function compareGradeStudentNames(
+  left: GradeStudentName & { studentId: string },
+  right: GradeStudentName & { studentId: string },
 ) {
-  return (left.lastName ?? '').trim().localeCompare((right.lastName ?? '').trim(), undefined, { sensitivity: 'base' })
-    || left.fullName.localeCompare(right.fullName, undefined, { sensitivity: 'base' })
+  return getGradeStudentDisplayName(left).localeCompare(getGradeStudentDisplayName(right), undefined, { sensitivity: 'base' })
     || left.studentId.localeCompare(right.studentId)
 }

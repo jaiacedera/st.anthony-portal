@@ -27,7 +27,7 @@ import {
   type SkillsGradeResult,
 } from '../../utils/skills-grade.js'
 import { gradeToRating, gradeToRemarks } from '../../utils/grade-rating'
-import { compareStudentsByLastName, inheritMidtermConfig, inheritMidtermScores } from '../../utils/grade-carryover'
+import { compareGradeStudentNames, getGradeStudentDisplayName, inheritMidtermConfig, inheritMidtermScores } from '../../utils/grade-carryover'
 import './grades-page.css'
 
 type GradebookTabKey = 'gradebook' | 'requests' | 'history'
@@ -1859,11 +1859,10 @@ export default function GradesPage() {
           return
         }
 
-        setStudents(studentsPayload.students.map(student => {
-          const name = student.fullName.trim()
-          const hasName = name && !['unnamed student', 'not set'].includes(name.toLowerCase())
-          return { ...student, fullName: hasName ? name : student.email }
-        }))
+        setStudents(studentsPayload.students.map(student => ({
+          ...student,
+          fullName: getGradeStudentDisplayName(student),
+        })))
         setSubjects(studentsPayload.subjects)
         setSchoolYearLabel(studentsPayload.header.schoolYear)
         setSemesterLabel(studentsPayload.header.semester)
@@ -2074,7 +2073,7 @@ export default function GradesPage() {
 
     return [...students]
       .filter((student) => student.subjects.some((subject) => subject.id === selectedSubject.id))
-      .sort(compareStudentsByLastName)
+      .sort(compareGradeStudentNames)
   }, [selectedSubject, students])
 
   const activeGradeCategories = useMemo(

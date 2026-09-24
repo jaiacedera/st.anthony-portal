@@ -69,14 +69,18 @@ test('custom Midterm assessments appear in Final without duplicating its exam fi
   assert.equal(result.sections.filter(section => section.category === 'knowledge').reduce((sum, section) => sum + section.weight, 0), 40)
 })
 
-test('grading roster sorts by complete last name, then name for ties', () => {
+test('grading roster displays surname first and sorts email fallbacks among names', () => {
   const students = [
-    { lastName: 'Zulu', fullName: 'Aaron Zulu', studentId: '1' },
-    { lastName: 'de la Cruz', fullName: 'Zoe de la Cruz', studentId: '2' },
-    { lastName: 'Adams', fullName: 'Zoe Adams', studentId: '3' },
-    { lastName: 'adams', fullName: 'Amy Adams', studentId: '4' },
+    { lastName: 'Zulu', firstName: 'Aaron', email: 'aaron@example.com', studentId: '1' },
+    { lastName: ' de la Cruz ', firstName: ' Zoe ', email: 'zoe@example.com', studentId: '2' },
+    { lastName: 'Adams', firstName: 'Zoe', email: 'zoe.adams@example.com', studentId: '3' },
+    { lastName: 'adams', firstName: 'Amy', email: 'amy@example.com', studentId: '4' },
+    { lastName: '', firstName: '', email: ' bella@email.com ', studentId: '5' },
+    { lastName: 'Not set', firstName: '', email: 'emma@email.com', studentId: '6' },
   ]
-  assert.deepEqual(students.sort(carryover.compareStudentsByLastName).map(student => student.studentId), ['4', '3', '2', '1'])
+  assert.deepEqual(students.sort(carryover.compareGradeStudentNames).map(carryover.getGradeStudentDisplayName), [
+    'adams, Amy', 'Adams, Zoe', 'bella@email.com', 'de la Cruz, Zoe', 'emma@email.com', 'Zulu, Aaron',
+  ])
 })
 
 for (const legacyState of ['missing', 'disabled']) {

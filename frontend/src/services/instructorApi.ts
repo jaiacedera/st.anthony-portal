@@ -199,6 +199,7 @@ export type InstructorStudentRecord = {
   id: string
   studentId: string
   fullName: string
+  lastName: string
   email: string
   yearSection: string
   subjectCount: number

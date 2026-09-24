@@ -1,0 +1,47 @@
+function finalComponentId(id: string) {
+  return id === 'knowledge-midterm-exam' ? 'knowledge-major-exam-midterm' : id
+}
+
+export function inheritMidtermScores(
+  midterm: Record<string, number>,
+  final: Record<string, number>,
+) {
+  const inherited: Record<string, number> = {}
+  for (const [key, value] of Object.entries(midterm)) {
+    const [studentId, subjectId, period, componentId] = key.split('::')
+    if (period !== 'midterm' || !componentId || !Number.isFinite(value)) continue
+    inherited[[studentId, subjectId, 'final', finalComponentId(componentId)].join('::')] = value
+  }
+  // An explicitly entered Final score, including zero, always takes priority.
+  return { ...inherited, ...final }
+}
+
+export function inheritMidtermConfig<
+  S extends { id: string; isActive: boolean },
+  C extends { id: string; sectionId: string; isActive: boolean },
+>(final: { sections: S[]; components: C[] }, midterm: { sections: S[]; components: C[] }) {
+  const sections = [...final.sections]
+  const components = [...final.components]
+  for (const section of midterm.sections) {
+    if (section.isActive && section.id !== 'knowledge-midterm-exam' && !sections.some(item => item.id === section.id)) {
+      sections.push({ ...section })
+    }
+  }
+  for (const component of midterm.components) {
+    const id = finalComponentId(component.id)
+    const sectionId = component.sectionId === 'knowledge-midterm-exam' ? 'knowledge-major-exam' : component.sectionId
+    if (component.isActive && sections.some(section => section.id === sectionId && section.isActive) && !components.some(item => item.id === id)) {
+      components.push({ ...component, id, sectionId })
+    }
+  }
+  return { sections, components }
+}
+
+export function compareStudentsByLastName(
+  left: { lastName?: string; fullName: string; studentId: string },
+  right: { lastName?: string; fullName: string; studentId: string },
+) {
+  return (left.lastName ?? '').trim().localeCompare((right.lastName ?? '').trim(), undefined, { sensitivity: 'base' })
+    || left.fullName.localeCompare(right.fullName, undefined, { sensitivity: 'base' })
+    || left.studentId.localeCompare(right.studentId)
+}

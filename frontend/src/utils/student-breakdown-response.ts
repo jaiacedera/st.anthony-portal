@@ -2,6 +2,7 @@ import type {
   InstructorRosterSubject,
   InstructorStudentRecord,
 } from '../services/instructorApi'
+import { inheritMidtermConfig, inheritMidtermScores } from './grade-carryover'
 import {
   calculateSkillsGrade,
   getCanonicalSkillsComponentId,
@@ -850,8 +851,13 @@ export function buildApprovedBreakdownResponse({
   student: InstructorStudentRecord
   gradingPeriod: GradingPeriodKey
 }): ApprovedBreakdownResponse {
-  const { sections, components } = readStoredGradeConfig(username, subject.id, gradingPeriod)
-  const overrides = readStoredGradeScores(username, subject.id, gradingPeriod)
+  let config = readStoredGradeConfig(username, subject.id, gradingPeriod)
+  let overrides = readStoredGradeScores(username, subject.id, gradingPeriod)
+  if (gradingPeriod === 'final') {
+    config = inheritMidtermConfig(config, readStoredGradeConfig(username, subject.id, 'midterm'))
+    overrides = inheritMidtermScores(readStoredGradeScores(username, subject.id, 'midterm'), overrides)
+  }
+  const { sections, components } = config
   const snapshot = buildStudentGradeSnapshot({
     student,
     subject,

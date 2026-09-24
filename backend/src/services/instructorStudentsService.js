@@ -197,6 +197,7 @@ function mapStudentRecord({
     id: student.student_id,
     studentId: getDisplayValue(student.student_number, student.student_id),
     fullName: buildStudentName(student) || 'Unnamed Student',
+    lastName: String(student.last_name ?? '').trim(),
     email: getDisplayValue(student.email),
     yearSection: getDisplayValue(student.year_level),
     subjectCount: enrolledSubjects.length,

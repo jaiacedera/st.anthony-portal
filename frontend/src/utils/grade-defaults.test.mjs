@@ -16,6 +16,7 @@ function loadModule(path, extraSource = '', storage = new Map()) {
     require: name => {
       if (name.endsWith('/skills-grade.js')) return skills
       if (name.endsWith('/grade-rating')) return loadModule('./grade-rating.ts')
+      if (name.endsWith('/grade-carryover')) return loadModule('./grade-carryover.ts')
       return {}
     },
     window: { localStorage: { getItem: key => storage.get(key) ?? null } },
@@ -26,6 +27,57 @@ function loadModule(path, extraSource = '', storage = new Map()) {
 const gradebook = loadModule('../pages/instructor/grades-page.tsx', '\nexport { buildStudentGradeSnapshot, buildDefaultGradeSections, buildDefaultGradeComponents };')
 const student = { id: 'student-1', studentId: '2026-001', fullName: 'Test Student', subjects: [] }
 const subject = { id: 'subject-1', code: 'NCM 118', name: 'Nursing', label: 'NCM 118' }
+const carryover = loadModule('./grade-carryover.ts')
+
+test('Midterm scores carry into Final fields and its approved breakdown without replacing entered Final scores', () => {
+  const midterm = {
+    [`${student.id}::${subject.id}::midterm::knowledge-quiz-1`]: 85,
+    [`${student.id}::${subject.id}::midterm::knowledge-long-exam-1`]: 90,
+    [`${student.id}::${subject.id}::midterm::knowledge-midterm-exam`]: 88,
+    [`${student.id}::${subject.id}::midterm::${skills.SKILLS_COMPONENT_DEFINITIONS[0].id}`]: 92,
+  }
+  const final = { [`${student.id}::${subject.id}::final::knowledge-long-exam-1`]: 0 }
+  const inherited = carryover.inheritMidtermScores(midterm, final)
+  const snapshot = gradebook.buildStudentGradeSnapshot(student, subject, 'final',
+    gradebook.buildDefaultGradeSections('final'), gradebook.buildDefaultGradeComponents('final'), inherited)
+  const values = Object.fromEntries(snapshot.categories.flatMap(category => category.sections.flatMap(section =>
+    section.components.map(component => [component.id, component.score]))))
+  assert.equal(values['knowledge-quiz-1'], 85)
+  assert.equal(values['knowledge-long-exam-1'], 0)
+  assert.equal(values['knowledge-major-exam-midterm'], 88)
+  assert.equal(values['knowledge-major-exam-final'], 0)
+  assert.equal(values[skills.SKILLS_COMPONENT_DEFINITIONS[0].id], 92)
+  assert.equal(Object.keys(final).length, 1)
+  const storage = new Map([
+    [`instructor-grade-scores::instructor::${subject.id}::midterm`, JSON.stringify({ savedOverrides: midterm })],
+    [`instructor-grade-scores::instructor::${subject.id}::final`, JSON.stringify({ savedOverrides: final })],
+  ])
+  const response = loadModule('./student-breakdown-response.ts', '', storage)
+    .buildApprovedBreakdownResponse({ requestId: 'r1', username: 'instructor', student, subject, gradingPeriod: 'final' })
+  assert.equal(response.finalGrade, snapshot.finalScore)
+  const otherStudent = gradebook.buildStudentGradeSnapshot({ ...student, id: 'other' }, subject, 'final',
+    gradebook.buildDefaultGradeSections('final'), gradebook.buildDefaultGradeComponents('final'), inherited)
+  assert.equal(otherStudent.finalScore, 0)
+})
+
+test('custom Midterm assessments appear in Final without duplicating its exam fields', () => {
+  const midterm = { sections: gradebook.buildDefaultGradeSections('midterm'), components: gradebook.buildDefaultGradeComponents('midterm') }
+  midterm.components.push({ ...midterm.components[0], id: 'quiz-extra', label: 'Quiz 2' })
+  const result = carryover.inheritMidtermConfig({ sections: gradebook.buildDefaultGradeSections('final'), components: gradebook.buildDefaultGradeComponents('final') }, midterm)
+  assert.ok(result.components.some(component => component.id === 'quiz-extra'))
+  assert.equal(result.components.filter(component => component.id === 'knowledge-major-exam-midterm').length, 1)
+  assert.equal(result.sections.filter(section => section.category === 'knowledge').reduce((sum, section) => sum + section.weight, 0), 40)
+})
+
+test('grading roster sorts by complete last name, then name for ties', () => {
+  const students = [
+    { lastName: 'Zulu', fullName: 'Aaron Zulu', studentId: '1' },
+    { lastName: 'de la Cruz', fullName: 'Zoe de la Cruz', studentId: '2' },
+    { lastName: 'Adams', fullName: 'Zoe Adams', studentId: '3' },
+    { lastName: 'adams', fullName: 'Amy Adams', studentId: '4' },
+  ]
+  assert.deepEqual(students.sort(carryover.compareStudentsByLastName).map(student => student.studentId), ['4', '3', '2', '1'])
+})
 
 for (const legacyState of ['missing', 'disabled']) {
   test(`Final restores ${legacyState} Attitude from saved configuration without losing scores`, () => {

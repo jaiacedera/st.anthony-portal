@@ -27,6 +27,7 @@ import {
   type SkillsGradeResult,
 } from '../../utils/skills-grade.js'
 import { gradeToRating, gradeToRemarks } from '../../utils/grade-rating'
+import { compareStudentsByLastName, inheritMidtermConfig, inheritMidtermScores } from '../../utils/grade-carryover'
 import './grades-page.css'
 
 type GradebookTabKey = 'gradebook' | 'requests' | 'history'
@@ -1924,14 +1925,32 @@ export default function GradesPage() {
     )
     const storedConfig = readStoredGradeConfig(configStorageKey, selectedGradingPeriod)
     const storedScores = readStoredGradeScores(scoreStorageKey)
-    const nextStoredScores =
+    let nextStoredScores =
       storedConfig?.migratedComponentIds && storedScores
         ? migrateStoredGradeScores(storedScores, storedConfig.migratedComponentIds)
         : storedScores
     const periodDefaultSections = buildDefaultGradeSections(selectedGradingPeriod)
     const periodDefaultComponents = buildDefaultGradeComponents(selectedGradingPeriod)
-    const nextSections = storedConfig?.sections ?? cloneSections(periodDefaultSections)
-    const nextComponents = storedConfig?.components ?? cloneComponents(periodDefaultComponents)
+    let nextSections = storedConfig?.sections ?? cloneSections(periodDefaultSections)
+    let nextComponents = storedConfig?.components ?? cloneComponents(periodDefaultComponents)
+
+    if (selectedGradingPeriod === 'final') {
+      const midtermConfig = readStoredGradeConfig(getGradeConfigStorageKey(username, selectedSubjectId, 'midterm'), 'midterm')
+      const midtermScores = migrateStoredGradeScores(
+        readStoredGradeScores(getGradeScoreStorageKey(username, selectedSubjectId, 'midterm')) ?? { draftOverrides: {}, savedOverrides: {} },
+        midtermConfig?.migratedComponentIds ?? {},
+      )
+      if (midtermConfig) {
+        const inherited = inheritMidtermConfig({ sections: nextSections, components: nextComponents }, midtermConfig)
+        nextSections = inherited.sections
+        nextComponents = inherited.components
+      }
+      nextStoredScores = {
+        draftOverrides: inheritMidtermScores(midtermScores?.draftOverrides ?? {}, nextStoredScores?.draftOverrides ?? {}),
+        savedOverrides: inheritMidtermScores(midtermScores?.savedOverrides ?? {}, nextStoredScores?.savedOverrides ?? {}),
+        savedAt: nextStoredScores?.savedAt,
+      }
+    }
 
     setGradeSections(nextSections)
     setSavedGradeSections(cloneSections(nextSections))
@@ -1952,10 +1971,11 @@ export default function GradesPage() {
     }
 
     if (!storedScores || storedConfig?.didMigrate) {
+      const scoresToPersist = selectedGradingPeriod === 'final' ? storedScores : nextStoredScores
       persistStoredGradeScores(scoreStorageKey, {
-        draftOverrides: nextStoredScores?.draftOverrides ?? {},
-        savedOverrides: nextStoredScores?.savedOverrides ?? {},
-        savedAt: nextStoredScores?.savedAt ?? '',
+        draftOverrides: scoresToPersist?.draftOverrides ?? {},
+        savedOverrides: scoresToPersist?.savedOverrides ?? {},
+        savedAt: scoresToPersist?.savedAt ?? '',
       })
     }
   }, [selectedGradingPeriod, selectedSubjectId, username])
@@ -2054,7 +2074,7 @@ export default function GradesPage() {
 
     return [...students]
       .filter((student) => student.subjects.some((subject) => subject.id === selectedSubject.id))
-      .sort((left, right) => left.fullName.localeCompare(right.fullName))
+      .sort(compareStudentsByLastName)
   }, [selectedSubject, students])
 
   const activeGradeCategories = useMemo(

@@ -12,6 +12,23 @@ node_modules
 .env
 .env.*
 !.env.example
+# Local authentication records, credentials, and private exports
+authAccounts*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*service-account*.json
+*service_account*.json
+credentials.json
+.aws/
+.secrets/
+private/
+backups/
+exports/
+*.sqlite
+*.sqlite3
+*.db
 dist
 dist-ssr
 *.local

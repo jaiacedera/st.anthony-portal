@@ -88,10 +88,31 @@ The existing rate limits and Sheets caches are per function instance, so global 
 are not shared across instances. Use a shared limiter or Vercel Firewall if you need
 deployment-wide enforcement.
 
-The repository currently tracks `.env` files. Ignore rules do not untrack existing
-files: remove them from Git's index before pushing (`git rm --cached backend/.env
-frontend/.env` keeps local copies). If real credentials were pushed previously,
-rotate them. `.env.example` files list the configuration without secrets.
+Local `.env` files and `backend/database/authAccounts.json` must remain untracked.
+Copy the `.env.example` files for local setup; the examples contain no credentials.
+Run `npm run check:public` before committing to check the Git index for private
+files and common credential patterns. This targeted check does not certify that
+the repository or its history contains no sensitive data.
+
+**Publication is blocked until historical data is cleaned up.** Earlier commits
+contain backend credentials and account records. Removing files from the current
+version does not remove those copies. Before making the repository public:
+
+1. Replace the Google service account key and Brevo API key, update local and
+   hosting environment settings, verify the app, and revoke the old credentials.
+   Reset passwords for real accounts whose password hashes were committed.
+2. Remove `backend/.env`, `frontend/.env`, and
+   `backend/database/authAccounts.json` from all Git history in a separate clone
+   using `git-filter-repo`. Coordinate the history rewrite with collaborators
+   before force-pushing; old clones can reintroduce the sensitive history.
+3. Review other branches, tags, pull requests, releases, and artifacts for private
+   data. Follow [GitHub's sensitive-data removal guide](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
+   for cached references and support-assisted removal where necessary.
+
+All source code retained in a public repository is visible. Keep proprietary
+code in a separate private repository. Store private exports in the ignored
+`private/`, `backups/`, or `exports/` directories; do not force-add ignored files.
+Frontend `VITE_*` values are included in browser code and must never contain secrets.
 
 The old `render.yaml` remains available during the cutover; Vercel uses `vercel.json`.
 Platform references: [Node.js functions](https://vercel.com/docs/functions/runtimes/node-js)

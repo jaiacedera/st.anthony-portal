@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "check:public": "node scripts/check-public.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:frontend": "vite --config frontend/vite.config.ts",
     "dev:backend": "node --watch backend/src/server.js",

@@ -582,6 +582,22 @@ export async function deleteInstructorStudent(
   return payload
 }
 
+export async function instructorGradebookDraft<T>(
+  input: { username: string; subjectId: string; gradingPeriod: 'midterm' | 'final' },
+  options: { draft?: T; signal?: AbortSignal } = {},
+): Promise<{ success: boolean; draft: T | null; savedAt: string }> {
+  const saving = options.draft !== undefined
+  const response = await fetch(`${apiBaseUrl}/api/instructor/grades/draft${saving ? '' : `?${new URLSearchParams(input)}`}`, {
+    method: saving ? 'POST' : 'GET',
+    headers: { Accept: 'application/json', ...(saving ? { 'Content-Type': 'application/json' } : {}) },
+    body: saving ? JSON.stringify({ ...input, draft: options.draft }) : undefined,
+    signal: options.signal,
+  })
+  const payload = await response.json()
+  if (!response.ok || !payload.success) throw new Error(payload.message || 'Unable to access saved grades.')
+  return payload
+}
+
 export async function fetchInstructorGradePublication(
   input: {
     username: string

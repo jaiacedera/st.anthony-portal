@@ -8,6 +8,7 @@ import {
 import { InstructorShell } from '../../components/instructor-shell'
 import {
   fetchInstructorDashboard,
+  instructorGradebookDraft,
   fetchInstructorGradePublication,
   fetchInstructorStudents,
   postInstructorGrades,
@@ -130,6 +131,8 @@ type StoredGradebookConfig = {
   components: GradeComponentConfig[]
   savedAt?: string
 }
+
+type CloudGradebookDraft = StoredGradebookConfig & { overrides: GradeOverrideMap }
 
 type LoadedStoredGradebookConfig = StoredGradebookConfig & {
   didMigrate?: boolean
@@ -1811,6 +1814,9 @@ export default function GradesPage() {
   const [componentManagerError, setComponentManagerError] = useState('')
   const [publicationState, setPublicationState] = useState<InstructorGradePublication | null>(null)
   const [isPosting, setIsPosting] = useState(false)
+  const [isLoadingDraft, setIsLoadingDraft] = useState(false)
+  const [draftLoadFailed, setDraftLoadFailed] = useState(false)
+  const [hasCloudDraft, setHasCloudDraft] = useState(false)
   const [isPostConfirmOpen, setIsPostConfirmOpen] = useState(false)
 
   useEffect(() => {
@@ -1917,66 +1923,98 @@ export default function GradesPage() {
       selectedSubjectId,
       selectedGradingPeriod,
     )
-    const scoreStorageKey = getGradeScoreStorageKey(
-      username,
-      selectedSubjectId,
-      selectedGradingPeriod,
-    )
-    const storedConfig = readStoredGradeConfig(configStorageKey, selectedGradingPeriod)
-    const storedScores = readStoredGradeScores(scoreStorageKey)
-    let nextStoredScores =
-      storedConfig?.migratedComponentIds && storedScores
-        ? migrateStoredGradeScores(storedScores, storedConfig.migratedComponentIds)
-        : storedScores
-    const periodDefaultSections = buildDefaultGradeSections(selectedGradingPeriod)
-    const periodDefaultComponents = buildDefaultGradeComponents(selectedGradingPeriod)
-    let nextSections = storedConfig?.sections ?? cloneSections(periodDefaultSections)
-    let nextComponents = storedConfig?.components ?? cloneComponents(periodDefaultComponents)
-
-    if (selectedGradingPeriod === 'final') {
-      const midtermConfig = readStoredGradeConfig(getGradeConfigStorageKey(username, selectedSubjectId, 'midterm'), 'midterm')
-      const midtermScores = migrateStoredGradeScores(
-        readStoredGradeScores(getGradeScoreStorageKey(username, selectedSubjectId, 'midterm')) ?? { draftOverrides: {}, savedOverrides: {} },
-        midtermConfig?.migratedComponentIds ?? {},
+    const abortController = new AbortController()
+    async function loadGradebook() {
+      await Promise.resolve()
+      if (abortController.signal.aborted) return
+      setIsLoadingDraft(true)
+      setDraftLoadFailed(false)
+      setHasCloudDraft(false)
+      const periods: GradingPeriodKey[] = selectedGradingPeriod === 'final' ? ['midterm', 'final'] : ['midterm']
+      const results = await Promise.all(periods.map(gradingPeriod => instructorGradebookDraft<CloudGradebookDraft>(
+        { username, subjectId: selectedSubjectId, gradingPeriod }, { signal: abortController.signal },
+      )))
+      if (abortController.signal.aborted) return
+      results.forEach((result, index) => {
+        if (periods[index] === selectedGradingPeriod) setHasCloudDraft(Boolean(result.draft))
+        if (!result.draft) return
+        const { sections, components, overrides } = result.draft
+        persistStoredGradeConfig(getGradeConfigStorageKey(username, selectedSubjectId, periods[index]), {
+          sections, components, savedAt: result.savedAt,
+        })
+        persistStoredGradeScores(getGradeScoreStorageKey(username, selectedSubjectId, periods[index]), {
+          draftOverrides: overrides, savedOverrides: overrides, savedAt: result.savedAt,
+        })
+      })
+      const scoreStorageKey = getGradeScoreStorageKey(
+        username,
+        selectedSubjectId,
+        selectedGradingPeriod,
       )
-      if (midtermConfig) {
-        const inherited = inheritMidtermConfig({ sections: nextSections, components: nextComponents }, midtermConfig)
-        nextSections = inherited.sections
-        nextComponents = inherited.components
+      const storedConfig = readStoredGradeConfig(configStorageKey, selectedGradingPeriod)
+      const storedScores = readStoredGradeScores(scoreStorageKey)
+      let nextStoredScores =
+        storedConfig?.migratedComponentIds && storedScores
+          ? migrateStoredGradeScores(storedScores, storedConfig.migratedComponentIds)
+          : storedScores
+      const periodDefaultSections = buildDefaultGradeSections(selectedGradingPeriod)
+      const periodDefaultComponents = buildDefaultGradeComponents(selectedGradingPeriod)
+      let nextSections = storedConfig?.sections ?? cloneSections(periodDefaultSections)
+      let nextComponents = storedConfig?.components ?? cloneComponents(periodDefaultComponents)
+
+      if (selectedGradingPeriod === 'final') {
+        const midtermConfig = readStoredGradeConfig(getGradeConfigStorageKey(username, selectedSubjectId, 'midterm'), 'midterm')
+        const midtermScores = migrateStoredGradeScores(
+          readStoredGradeScores(getGradeScoreStorageKey(username, selectedSubjectId, 'midterm')) ?? { draftOverrides: {}, savedOverrides: {} },
+          midtermConfig?.migratedComponentIds ?? {},
+        )
+        if (midtermConfig) {
+          const inherited = inheritMidtermConfig({ sections: nextSections, components: nextComponents }, midtermConfig)
+          nextSections = inherited.sections
+          nextComponents = inherited.components
+        }
+        nextStoredScores = {
+          draftOverrides: inheritMidtermScores(midtermScores?.draftOverrides ?? {}, nextStoredScores?.draftOverrides ?? {}),
+          savedOverrides: inheritMidtermScores(midtermScores?.savedOverrides ?? {}, nextStoredScores?.savedOverrides ?? {}),
+          savedAt: nextStoredScores?.savedAt,
+        }
       }
-      nextStoredScores = {
-        draftOverrides: inheritMidtermScores(midtermScores?.draftOverrides ?? {}, nextStoredScores?.draftOverrides ?? {}),
-        savedOverrides: inheritMidtermScores(midtermScores?.savedOverrides ?? {}, nextStoredScores?.savedOverrides ?? {}),
-        savedAt: nextStoredScores?.savedAt,
+
+      setGradeSections(nextSections)
+      setSavedGradeSections(cloneSections(nextSections))
+      setGradeComponents(nextComponents)
+      setSavedGradeComponents(cloneComponents(nextComponents))
+      setVisibleComponentIds(getDefaultVisibleComponentIds(nextComponents))
+      setDraftScoreOverrides(nextStoredScores?.draftOverrides ?? {})
+      setSavedScoreOverrides(nextStoredScores?.savedOverrides ?? {})
+      setSavedConfigAt(storedConfig?.savedAt ?? '')
+      setSavedScoresAt(nextStoredScores?.savedAt ?? '')
+
+      if (!storedConfig || storedConfig.didMigrate) {
+        persistStoredGradeConfig(configStorageKey, {
+          sections: nextSections,
+          components: nextComponents,
+          savedAt: storedConfig?.savedAt ?? '',
+        })
+      }
+
+      if (!storedScores || storedConfig?.didMigrate) {
+        const scoresToPersist = selectedGradingPeriod === 'final' ? storedScores : nextStoredScores
+        persistStoredGradeScores(scoreStorageKey, {
+          draftOverrides: scoresToPersist?.draftOverrides ?? {},
+          savedOverrides: scoresToPersist?.savedOverrides ?? {},
+          savedAt: scoresToPersist?.savedAt ?? '',
+        })
       }
     }
-
-    setGradeSections(nextSections)
-    setSavedGradeSections(cloneSections(nextSections))
-    setGradeComponents(nextComponents)
-    setSavedGradeComponents(cloneComponents(nextComponents))
-    setVisibleComponentIds(getDefaultVisibleComponentIds(nextComponents))
-    setDraftScoreOverrides(nextStoredScores?.draftOverrides ?? {})
-    setSavedScoreOverrides(nextStoredScores?.savedOverrides ?? {})
-    setSavedConfigAt(storedConfig?.savedAt ?? '')
-    setSavedScoresAt(nextStoredScores?.savedAt ?? '')
-
-    if (!storedConfig || storedConfig.didMigrate) {
-      persistStoredGradeConfig(configStorageKey, {
-        sections: nextSections,
-        components: nextComponents,
-        savedAt: storedConfig?.savedAt ?? '',
-      })
-    }
-
-    if (!storedScores || storedConfig?.didMigrate) {
-      const scoresToPersist = selectedGradingPeriod === 'final' ? storedScores : nextStoredScores
-      persistStoredGradeScores(scoreStorageKey, {
-        draftOverrides: scoresToPersist?.draftOverrides ?? {},
-        savedOverrides: scoresToPersist?.savedOverrides ?? {},
-        savedAt: scoresToPersist?.savedAt ?? '',
-      })
-    }
+    loadGradebook().catch((error: unknown) => {
+      if (abortController.signal.aborted) return
+      setDraftLoadFailed(true)
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to load saved grades.')
+    }).finally(() => {
+      if (!abortController.signal.aborted) setIsLoadingDraft(false)
+    })
+    return () => abortController.abort()
   }, [selectedGradingPeriod, selectedSubjectId, username])
 
   useEffect(() => {
@@ -2688,16 +2726,19 @@ export default function GradesPage() {
     closeEditGrades()
   }
 
-  function handleSaveChanges() {
-    if (!selectedSubject) {
+  async function handleSaveChanges() {
+    if (!selectedSubject || isSaving || isLoadingDraft || draftLoadFailed) {
       return
     }
 
     setIsSaving(true)
     setErrorMessage('')
 
-    window.setTimeout(() => {
-      const savedAt = new Date().toISOString()
+    try {
+      const { savedAt } = await instructorGradebookDraft({
+        username, subjectId: selectedSubject.id, gradingPeriod: selectedGradingPeriod,
+      }, { draft: { sections: gradeSections, components: gradeComponents, overrides: draftScoreOverrides } })
+      setHasCloudDraft(true)
       const configStorageKey = getGradeConfigStorageKey(
         username,
         selectedSubject.id,
@@ -2740,10 +2781,13 @@ export default function GradesPage() {
         ...current,
       ])
       setSuccessMessage(
-        `${selectedSubject.label} ${periodLabel.toLowerCase()} gradebook changes were saved locally.`,
+        `${selectedSubject.label} ${periodLabel.toLowerCase()} gradebook changes were saved to Google Sheets.`,
       )
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to save grades to Google Sheets. Please try again.')
+    } finally {
       setIsSaving(false)
-    }, 300)
+    }
   }
 
   function handleImportTrigger() {
@@ -2983,7 +3027,7 @@ export default function GradesPage() {
       schoolYearLabel={schoolYearLabel}
       semesterLabel={semesterLabel}
     >
-      <section className={`grades-page grades-page--${selectedGradingPeriod}${activeTab === 'gradebook' ? ' grades-page--gradebook' : ''}`}>
+      <section inert={isLoadingDraft || isSaving} aria-busy={isLoadingDraft || isSaving} className={`grades-page grades-page--${selectedGradingPeriod}${activeTab === 'gradebook' ? ' grades-page--gradebook' : ''}`}>
         {alerts.length ? (
           <div className="dashboard-alert-stack" aria-live="polite">
             {alerts.map((message, index) => (
@@ -3061,7 +3105,7 @@ export default function GradesPage() {
                 type="button"
                 className="grades-toolbar-button grades-toolbar-button--primary save-changes-btn"
                 onClick={handleSaveChanges}
-                disabled={isSaving || !hasUnsavedChanges}
+                disabled={isSaving || isLoadingDraft || draftLoadFailed || (hasCloudDraft && !hasUnsavedChanges)}
               >
                 <SaveIcon />
                 <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
@@ -3076,7 +3120,7 @@ export default function GradesPage() {
                   }
                   onClick={handlePostButtonClick}
                   disabled={
-                    isPosting ||
+                    isPosting || draftLoadFailed || isLoadingDraft ||
                     !selectedSubject ||
                     !gradeSnapshots.length ||
                     (hasPostedGrades && !hasSavedChangesSincePosting && !hasUnsavedChanges)

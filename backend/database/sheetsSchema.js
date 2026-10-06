@@ -6,12 +6,14 @@ export const SHEET_NAMES = {
   SUBJECTS: 'Subjects',
   SUBJECT_STUDENTS: 'SubjectStudents',
   GRADES: 'Grades',
+  GRADEBOOK_DRAFTS: 'GradebookDrafts',
   GRADE_PUBLICATIONS: 'GradePublications',
   GRADE_REQUESTS: 'GradeBreakdownRequests',
   GRADE_BREAKDOWN_RESPONSES: 'GradeBreakdownResponses',
 }
 
 export const SHEET_HEADERS = {
+  [SHEET_NAMES.GRADEBOOK_DRAFTS]: ['draft_id', 'instructor_id', 'subject_id', 'grading_period', 'updated_at', ...Array.from({ length: 16 }, (_, i) => `payload_${i}`)],
   [SHEET_NAMES.INSTRUCTOR_AUTH_ACCOUNTS]: [
     'account_id', 'role', 'username', 'email', 'instructor_id',
     'password_salt', 'password_hash', 'status', 'created_at', 'updated_at',
@@ -126,6 +128,7 @@ export const SHEET_HEADERS = {
 }
 
 export const SHEET_ID_COLUMNS = {
+  [SHEET_NAMES.GRADEBOOK_DRAFTS]: 'draft_id',
   [SHEET_NAMES.INSTRUCTOR_AUTH_ACCOUNTS]: 'account_id',
   [SHEET_NAMES.STUDENTS]: 'student_id',
   [SHEET_NAMES.STUDENT_AUTH_ACCOUNTS]: 'account_id',

@@ -12,6 +12,7 @@ import {
 import { getInstructorDashboardData } from '../controllers/instructorDashboardController.js'
 import {
   getInstructorGradePublicationData,
+  instructorGradebookDraftData,
   postInstructorGradesData,
 } from '../controllers/instructorGradesController.js'
 import { postStudentProfile } from '../controllers/studentProfileController.js'
@@ -47,6 +48,8 @@ import {
 } from '../controllers/systemController.js'
 
 const routes = [
+  { method: 'GET', pathname: '/api/instructor/grades/draft', handler: instructorGradebookDraftData },
+  { method: 'POST', pathname: '/api/instructor/grades/draft', handler: instructorGradebookDraftData },
   { method: 'GET', pathname: '/', handler: getOverview },
   { method: 'GET', pathname: '/api/health', handler: getHealth },
   { method: 'GET', pathname: '/api/modules', handler: getModules },

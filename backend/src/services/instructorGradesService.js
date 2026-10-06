@@ -2,12 +2,48 @@ import { getInstructorAccountByUsername } from '../../database/instructorAuthSto
 import { SHEET_NAMES } from '../../database/sheetsSchema.js'
 import {
   findRows,
+  appendRow,
+  updateRowById,
   getAllRows,
   getGradePublication,
   getInstructorSubjects,
   upsertGrade,
   upsertGradePublication,
 } from '../../database/sheetsService.js'
+
+// Drafts remain separate from published, student-visible grades.
+export async function instructorGradebookDraft({ username, subjectId, gradingPeriod, draft }, save = false) {
+  const { instructorId } = await resolveInstructorContext(username)
+  const period = normalizeGradingPeriod(gradingPeriod)
+  const subjects = await getInstructorSubjects(instructorId)
+  if (!subjects.some(subject => isActiveStatus(subject.status) && subject.subject_id === subjectId)) {
+    throw Object.assign(new Error('Subject was not found for this instructor.'), { statusCode: 404 })
+  }
+  const filters = { instructor_id: instructorId, subject_id: subjectId, grading_period: period }
+  const [existing] = await findRows(SHEET_NAMES.GRADEBOOK_DRAFTS, filters)
+  if (!save) {
+    const payload = existing ? Array.from({ length: 16 }, (_, i) => existing[`payload_${i}`] || '').join('') : ''
+    return { success: true, draft: payload ? JSON.parse(payload) : null, savedAt: existing?.updated_at || '' }
+  }
+  if (!draft || !Array.isArray(draft.sections) || !Array.isArray(draft.components) ||
+      !draft.overrides || typeof draft.overrides !== 'object' || Array.isArray(draft.overrides) ||
+      Object.values(draft.overrides).some(score => typeof score !== 'number' || !Number.isFinite(score) || score < 0 || score > 100)) {
+    throw Object.assign(new Error('Invalid gradebook draft.'), { statusCode: 400 })
+  }
+  const payload = JSON.stringify({ sections: draft.sections, components: draft.components, overrides: draft.overrides })
+  if (payload.length > 16 * 40000) {
+    throw Object.assign(new Error('Gradebook draft is too large.'), { statusCode: 413 })
+  }
+  const savedAt = new Date().toISOString()
+  const record = { ...filters, updated_at: savedAt }
+  for (let i = 0; i < 16; i++) record[`payload_${i}`] = payload.slice(i * 40000, (i + 1) * 40000)
+  if (existing) {
+    await updateRowById(SHEET_NAMES.GRADEBOOK_DRAFTS, 'draft_id', existing.draft_id, record)
+  } else {
+    await appendRow(SHEET_NAMES.GRADEBOOK_DRAFTS, { ...record, draft_id: JSON.stringify([instructorId, subjectId, period]) })
+  }
+  return { success: true, savedAt }
+}
 
 function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'

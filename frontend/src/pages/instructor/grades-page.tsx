@@ -1528,22 +1528,32 @@ function getGradeScoreStorageKey(
   return `instructor-grade-scores::${username}::${subjectId}::${gradingPeriod}`
 }
 
+// Browser storage is only a recovery cache, never a requirement for cloud access.
+function readGradebookCache(key: string) {
+  try { return window.localStorage.getItem(key) } catch { return null }
+}
+
+function writeGradebookCache(key: string, value: string) {
+  try { window.localStorage.setItem(key, value) } catch { /* Cloud data remains available. */ }
+}
+
 function readStoredGradeConfig(
   storageKey: string,
   gradingPeriod: GradingPeriodKey,
+  cloudConfig?: StoredGradebookConfig,
 ): LoadedStoredGradebookConfig | null {
   if (typeof window === 'undefined') {
     return null
   }
 
-  const rawValue = window.localStorage.getItem(storageKey)
+  const rawValue = readGradebookCache(storageKey)
 
-  if (!rawValue) {
+  if (!rawValue && !cloudConfig) {
     return null
   }
 
   try {
-    const parsed = JSON.parse(rawValue) as StoredGradebookConfig
+    const parsed = cloudConfig ?? JSON.parse(rawValue!) as StoredGradebookConfig
 
     if (!Array.isArray(parsed.sections) || !Array.isArray(parsed.components)) {
       return null
@@ -1598,7 +1608,7 @@ function persistStoredGradeConfig(storageKey: string, config: StoredGradebookCon
     return
   }
 
-  window.localStorage.setItem(
+  writeGradebookCache(
     storageKey,
     JSON.stringify({
       sections: sortSections(config.sections),
@@ -1667,7 +1677,7 @@ function readStoredGradeScores(storageKey: string): StoredGradebookScores | null
     return null
   }
 
-  const rawValue = window.localStorage.getItem(storageKey)
+  const rawValue = readGradebookCache(storageKey)
 
   if (!rawValue) {
     return null
@@ -1710,7 +1720,7 @@ function persistStoredGradeScores(storageKey: string, scores: StoredGradebookSco
     return
   }
 
-  window.localStorage.setItem(
+  writeGradebookCache(
     storageKey,
     JSON.stringify({
       draftOverrides: scores.draftOverrides,
@@ -1951,8 +1961,12 @@ export default function GradesPage() {
         selectedSubjectId,
         selectedGradingPeriod,
       )
-      const storedConfig = readStoredGradeConfig(configStorageKey, selectedGradingPeriod)
-      const storedScores = readStoredGradeScores(scoreStorageKey)
+      const cloud = results[periods.indexOf(selectedGradingPeriod)]
+      const storedConfig = readStoredGradeConfig(configStorageKey, selectedGradingPeriod,
+        cloud.draft ? { ...cloud.draft, savedAt: cloud.savedAt } : undefined)
+      const storedScores = cloud.draft
+        ? { draftOverrides: cloud.draft.overrides, savedOverrides: cloud.draft.overrides, savedAt: cloud.savedAt }
+        : readStoredGradeScores(scoreStorageKey)
       let nextStoredScores =
         storedConfig?.migratedComponentIds && storedScores
           ? migrateStoredGradeScores(storedScores, storedConfig.migratedComponentIds)
@@ -1963,9 +1977,13 @@ export default function GradesPage() {
       let nextComponents = storedConfig?.components ?? cloneComponents(periodDefaultComponents)
 
       if (selectedGradingPeriod === 'final') {
-        const midtermConfig = readStoredGradeConfig(getGradeConfigStorageKey(username, selectedSubjectId, 'midterm'), 'midterm')
+        const midtermCloud = results[0]
+        const midtermConfig = readStoredGradeConfig(getGradeConfigStorageKey(username, selectedSubjectId, 'midterm'), 'midterm',
+          midtermCloud.draft ? { ...midtermCloud.draft, savedAt: midtermCloud.savedAt } : undefined)
         const midtermScores = migrateStoredGradeScores(
-          readStoredGradeScores(getGradeScoreStorageKey(username, selectedSubjectId, 'midterm')) ?? { draftOverrides: {}, savedOverrides: {} },
+          midtermCloud.draft
+            ? { draftOverrides: midtermCloud.draft.overrides, savedOverrides: midtermCloud.draft.overrides, savedAt: midtermCloud.savedAt }
+            : readStoredGradeScores(getGradeScoreStorageKey(username, selectedSubjectId, 'midterm')) ?? { draftOverrides: {}, savedOverrides: {} },
           midtermConfig?.migratedComponentIds ?? {},
         )
         if (midtermConfig) {
@@ -1987,8 +2005,8 @@ export default function GradesPage() {
       setVisibleComponentIds(getDefaultVisibleComponentIds(nextComponents))
       setDraftScoreOverrides(nextStoredScores?.draftOverrides ?? {})
       setSavedScoreOverrides(nextStoredScores?.savedOverrides ?? {})
-      setSavedConfigAt(storedConfig?.savedAt ?? '')
-      setSavedScoresAt(nextStoredScores?.savedAt ?? '')
+      setSavedConfigAt(cloud.draft ? cloud.savedAt : '')
+      setSavedScoresAt(cloud.draft ? cloud.savedAt : '')
 
       if (!storedConfig || storedConfig.didMigrate) {
         persistStoredGradeConfig(configStorageKey, {
@@ -2721,7 +2739,7 @@ export default function GradesPage() {
       ...current,
     ])
     setSuccessMessage(
-      `${editSnapshot.student.fullName}'s ${periodLabel.toLowerCase()} score breakdown was updated locally.`,
+      `${editSnapshot.student.fullName}'s ${periodLabel.toLowerCase()} scores are ready. Click Save Changes to sync them across devices.`,
     )
     closeEditGrades()
   }
@@ -2781,7 +2799,7 @@ export default function GradesPage() {
         ...current,
       ])
       setSuccessMessage(
-        `${selectedSubject.label} ${periodLabel.toLowerCase()} gradebook changes were saved to Google Sheets.`,
+        `${selectedSubject.label} ${periodLabel.toLowerCase()} grades were verified in Google Sheets (GradebookDrafts) and are available on your other devices.`,
       )
     } catch (error: unknown) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to save grades to Google Sheets. Please try again.')
@@ -3110,6 +3128,9 @@ export default function GradesPage() {
                 <SaveIcon />
                 <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
               </button>
+              <div className="grades-posting-status" role="status">
+                <span>{isLoadingDraft ? 'Loading saved grades...' : draftLoadFailed ? 'Cloud load failed. Reload to retry.' : hasUnsavedChanges ? 'Unsaved changes — click Save Changes to sync.' : hasCloudDraft ? 'Saved to Google Sheets · GradebookDrafts' : 'Not synced — click Save Changes to save to Google Sheets.'}</span>
+              </div>
               <div className="grades-posting-group">
                 <button
                   type="button"
@@ -4219,7 +4240,7 @@ export default function GradesPage() {
                 onClick={handleSaveComponentManager}
                 disabled={Boolean(componentManagerValidationMessage)}
               >
-                <span>Save Changes</span>
+                <span>Apply Breakdown</span>
               </button>
             </div>
           </div>

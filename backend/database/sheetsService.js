@@ -299,8 +299,8 @@ async function ensureSheetInitialized(sheetName) {
 
 async function getSheetMatrix(sheetName) {
   await ensureSheetInitialized(sheetName)
-  // Passwords and reset tokens must reflect changes made by other Vercel instances.
-  if (sheetName === SHEET_NAMES.STUDENT_AUTH_ACCOUNTS) {
+  // Auth and drafts must reflect writes made by other devices/Vercel instances.
+  if (sheetName === SHEET_NAMES.STUDENT_AUTH_ACCOUNTS || sheetName === SHEET_NAMES.GRADEBOOK_DRAFTS) {
     const sheets = createSheetsClient()
     const spreadsheetId = getSpreadsheetId()
     const response = await runSheetsRequest(() => sheets.spreadsheets.values.get({

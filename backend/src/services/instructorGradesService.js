@@ -38,11 +38,19 @@ export async function instructorGradebookDraft({ username, subjectId, gradingPer
   const record = { ...filters, updated_at: savedAt }
   for (let i = 0; i < 16; i++) record[`payload_${i}`] = payload.slice(i * 40000, (i + 1) * 40000)
   if (existing) {
-    await updateRowById(SHEET_NAMES.GRADEBOOK_DRAFTS, 'draft_id', existing.draft_id, record)
+    const updated = await updateRowById(SHEET_NAMES.GRADEBOOK_DRAFTS, 'draft_id', existing.draft_id, record)
+    if (!updated) {
+      throw Object.assign(new Error('The saved draft was removed. Please reload and save again.'), { statusCode: 409 })
+    }
   } else {
     await appendRow(SHEET_NAMES.GRADEBOOK_DRAFTS, { ...record, draft_id: JSON.stringify([instructorId, subjectId, period]) })
   }
-  return { success: true, savedAt }
+  const [persisted] = await findRows(SHEET_NAMES.GRADEBOOK_DRAFTS, filters)
+  const persistedPayload = persisted ? Array.from({ length: 16 }, (_, i) => persisted[`payload_${i}`] || '').join('') : ''
+  if (persistedPayload !== payload) {
+    throw Object.assign(new Error('Google Sheets could not confirm the saved grades. Please reload and check before saving again.'), { statusCode: 503, expose: true })
+  }
+  return { success: true, savedAt: persisted.updated_at }
 }
 
 function isActiveStatus(value) {

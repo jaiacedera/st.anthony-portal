@@ -24,7 +24,21 @@ function loadModule(path, extraSource = '', storage = new Map()) {
   return exports
 }
 
-const gradebook = loadModule('../pages/instructor/grades-page.tsx', '\nexport { buildStudentGradeSnapshot, buildDefaultGradeSections, buildDefaultGradeComponents };')
+const gradebook = loadModule('../pages/instructor/grades-page.tsx', '\nexport { buildStudentGradeSnapshot, buildDefaultGradeSections, buildDefaultGradeComponents, readStoredGradeConfig, persistStoredGradeConfig, persistStoredGradeScores };')
+
+test('cloud configuration loads without browser storage and cache failures do not fail saves', () => {
+  const cloud = {
+    sections: gradebook.buildDefaultGradeSections('midterm'),
+    components: gradebook.buildDefaultGradeComponents('midterm'),
+    savedAt: '2026-10-07T00:00:00.000Z',
+  }
+  const loaded = gradebook.readStoredGradeConfig('empty-device', 'midterm', cloud)
+  assert.equal(loaded.savedAt, cloud.savedAt)
+  assert.equal(loaded.components.length, cloud.components.length)
+  // The test storage intentionally has no setItem method.
+  assert.doesNotThrow(() => gradebook.persistStoredGradeConfig('blocked', cloud))
+  assert.doesNotThrow(() => gradebook.persistStoredGradeScores('blocked', { draftOverrides: {}, savedOverrides: {} }))
+})
 const student = { id: 'student-1', studentId: '2026-001', fullName: 'Test Student', subjects: [] }
 const subject = { id: 'subject-1', code: 'NCM 118', name: 'Nursing', label: 'NCM 118' }
 const carryover = loadModule('./grade-carryover.ts')

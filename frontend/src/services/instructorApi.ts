@@ -588,6 +588,7 @@ export async function instructorGradebookDraft<T>(
 ): Promise<{ success: boolean; draft: T | null; savedAt: string }> {
   const saving = options.draft !== undefined
   const response = await fetch(`${apiBaseUrl}/api/instructor/grades/draft${saving ? '' : `?${new URLSearchParams(input)}`}`, {
+    cache: 'no-store',
     method: saving ? 'POST' : 'GET',
     headers: { Accept: 'application/json', ...(saving ? { 'Content-Type': 'application/json' } : {}) },
     body: saving ? JSON.stringify({ ...input, draft: options.draft }) : undefined,

@@ -7,6 +7,7 @@ import {
 import { sendJson } from '../utils/http.js'
 
 export async function instructorGradebookDraftData(req, res) {
+  res.setHeader('Cache-Control', 'no-store')
   const save = req.method === 'POST'
   const input = save ? await readJsonBody(req) : Object.fromEntries(new URL(req.url, 'http://localhost').searchParams)
   if (!input.username || !input.subjectId || !input.gradingPeriod) {

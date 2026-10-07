@@ -4,6 +4,8 @@ import { mock, test } from 'node:test'
 test('gradebook drafts persist across loads without publishing grades', async () => {
   let rows = []
   let failWrite = false
+  let dropWrite = false
+  let missingUpdate = false
   const auth = mock.module('../../database/instructorAuthStore.js', { namedExports: {
     getInstructorAccountByUsername: async () => ({ instructor_id: 'teacher' }),
   } })
@@ -17,12 +19,14 @@ test('gradebook drafts persist across loads without publishing grades', async ()
     appendRow: async (sheet, record) => {
       assert.equal(sheet, 'GradebookDrafts')
       if (failWrite) throw new Error('Sheets unavailable')
-      rows.push(record)
+      if (!dropWrite) rows.push(record)
     },
     updateRowById: async (sheet, key, id, record) => {
       assert.equal(sheet, 'GradebookDrafts')
       if (failWrite) throw new Error('Sheets unavailable')
+      if (missingUpdate) return null
       rows = rows.map(row => row[key] === id ? { ...row, ...record } : row)
+      return rows.find(row => row[key] === id)
     },
     getGradePublication: () => assert.fail('Drafts must not read publication state'),
     upsertGrade: () => assert.fail('Drafts must not publish grades'),
@@ -39,6 +43,12 @@ test('gradebook drafts persist across loads without publishing grades', async ()
     await instructorGradebookDraft({ ...input, draft: updated }, true)
     assert.equal(rows.length, 1)
     assert.deepEqual((await instructorGradebookDraft(input)).draft, updated)
+    failWrite = false
+    missingUpdate = true
+    await assert.rejects(instructorGradebookDraft({ ...input, draft }, true), { statusCode: 409 })
+    missingUpdate = false
+    dropWrite = true
+    await assert.rejects(instructorGradebookDraft({ ...input, gradingPeriod: 'final', draft }, true), { statusCode: 503 })
     assert.equal((await instructorGradebookDraft({ ...input, gradingPeriod: 'final' })).draft, null)
     await assert.rejects(instructorGradebookDraft({ ...input, subjectId: 'other' }), { statusCode: 404 })
     await assert.rejects(instructorGradebookDraft({ ...input, draft: { ...draft, overrides: { student1: 101 } } }, true), { statusCode: 400 })

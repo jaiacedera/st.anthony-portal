@@ -159,11 +159,19 @@ The backend initializes and expects these tabs:
 - `Subjects`
 - `SubjectStudents`
 - `Grades`
+- `GradebookDrafts` (Save Changes; instructor drafts available across devices)
 - `GradePublications`
 - `GradeBreakdownRequests`
 - `GradeBreakdownResponses`
 
 ## Connection and initialization
+
+On the instructor gradebook, **Apply Scores** stages edits and **Save Changes**
+writes them to `GradebookDrafts`. The server reads the saved data back before
+confirming success. **Post Grades** publishes student-visible results to `Grades`.
+Previously browser-only grades must be saved from the original browser with
+Save Changes. Deploy both frontend and backend changes to Vercel for fixes to
+take effect on the live site.
 
 - `GET /api/database/google-sheets/status` checks the server-side Sheets connection.
 - `POST /api/database/google-sheets/init` initializes missing tabs and headers.

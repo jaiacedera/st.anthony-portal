@@ -99,3 +99,11 @@
   .subjects-layout .selected-subject-panel { min-height: 340px; }
   .subjects-layout .subjects-empty-state--detail { min-height: 240px; padding-top: 20px; }
 }
+.subject-members { margin-top: 24px; display: grid; gap: 16px; }
+.subject-members h3 { margin: 0; font-size: 1rem; }
+.subject-members ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.subject-members li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.subject-members small { display: block; color: #6b7280; overflow-wrap: anywhere; }
+.subject-members form, .subject-members label { display: grid; gap: 8px; }
+.subject-members input:not([type=checkbox]), .subject-members select { width: 100%; min-width: 0; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font: inherit; box-sizing: border-box; }
+.subject-members p { font-size: .85rem; line-height: 1.5; margin: 0; }

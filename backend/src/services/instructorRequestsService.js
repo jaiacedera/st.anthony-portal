@@ -5,12 +5,14 @@ import {
   getInstructorSubjects,
   reviewGradeBreakdownRequest,
   upsertGradeBreakdownResponse,
+  getRowById,
 } from '../../database/sheetsService.js'
 import { SHEET_NAMES } from '../../database/sheetsSchema.js'
 import {
   GRADE_BREAKDOWN_REQUEST_TYPE,
   parseGradeRequestReason,
 } from '../utils/gradeRequestMetadata.js'
+import { reviewSharedBreakdown } from './sharedGradeRequestsService.js'
 
 function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
@@ -87,10 +89,6 @@ function resolveInstructorId(account, instructors) {
 
   if (matchedInstructors.length === 1) {
     return matchedInstructors[0].instructor_id
-  }
-
-  if (activeInstructors.length === 1) {
-    return activeInstructors[0].instructor_id
   }
 
   return null
@@ -239,6 +237,7 @@ export async function getInstructorRequests(username) {
           processedBy: reviewedBy,
           processedByName: buildPersonName(reviewedByRecord) || reviewedBy,
           gradeId: String(request.grade_id ?? '').trim(),
+          collaborative: subject?.grading_mode === 'COLLABORATIVE',
         }
       })
       .sort((left, right) => right.requestedAt.localeCompare(left.requestedAt)),
@@ -251,6 +250,9 @@ export async function reviewInstructorRequest({
   status,
   approvedBreakdown = null,
 }) {
+  const request = await getRowById(SHEET_NAMES.GRADE_REQUESTS, 'request_id', requestId)
+  const subject = request ? await getRowById(SHEET_NAMES.SUBJECTS, 'subject_id', request.subject_id) : null
+  if (subject?.grading_mode === 'COLLABORATIVE') return reviewSharedBreakdown({ username, requestId, status })
   const { instructorId } = await resolveInstructorContext(username)
 
   if (!instructorId) {

@@ -1,4 +1,8 @@
 export const SHEET_NAMES = {
+  AUTH_SESSIONS: 'AuthSessions',
+  SUBJECT_INSTRUCTORS: 'SubjectInstructors',
+  INSTRUCTOR_GRADES: 'InstructorGrades',
+  FINAL_GRADES: 'FinalGrades',
   STUDENTS: 'Students',
   STUDENT_AUTH_ACCOUNTS: 'StudentAuthAccounts',
   INSTRUCTOR_AUTH_ACCOUNTS: 'InstructorAuthAccounts',
@@ -13,6 +17,10 @@ export const SHEET_NAMES = {
 }
 
 export const SHEET_HEADERS = {
+  [SHEET_NAMES.AUTH_SESSIONS]: ['token_hash', 'role', 'username', 'student_id', 'email', 'expires_at'],
+  [SHEET_NAMES.SUBJECT_INSTRUCTORS]: ['id', 'subject_id', 'instructor_id', 'assigned_by', 'assigned_at', 'status'],
+  [SHEET_NAMES.INSTRUCTOR_GRADES]: ['id', 'subject_student_id', 'instructor_id', 'knowledge_grade', 'performance_grade', 'attitude_grade', 'instructor_final_grade', 'submitted_at', 'updated_at'],
+  [SHEET_NAMES.FINAL_GRADES]: ['id', 'subject_student_id', 'final_grade', 'status', 'submitted_count', 'assigned_count', 'calculated_at'],
   [SHEET_NAMES.GRADEBOOK_DRAFTS]: ['draft_id', 'instructor_id', 'subject_id', 'grading_period', 'updated_at', ...Array.from({ length: 16 }, (_, i) => `payload_${i}`)],
   [SHEET_NAMES.INSTRUCTOR_AUTH_ACCOUNTS]: [
     'account_id', 'role', 'username', 'email', 'instructor_id',
@@ -73,6 +81,9 @@ export const SHEET_HEADERS = {
     'created_at',
     'updated_at',
     'units',
+    'section',
+    'created_by',
+    'grading_mode',
   ],
   [SHEET_NAMES.SUBJECT_STUDENTS]: [
     'subject_student_id',
@@ -114,6 +125,8 @@ export const SHEET_HEADERS = {
     'requested_at',
     'reviewed_at',
     'reviewed_by',
+    'subject_student_id',
+    'requested_by',
   ],
   [SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES]: [
     'response_id',
@@ -128,6 +141,10 @@ export const SHEET_HEADERS = {
 }
 
 export const SHEET_ID_COLUMNS = {
+  [SHEET_NAMES.AUTH_SESSIONS]: 'token_hash',
+  [SHEET_NAMES.SUBJECT_INSTRUCTORS]: 'id',
+  [SHEET_NAMES.INSTRUCTOR_GRADES]: 'id',
+  [SHEET_NAMES.FINAL_GRADES]: 'id',
   [SHEET_NAMES.GRADEBOOK_DRAFTS]: 'draft_id',
   [SHEET_NAMES.INSTRUCTOR_AUTH_ACCOUNTS]: 'account_id',
   [SHEET_NAMES.STUDENTS]: 'student_id',

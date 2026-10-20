@@ -1,4 +1,5 @@
 export type InstructorAuthSession = {
+  token?: string
   accountId?: string
   instructorId?: string
   username: string

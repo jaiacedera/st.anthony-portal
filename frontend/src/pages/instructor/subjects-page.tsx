@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { InstructorShell } from '../../components/instructor-shell'
+import { SubjectMembersPanel } from '../../components/subject-members'
 import {
   createInstructorSubject,
   fetchInstructorSubjects,
@@ -19,6 +20,7 @@ import { navigateTo } from '../../utils/navigation'
 import './subjects-page.css'
 
 type CreateSubjectFormState = {
+  section: string
   subjectCode: string
   units: string
   subjectName: string
@@ -51,6 +53,7 @@ function createDefaultSubjectForm(
   schoolYear = getDefaultSchoolYear(),
 ): CreateSubjectFormState {
   return {
+    section: '',
     subjectCode: '',
     units: '',
     subjectName: '',
@@ -398,6 +401,7 @@ export default function SubjectsPage() {
     setSubjectFormMode('edit')
     setIsCreateFormOpen(true)
     setFormState({
+      section: selectedSubject.section || '',
       subjectCode: selectedSubject.code,
       units: selectedSubject.units === 'Not set' ? '' : selectedSubject.units,
       subjectName: selectedSubject.title,
@@ -433,6 +437,7 @@ export default function SubjectsPage() {
           ? await updateInstructorSubject({
               username,
               subjectId: selectedSubject.id,
+              section: formState.section,
               subjectCode: formState.subjectCode,
               subjectName: formState.subjectName,
               units: formState.units,
@@ -442,6 +447,7 @@ export default function SubjectsPage() {
               room: formState.room,
             })
           : await createInstructorSubject({
+              section: formState.section,
               username,
               subjectCode: formState.subjectCode,
               subjectName: formState.subjectName,
@@ -659,6 +665,9 @@ export default function SubjectsPage() {
 
                 <div className="selected-subject-detail-list">
                   <div className="selected-subject-detail-row subject-detail-row">
+                    <span>Block / Section</span><strong>{selectedSubject.section || 'Not set'}</strong>
+                  </div>
+                  <div className="selected-subject-detail-row subject-detail-row">
                     <DetailIcon>
                       <InstructorDetailIcon />
                     </DetailIcon>
@@ -747,6 +756,8 @@ export default function SubjectsPage() {
                     <span>Edit Subject</span>
                   </button>
                 </div>
+                <SubjectMembersPanel key={selectedSubject.id} subjectId={selectedSubject.id} username={username}
+                  onChanged={() => { void fetchInstructorSubjects(username).then(payload => setSubjects(sortSubjects(payload.subjects))).catch(error => setErrorMessage(error.message)) }} />
               </>
             ) : (
               <div className="subjects-empty-state subjects-empty-state--detail">
@@ -809,6 +820,9 @@ export default function SubjectsPage() {
             </div>
 
             <form className="subject-create-form" onSubmit={handleCreateSubject}>
+              <label className="subject-create-field"><span>Block / Section</span>
+                <input name="section" value={formState.section} onChange={handleFormFieldChange} placeholder="e.g. BSN 3-A" />
+              </label>
               <div className="subject-create-grid">
                 <label className="subject-create-field">
                   <span>Subject Code</span>

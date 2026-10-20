@@ -106,10 +106,6 @@ function resolveInstructorId(account, instructors) {
     return matchedInstructors[0].instructor_id
   }
 
-  if (activeInstructors.length === 1) {
-    return activeInstructors[0].instructor_id
-  }
-
   return null
 }
 

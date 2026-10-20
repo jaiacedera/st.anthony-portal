@@ -467,7 +467,7 @@ export default function RequestsPage() {
 
     try {
       const approvedBreakdown =
-        reviewDialogState.nextStatus === 'APPROVED'
+        reviewDialogState.nextStatus === 'APPROVED' && !reviewTargetRequest.collaborative
           ? (() => {
               const subject = subjects.find(
                 (currentSubject) => currentSubject.id === reviewTargetRequest.subjectId,
@@ -486,7 +486,7 @@ export default function RequestsPage() {
             })()
           : null
       const gradingPeriod =
-        reviewDialogState.nextStatus === 'APPROVED'
+        reviewDialogState.nextStatus === 'APPROVED' && !reviewTargetRequest.collaborative
           ? await resolveApprovedRequestPeriod(reviewTargetRequest.subjectId)
           : null
       const payload = await reviewInstructorRequest({

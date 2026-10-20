@@ -168,6 +168,7 @@ export function AuthPortalPage({
         success?: boolean
         message?: string
         account?: {
+          token: string
           accountId: string
           username: string
           role: string
@@ -188,6 +189,7 @@ export function AuthPortalPage({
       }
 
       const authPayload = JSON.stringify({
+        token: payload.account.token,
         accountId: payload.account.accountId,
         instructorId: payload.account.instructorId,
         studentId: payload.account.studentId,

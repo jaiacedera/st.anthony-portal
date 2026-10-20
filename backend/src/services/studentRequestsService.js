@@ -11,6 +11,7 @@ import {
   normalizeGradeRequestType,
   normalizeGradingPeriod,
 } from '../utils/gradeRequestMetadata.js'
+import { createSharedBreakdownRequest } from './sharedGradeRequestsService.js'
 
 function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
@@ -72,6 +73,11 @@ export async function getStudentRequestResponse({
   email = '',
 }) {
   const student = await resolveStudentRecord({ studentId, email })
+  const request = await getRowById(SHEET_NAMES.GRADE_REQUESTS, 'request_id', requestId)
+  if (!request || request.student_id !== student.student_id ||
+      !(await findRows(SHEET_NAMES.SUBJECT_STUDENTS, { subject_id: request.subject_id, student_id: student.student_id, status: 'ACTIVE' })).length) {
+    throw Object.assign(new Error('This request is not available for your enrollment.'), { statusCode: 403 })
+  }
   const response = await getStudentApprovedGradeBreakdownResponse({
     requestId,
     studentId: String(student.student_id ?? '').trim(),
@@ -92,6 +98,10 @@ export async function submitStudentBreakdownRequest({
   reason = '',
 }) {
   const student = await resolveStudentRecord({ studentId, email })
+  const subject = await getRowById(SHEET_NAMES.SUBJECTS, 'subject_id', subjectId)
+  if (subject?.grading_mode === 'COLLABORATIVE') {
+    return createSharedBreakdownRequest({ subjectId, studentId: student.student_id, reason })
+  }
   const normalizedSubjectId = String(subjectId ?? '').trim()
   const normalizedGradingPeriod = normalizeGradingPeriod(gradingPeriod)
   const normalizedRequestType =

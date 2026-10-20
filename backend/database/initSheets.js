@@ -70,6 +70,15 @@ async function ensureHeaders(sheets, spreadsheetId, sheet) {
   )
 
   if (!headersMatch) {
+    const canAppend = currentHeaderRow.length < sheet.headers.length &&
+      currentHeaderRow.every((header, index) => String(header).trim() === sheet.headers[index])
+    if (canAppend) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId, range: getSheetRange(sheet.name, 'A1'),
+        valueInputOption: 'RAW', requestBody: { values: [sheet.headers] },
+      })
+      return { sheetName: sheet.name, headerStatus: 'extended' }
+    }
     throw new Error(
       `Sheet "${sheet.name}" has unexpected headers. Update the tab manually before continuing.`,
     )

@@ -100,3 +100,7 @@
   .grades-page .grades-filter-field select { max-width: 100%; }
   .grades-page .grades-pagination { flex-wrap: wrap; }
 }
+.professor-gradebook { padding: 24px; margin-top: 20px; }
+.professor-gradebook p { line-height: 1.6; }
+.professor-gradebook th, .professor-gradebook td { padding: 12px; text-align: left; }
+.professor-gradebook input { width: 90px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font: inherit; }

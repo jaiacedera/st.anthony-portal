@@ -21,7 +21,10 @@ import {
   getInstructorSubjects,
   getRowById,
   updateRowById,
+  assertSubjectInstructor,
 } from '../../database/sheetsService.js'
+import { recalculateSubject, readSubjectResults } from './sharedSubjectsService.js'
+import { withWriteLock } from '../utils/writeLock.js'
 
 function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
@@ -110,10 +113,6 @@ function resolveInstructorId(account, instructors) {
 
   if (matchedInstructors.length === 1) {
     return matchedInstructors[0].instructor_id
-  }
-
-  if (activeInstructors.length === 1) {
-    return activeInstructors[0].instructor_id
   }
 
   return null
@@ -280,6 +279,15 @@ export async function getInstructorStudentsPayload(username) {
     gradesByStudentId.set(grade.student_id, currentGrades)
   }
 
+  for (const subject of activeSubjects.filter(subject => subject.grading_mode === 'COLLABORATIVE')) {
+    const { results } = await readSubjectResults(subject.subject_id)
+    for (const result of results) {
+      const currentGrades = gradesByStudentId.get(result.student_id) ?? new Map()
+      currentGrades.set(subject.subject_id, { current_grade: result.status === 'FINAL' ? result.final_grade : 'Pending' })
+      gradesByStudentId.set(result.student_id, currentGrades)
+    }
+  }
+
   const visibleStudentIds = new Set([
     ...linksByStudentId.keys(),
     ...ownedStudentAccounts
@@ -325,6 +333,7 @@ export async function getInstructorStudentsPayload(username) {
     subjects: activeSubjects
       .map((subject) => ({
         id: subject.subject_id,
+        gradingMode: subject.grading_mode || 'LEGACY',
         code: getDisplayValue(subject.subject_code, 'N/A'),
         name: getDisplayValue(subject.subject_name, 'Untitled Subject'),
         label: formatSubjectLabel(subject),
@@ -368,6 +377,7 @@ export async function updateInstructorStudentEnrollment({
       studentId,
       addedBy: instructorId,
     })
+    await recalculateSubject(subjectId)
 
     return {
       success: true,
@@ -379,6 +389,7 @@ export async function updateInstructorStudentEnrollment({
   }
 
   if (action === 'remove') {
+    await assertSubjectInstructor(subjectId, instructorId)
     const activeLink = (
       await findRows(SHEET_NAMES.SUBJECT_STUDENTS, {
         subject_id: subjectId,
@@ -403,6 +414,7 @@ export async function updateInstructorStudentEnrollment({
         status: 'INACTIVE',
       },
     )
+    await recalculateSubject(subjectId)
 
     return {
       success: true,
@@ -416,117 +428,45 @@ export async function updateInstructorStudentEnrollment({
   throw error
 }
 
-export async function createInstructorStudentForUser({
-  username,
-  email,
-  subjectIds,
-}) {
+export async function createInstructorStudentForUser(input) {
+  return withWriteLock(`student:${normalizeValue(input.email)}`, () => createStudentForUser(input))
+}
+
+async function createStudentForUser({ username, email, subjectIds, name = '', yearLevel = '', createAccount = true }) {
   const { instructorId } = await resolveInstructorContext(username)
-
-  if (!instructorId) {
-    const error = new Error(
-      'Instructor account is authenticated but not linked to a Google Sheets instructor record yet.',
-    )
-    error.statusCode = 409
-    throw error
+  if (!instructorId) throw Object.assign(new Error('Instructor account is not linked.'), { statusCode: 403 })
+  const ids = Array.isArray(subjectIds) ? [...new Set(subjectIds.map(String).filter(Boolean))] : []
+  const subjects = []
+  // Validate every assignment before creating any account or enrollment.
+  for (const id of ids) subjects.push(await assertSubjectInstructor(id, instructorId))
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) throw Object.assign(new Error('A valid student email is required.'), { statusCode: 400 })
+  let student = (await getAllRows(SHEET_NAMES.STUDENTS)).find(s => isActiveStatus(s.status) && normalizeValue(s.email) === normalizedEmail)
+  const accounts = await getStudentAccountsByEmail(normalizedEmail)
+  let account = accounts.find(a => a.status === 'ACTIVE')
+  if (!account && !createAccount) throw Object.assign(new Error('No account exists. Enable Create account to add this student.'), { statusCode: 409 })
+  if (!student) {
+    if (account) throw Object.assign(new Error('This account has no active student profile. Repair the existing profile before enrolling.'), { statusCode: 409 })
+    await purgeStaleStudentAccountsByEmail(normalizedEmail)
+    student = await createStudent({ email: normalizedEmail, firstName: String(name).trim(), middleName: '', lastName: '', yearLevel: String(yearLevel).trim(), studentNumber: '' })
   }
-
-  const normalizedSubjectIds = Array.isArray(subjectIds)
-    ? [...new Set(subjectIds.map((subjectId) => String(subjectId ?? '').trim()).filter(Boolean))]
-    : []
-
-  if (!email?.trim()) {
-    const error = new Error('Student email is required.')
-    error.statusCode = 400
-    throw error
+  if (account && account.student_id !== student.student_id) throw Object.assign(new Error('The email account is linked to a different student profile.'), { statusCode: 409 })
+  let emailResult = null
+  if (!account) {
+    const defaultPassword = 'SACC-' + randomPasswordSuffix()
+    account = await upsertStudentAccount({ email: normalizedEmail, studentId: student.student_id, defaultPassword, createdByInstructorId: instructorId })
+    emailResult = await sendStudentWelcomeEmail({ recipientEmail: normalizedEmail, defaultPassword, subjectLabels: subjects.map(formatSubjectLabel) })
   }
-
-  await purgeStaleStudentAccountsByEmail(email)
-
-  let student
-
-  try {
-    student = await createStudent({
-      email,
-      studentNumber: '',
-      firstName: '',
-      middleName: '',
-      lastName: '',
-      yearLevel: '',
-    })
-  } catch (error) {
-    if (error instanceof Error && !error.statusCode) {
-      error.statusCode = 400
-    }
-
-    throw error
+  for (const subjectId of ids) {
+    await addStudentToSubject({ subjectId, studentId: student.student_id, addedBy: instructorId })
+    await recalculateSubject(subjectId)
   }
-
-  const defaultPassword = `SACC-${randomPasswordSuffix()}`
-  let studentAccount
-
-  try {
-    studentAccount = await upsertStudentAccount({
-      email,
-      studentId: student.student_id,
-      defaultPassword,
-      createdByInstructorId: instructorId,
-    })
-  } catch (error) {
-    if (error instanceof Error && !error.statusCode) {
-      error.statusCode = 400
-    }
-
-    throw error
-  }
-
-  const subjectLabels = []
-  const createdSubjects = []
-
-  for (const subjectId of normalizedSubjectIds) {
-    const enrollment = await addStudentToSubject({
-      subjectId,
-      studentId: student.student_id,
-      addedBy: instructorId,
-    })
-
-    if (!enrollment.success) {
-      const error = new Error(enrollment.message ?? 'Unable to add student to a selected subject.')
-      error.statusCode = 400
-      throw error
-    }
-
-    const matchedSubject = await findRows(SHEET_NAMES.SUBJECTS, {
-      subject_id: subjectId,
-      instructor_id: instructorId,
-    })
-
-    if (matchedSubject[0]) {
-      subjectLabels.push(formatSubjectLabel(matchedSubject[0]))
-      createdSubjects.push(matchedSubject[0])
-    }
-  }
-
-  const emailResult = await sendStudentWelcomeEmail({
-    recipientEmail: email.trim(),
-    defaultPassword,
-    subjectLabels,
-  })
-
   return {
     success: true,
-    student: mapStudentRecord({
-      student,
-      enrolledSubjects: createdSubjects,
-      gradesBySubjectId: new Map(),
-    }),
-    message: emailResult.sent
-      ? normalizedSubjectIds.length
-        ? 'Student created successfully, added to the selected subjects, and sent a default password email.'
-        : 'Student created successfully and sent a default password email.'
-      : normalizedSubjectIds.length
-        ? `Student created successfully and added to the selected subjects, but the default password email was not sent. ${emailResult.reason}`
-        : `Student created successfully, but the default password email was not sent. ${emailResult.reason}`,
+    student: mapStudentRecord({ student, enrolledSubjects: subjects, gradesBySubjectId: new Map() }),
+    message: emailResult && !emailResult.sent
+      ? 'Student added, but the account email was not sent. ' + emailResult.reason
+      : emailResult ? 'Student account created, enrolled, and emailed.' : 'Existing student enrolled. Their password was not changed.',
   }
 }
 
@@ -593,6 +533,13 @@ export async function deleteInstructorStudentAccount({
       student_id: studentId,
     }),
   ])
+
+  // A professor must not delete an account used by another professor's class.
+  const ownSubjects = await getInstructorSubjects(instructorId)
+  const ownedIds = new Set(ownSubjects.map(subject => subject.subject_id))
+  if (subjectLinks.some(link => isActiveStatus(link.status) && !ownedIds.has(link.subject_id))) {
+    throw Object.assign(new Error('This student is enrolled in another class. Remove them from your class instead of deleting the account.'), { statusCode: 403 })
+  }
 
   for (const link of subjectLinks) {
     await deleteRowById(

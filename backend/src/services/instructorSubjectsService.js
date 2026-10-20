@@ -5,6 +5,7 @@ import {
   getAllRows,
   getInstructorSubjects,
   updateSubject,
+  assignedInstructorIds,
 } from '../../database/sheetsService.js'
 
 function isActiveStatus(value) {
@@ -69,10 +70,6 @@ function resolveInstructorId(account, instructors) {
     return matchedInstructors[0].instructor_id
   }
 
-  if (activeInstructors.length === 1) {
-    return activeInstructors[0].instructor_id
-  }
-
   return null
 }
 
@@ -100,10 +97,12 @@ function mapSubjectRecord(subject, studentCountById, instructorName) {
     instructor: instructorName,
     semester: getDisplayValue(subject.semester),
     schoolYear: getDisplayValue(subject.school_year),
+    section: subject.section || '',
+    gradingMode: subject.grading_mode || 'LEGACY',
   }
 }
 
-async function resolveInstructorContext(username) {
+export async function resolveInstructorContext(username) {
   const normalizedUsername = username.trim()
   const account = await getInstructorAccountByUsername(normalizedUsername)
 
@@ -144,9 +143,11 @@ export async function getInstructorSubjectsPayload(username) {
     }
   }
 
-  const [subjects, subjectStudents] = await Promise.all([
+  const [subjects, subjectStudents, assignments, professors] = await Promise.all([
     getInstructorSubjects(instructorId),
     getAllRows(SHEET_NAMES.SUBJECT_STUDENTS),
+    getAllRows(SHEET_NAMES.SUBJECT_INSTRUCTORS),
+    getAllRows(SHEET_NAMES.INSTRUCTORS),
   ])
 
   const activeSubjects = subjects.filter((subject) => isActiveStatus(subject.status))
@@ -181,7 +182,9 @@ export async function getInstructorSubjectsPayload(username) {
       ),
     },
     subjects: sortedSubjects.map((subject) =>
-      mapSubjectRecord(subject, subjectStudentCountById, instructorName),
+      mapSubjectRecord(subject, subjectStudentCountById,
+        professors.filter(p => assignedInstructorIds(subject, assignments).includes(p.instructor_id))
+          .map(p => formatInstructorName(p, '')).join(', ') || instructorName),
     ),
   }
 }
@@ -195,6 +198,7 @@ export async function createInstructorSubjectForUser({
   schoolYear,
   schedule,
   room,
+  section,
 }) {
   const { account, instructorId, instructorRecord } = await resolveInstructorContext(username)
 
@@ -215,6 +219,7 @@ export async function createInstructorSubjectForUser({
     schoolYear,
     schedule,
     room,
+    section,
   })
 
   return {
@@ -240,6 +245,7 @@ export async function updateInstructorSubjectForUser({
   schoolYear,
   schedule,
   room,
+  section,
 }) {
   const { account, instructorId, instructorRecord } = await resolveInstructorContext(username)
 
@@ -267,6 +273,7 @@ export async function updateInstructorSubjectForUser({
     schoolYear,
     schedule,
     room,
+    section,
   })
 
   return {

@@ -144,7 +144,7 @@ test('invalid configuration cannot silently disable protection', () => {
 
 async function startServer(t, limits) {
   let calls = 0
-  const server = createApp({ limits: { ...createAbuseConfig(), ...limits }, routeResolver: () => async (req, res) => {
+  const server = createApp({ authenticate: async () => {}, limits: { ...createAbuseConfig(), ...limits }, routeResolver: () => async (req, res) => {
     calls += 1
     const body = req.method === 'POST' ? await readJsonBody(req) : {}
     sendJson(res, 200, { success: true, body })

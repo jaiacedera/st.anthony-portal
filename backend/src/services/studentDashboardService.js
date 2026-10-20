@@ -5,12 +5,14 @@ import {
   getAllRows,
   getRowById,
   updateRowById,
+  assignedInstructorIds,
 } from '../../database/sheetsService.js'
 import {
   GRADE_BREAKDOWN_REQUEST_TYPE,
   parseGradeRequestReason,
 } from '../utils/gradeRequestMetadata.js'
 import { gradeToRatingValue } from '../utils/gradeRating.js'
+import { readSubjectResults } from './sharedSubjectsService.js'
 
 function isActiveStatus(value) {
   return String(value ?? '').trim().toUpperCase() !== 'INACTIVE'
@@ -233,6 +235,11 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
       isActiveStatus(subject.status) &&
       activeSubjectIds.has(String(subject.subject_id ?? '').trim()),
   )
+  const assignments = await getAllRows(SHEET_NAMES.SUBJECT_INSTRUCTORS)
+  const sharedResults = new Map(await Promise.all(activeSubjects.filter(s => s.grading_mode === 'COLLABORATIVE').map(async subject => {
+    const data = await readSubjectResults(subject.subject_id)
+    return [subject.subject_id, data.results.find(r => r.student_id === student.student_id)]
+  })))
   const subjectById = new Map(
     subjects.map((subject) => [String(subject.subject_id ?? '').trim(), subject]),
   )
@@ -264,6 +271,14 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
   const resolveVisibleGradeForSubject = (subject) => {
     const subjectId = String(subject.subject_id ?? '').trim()
     const grade = gradeBySubjectId.get(subjectId)
+    if (subject.grading_mode === 'COLLABORATIVE') {
+      const result = sharedResults.get(subjectId)
+      return {
+        grade: result?.final_grade || '-',
+        gradeLabel: result?.status === 'FINAL' ? 'Final Grade · Final' : 'Provisional Average · Pending',
+        hasPostedGrade: result?.status === 'FINAL',
+      }
+    }
 
     return resolveVisibleGrade(
       grade,
@@ -283,7 +298,7 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
   )
   const allRequests = gradeRequests.filter(
     (request) =>
-      String(request.student_id ?? '').trim() === String(student.student_id ?? '').trim(),
+      String(request.student_id ?? '').trim() === String(student.student_id ?? '').trim() && activeSubjectIds.has(request.subject_id),
   )
 
   return {
@@ -320,31 +335,30 @@ export async function getStudentDashboard({ studentId = '', email = '' }) {
     subjects: activeSubjects
       .map((subject) => {
         const subjectId = String(subject.subject_id ?? '').trim()
-        const grade = gradeBySubjectId.get(subjectId)
         const instructor = instructorById.get(String(subject.instructor_id ?? '').trim())
         const postedGradingPeriods = ['midterm', 'final'].filter((gradingPeriod) =>
           isPostedPublication(
             publicationBySubjectPeriod.get(`${subjectId}::${gradingPeriod}`),
           ),
         )
-        const visibleGrade = resolveVisibleGrade(
-          grade,
-          publicationBySubjectPeriod.get(`${subjectId}::final`),
-          publicationBySubjectPeriod.get(`${subjectId}::midterm`),
-        )
+        const visibleGrade = resolveVisibleGradeForSubject(subject)
+        const collaborative = subject.grading_mode === 'COLLABORATIVE'
 
         return {
           subjectId,
           subjectCode: getDisplayValue(subject.subject_code, 'N/A'),
           subjectName: getDisplayValue(subject.subject_name, 'Untitled Subject'),
           units: getDisplayValue(subject.units),
-          instructorName: buildPersonName(instructor) || 'Instructor not set',
+          instructorName: instructors.filter(p => assignedInstructorIds(subject, assignments).includes(p.instructor_id)).map(buildPersonName).join(', ') || buildPersonName(instructor) || 'Instructor not set',
           schedule: getDisplayValue(subject.schedule),
           room: getDisplayValue(subject.room),
           grade: visibleGrade.grade,
           gradeLabel: visibleGrade.gradeLabel,
-          hasPostedGrade: postedGradingPeriods.length > 0 && visibleGrade.hasPostedGrade,
-          postedGradingPeriods,
+          hasPostedGrade: visibleGrade.hasPostedGrade,
+          postedGradingPeriods: collaborative ? ['final'] : postedGradingPeriods,
+          canRequestBreakdown: collaborative || visibleGrade.hasPostedGrade,
+          collaborative,
+          gradeStatus: collaborative ? sharedResults.get(subjectId)?.status || 'PENDING' : visibleGrade.hasPostedGrade ? 'FINAL' : 'PENDING',
         }
       })
       .sort((left, right) => left.subjectCode.localeCompare(right.subjectCode)),

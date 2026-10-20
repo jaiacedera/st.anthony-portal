@@ -1,6 +1,7 @@
 import { isLocalStudentEnvironment, LOCAL_STUDENT_ID } from './localStudent'
 
 export type StudentAuthSession = {
+  token?: string
   accountId?: string
   studentId?: string
   email?: string

@@ -73,6 +73,9 @@ export async function postInstructorStudent(req, res) {
     const payload = await createInstructorStudentForUser({
       username,
       email: typeof body.email === 'string' ? body.email : '',
+      name: typeof body.name === 'string' ? body.name : '',
+      yearLevel: typeof body.yearLevel === 'string' ? body.yearLevel : '',
+      createAccount: body.createAccount !== false,
       subjectIds: Array.isArray(body.subjectIds) ? body.subjectIds : [],
     })
 

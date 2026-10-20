@@ -737,16 +737,16 @@ export default function StudentRequestPage() {
                         <strong>{section.average === null ? '--' : section.average.toFixed(2)}</strong>
                       </div>
 
-                      <div className="student-breakdown-row student-breakdown-row--summary">
+                      {!requestResponse.collaborative && <div className="student-breakdown-row student-breakdown-row--summary">
                         <span>Weighted</span>
                         <strong>{section.weighted === null ? '--' : section.weighted.toFixed(2)}</strong>
-                      </div>
+                      </div>}
                     </div>
                   </div>
                 ))}
 
                 <div className="student-breakdown-summary-card">
-                  <span>Knowledge Weighted</span>
+                  <span>{requestResponse.collaborative ? 'Average of submitted professor grades (provisional until all submit)' : 'Knowledge Weighted'}</span>
                   <strong>
                     {requestResponse.knowledge.weighted === null
                       ? '--'
@@ -793,12 +793,12 @@ export default function StudentRequestPage() {
                   </strong>
                 </div>
 
-                <div className="student-breakdown-summary-card">
+                {!requestResponse.collaborative && <div className="student-breakdown-summary-card">
                   <span>
                     {requestResponse.gradingPeriod === 'final' ? 'Final Rating' : 'Midterm Rating'}
                   </span>
                   <strong>{requestResponse.rating}</strong>
-                </div>
+                </div>}
 
                 <div className="student-breakdown-summary-card">
                   <span>Remarks</span>

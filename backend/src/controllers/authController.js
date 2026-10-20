@@ -7,6 +7,7 @@ import {
 } from '../services/authService.js'
 import { sendJson } from '../utils/http.js'
 import { readJsonBody } from '../utils/request.js'
+import { issueSession } from '../middleware/sessionAuth.js'
 
 export async function postStudentPasswordChange(req, res) {
   const body = await readJsonBody(req)
@@ -30,6 +31,7 @@ export async function postInstructorLogin(req, res) {
     const password = typeof body.password === 'string' ? body.password : ''
 
     const payload = await authenticateInstructor(username, password)
+    if (payload.success) payload.account.token = await issueSession(payload.account, 'INSTRUCTOR')
 
     sendJson(res, payload.success ? 200 : 401, payload)
   } catch (error) {
@@ -52,6 +54,7 @@ export async function postStudentLogin(req, res) {
     const password = typeof body.password === 'string' ? body.password : ''
 
     const payload = await authenticateStudent(email, password)
+    if (payload.success) payload.account.token = await issueSession(payload.account, 'STUDENT')
 
     sendJson(res, payload.success ? 200 : 401, payload)
   } catch (error) {

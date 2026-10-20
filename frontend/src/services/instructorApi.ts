@@ -1,4 +1,6 @@
 import { getApiBaseUrl } from '../utils/apiBaseUrl'
+import { authenticatedFetch } from './authenticatedFetch'
+const fetch = authenticatedFetch('INSTRUCTOR')
 
 export type InstructorDashboardSubjectPreview = {
   subjectId: string
@@ -23,6 +25,7 @@ export type InstructorPendingRequestPreview = {
 }
 
 export type InstructorRequestRecord = {
+  collaborative?: boolean
   requestId: string
   studentId: string
   studentName: string
@@ -124,6 +127,8 @@ export type InstructorRequestsPayload = {
 }
 
 export type InstructorSubjectRecord = {
+  section?: string
+  gradingMode?: string
   id: string
   code: string
   title: string
@@ -149,6 +154,7 @@ export type InstructorSubjectsPayload = {
 }
 
 export type CreateInstructorSubjectInput = {
+  section?: string
   username: string
   subjectCode: string
   subjectName: string
@@ -168,6 +174,7 @@ export type CreateInstructorSubjectPayload = {
 }
 
 export type UpdateInstructorSubjectInput = {
+  section?: string
   username: string
   subjectId: string
   subjectCode: string
@@ -208,6 +215,7 @@ export type InstructorStudentRecord = {
 }
 
 export type InstructorRosterSubject = {
+  gradingMode?: string
   id: string
   code: string
   name: string
@@ -242,6 +250,9 @@ export type UpdateInstructorStudentEnrollmentPayload = {
 }
 
 export type CreateInstructorStudentInput = {
+  name?: string
+  yearLevel?: string
+  createAccount?: boolean
   username: string
   email: string
   subjectIds: string[]

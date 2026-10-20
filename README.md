@@ -166,6 +166,73 @@ The backend initializes and expects these tabs:
 
 ## Connection and initialization
 
+### Shared classes and independent professor grades
+
+The portal retains Google Sheets and the existing `InstructorAuthAccounts`,
+`StudentAuthAccounts`, `Instructors`, and `Students` tabs instead of creating
+duplicate users/profile tables. Passwords continue to use the existing salted
+hashing and account creation code.
+
+Run `npm run init:sheets`, then `npm run migrate:subjects` with the existing
+server credentials before deploying this feature. Initialization only appends
+missing schema columns and creates missing tabs; unexpected headers are rejected.
+The migration backfills each existing subject owner's assignment and
+`created_by`, and can be rerun without duplicating assignments. It does not
+delete or reinterpret old grades.
+
+New subjects use independent professor grading. Adding another professor to a
+legacy subject enables that flow for the subject; existing `Grades` and
+`GradebookDrafts` data is retained, but professors must submit the three category
+grades in the new table. Legacy subjects without additional professors keep the
+existing grading interface. Removing a professor does not delete their historical
+grade entry; only currently assigned professors contribute to the aggregate.
+At least one professor must remain assigned.
+
+| Existing/proposed relation | Sheets storage |
+| --- | --- |
+| `subject_instructors` | `SubjectInstructors`: deterministic `id` for subject + professor, `assigned_by`, `assigned_at`, `status` |
+| `subjects` | Existing `Subjects`, extended with `section`, `created_by`, `grading_mode` |
+| `subject_students` | Existing `SubjectStudents`; re-enrollment reactivates the existing relation |
+| `instructor_grades` | `InstructorGrades`: one logical entry per enrollment + professor, three categories, unrounded mean, submission/update timestamps |
+| `final_grades` | `FinalGrades`: aggregate per enrollment, `FINAL`/`PENDING`, submission/assignment counts and calculation time |
+| `grade_breakdown_requests` | Existing `GradeBreakdownRequests`, extended with `subject_student_id` and `requested_by`; existing reviewer fields retained |
+| API sessions | `AuthSessions`: SHA-256 token hashes, role and identity, 24-hour expiry; raw tokens are returned only at login |
+
+Only the current professor's fields are returned by the editable grade endpoint.
+Each category is required, numeric, and between 0 and 100 (zero is valid).
+The server computes `(knowledge + performance + attitude) / 3`, verifies the
+saved entry in Sheets, and recalculates the aggregate. A pending aggregate is
+shown as a provisional average and is excluded from final GPA calculations.
+Student reads calculate from current assignments and submissions, so an old
+derived row cannot expose a stale final status.
+
+Subject Management includes assigned professors, enrollment lists, professor
+assignment/removal, and student creation/enrollment by name, email and year.
+Existing accounts are reused without changing passwords. New accounts use the
+existing welcome-email flow. Assignment notifications use the existing
+`BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, and sender-name configuration, and contain
+the subject name/code, section and assigning professor. Repeated assignments
+do not send another email; delivery failures are reported in the UI.
+
+Breakdown requests for shared classes are unique per enrollment. Any currently
+assigned professor may approve or reject a pending request. Approval saves a
+server-generated snapshot before exposing it to that student. Individual
+professor grades are absent from the default student dashboard.
+
+All instructor/student API routes now require a bearer session issued by the
+existing login endpoints. Browser-supplied usernames/student IDs are checked
+against that session. Users with old browser sessions must sign in again after
+deployment. Database initialization/status HTTP routes also require an instructor
+session; the initialization CLI remains available.
+
+Google Sheets does not provide database unique constraints or transactions.
+Deterministic IDs, fresh reads and process-local write serialization enforce
+logical uniqueness for normal requests and retries, but simultaneous writes from
+different server instances are not transactionally serialized. For strict
+cross-instance uniqueness and exactly-once notifications, a transactional store
+or shared lock/outbox service is still required. Do not manually duplicate
+relation rows. Tests use a simulated Sheets client and do not send real emails.
+
 On the instructor gradebook, **Apply Scores** and **Apply Breakdown** stage edits locally. **Save Changes**
 writes them to `GradebookDrafts`. The server reads the saved data back before
 confirming success. **Post Grades** publishes student-visible results to `Grades`.

@@ -5,6 +5,7 @@ import {
   useState,
   type ChangeEvent,
 } from 'react'
+import { ProfessorGradebook } from '../../components/professor-gradebook'
 import { InstructorShell } from '../../components/instructor-shell'
 import {
   fetchInstructorDashboard,
@@ -1828,6 +1829,7 @@ export default function GradesPage() {
   const [draftLoadFailed, setDraftLoadFailed] = useState(false)
   const [hasCloudDraft, setHasCloudDraft] = useState(false)
   const [isPostConfirmOpen, setIsPostConfirmOpen] = useState(false)
+  const collaborativeSubject = subjects.some(subject => subject.id === selectedSubjectId && subject.gradingMode === 'COLLABORATIVE')
 
   useEffect(() => {
     if (!successMessage) {
@@ -1933,6 +1935,7 @@ export default function GradesPage() {
       selectedSubjectId,
       selectedGradingPeriod,
     )
+    if (collaborativeSubject) return
     const abortController = new AbortController()
     async function loadGradebook() {
       await Promise.resolve()
@@ -2033,9 +2036,10 @@ export default function GradesPage() {
       if (!abortController.signal.aborted) setIsLoadingDraft(false)
     })
     return () => abortController.abort()
-  }, [selectedGradingPeriod, selectedSubjectId, username])
+  }, [selectedGradingPeriod, selectedSubjectId, username, collaborativeSubject])
 
   useEffect(() => {
+    if (collaborativeSubject) return
     if (!username || !selectedSubjectId) {
       setPublicationState(null)
       return
@@ -2072,7 +2076,7 @@ export default function GradesPage() {
     return () => {
       abortController.abort()
     }
-  }, [selectedGradingPeriod, selectedSubjectId, username])
+  }, [selectedGradingPeriod, selectedSubjectId, username, collaborativeSubject])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -3035,6 +3039,21 @@ export default function GradesPage() {
         ? 'The grade breakdown request was approved locally.'
         : 'The grade breakdown request was rejected locally.',
     )
+  }
+
+  if (selectedSubject?.gradingMode === 'COLLABORATIVE') {
+    return <InstructorShell active="grades" schoolYearLabel={schoolYearLabel} semesterLabel={semesterLabel}>
+      <section className="grades-page">
+        <h1>Grades</h1>
+        <label className="grades-filter-field"><span>Select Subject</span>
+          <select value={selectedSubjectId} onChange={event => setSelectedSubjectId(event.target.value)}>
+            {subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.label}</option>)}
+          </select>
+        </label>
+        <ProfessorGradebook key={selectedSubjectId} subjectId={selectedSubjectId} />
+        <a href="/instructor/requests">Review grade breakdown requests</a>
+      </section>
+    </InstructorShell>
   }
 
   return (

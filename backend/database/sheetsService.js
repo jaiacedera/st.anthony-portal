@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { withWriteLock } from '../src/utils/writeLock.js'
 import { createSheetsClient, getSpreadsheetId } from './googleSheets.js'
 import {
   SHEET_HEADERS,
@@ -300,7 +301,10 @@ async function ensureSheetInitialized(sheetName) {
 async function getSheetMatrix(sheetName) {
   await ensureSheetInitialized(sheetName)
   // Auth and drafts must reflect writes made by other devices/Vercel instances.
-  if (sheetName === SHEET_NAMES.STUDENT_AUTH_ACCOUNTS || sheetName === SHEET_NAMES.GRADEBOOK_DRAFTS) {
+  if ([SHEET_NAMES.STUDENT_AUTH_ACCOUNTS, SHEET_NAMES.GRADEBOOK_DRAFTS,
+    SHEET_NAMES.AUTH_SESSIONS, SHEET_NAMES.SUBJECT_INSTRUCTORS, SHEET_NAMES.SUBJECTS,
+    SHEET_NAMES.SUBJECT_STUDENTS, SHEET_NAMES.INSTRUCTOR_GRADES, SHEET_NAMES.FINAL_GRADES,
+    SHEET_NAMES.GRADE_REQUESTS, SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES].includes(sheetName)) {
     const sheets = createSheetsClient()
     const spreadsheetId = getSpreadsheetId()
     const response = await runSheetsRequest(() => sheets.spreadsheets.values.get({
@@ -574,6 +578,7 @@ export async function createSubject({
   schoolYear,
   schedule,
   room,
+  section,
 }) {
   const instructor = await getRowById(
     SHEET_NAMES.INSTRUCTORS,
@@ -593,7 +598,7 @@ export async function createSubject({
 
   const timestamp = new Date().toISOString()
 
-  return appendRow(SHEET_NAMES.SUBJECTS, {
+  const subject = await appendRow(SHEET_NAMES.SUBJECTS, {
     subject_id: randomUUID(),
     subject_code: subjectCode.trim(),
     subject_name: subjectName.trim(),
@@ -606,7 +611,16 @@ export async function createSubject({
     created_at: timestamp,
     updated_at: timestamp,
     units: toCellValue(units),
+    section: toCellValue(section),
+    created_by: instructorId,
+    grading_mode: 'COLLABORATIVE',
   })
+  await appendRow(SHEET_NAMES.SUBJECT_INSTRUCTORS, {
+    id: JSON.stringify([subject.subject_id, instructorId]),
+    subject_id: subject.subject_id, instructor_id: instructorId,
+    assigned_by: instructorId, assigned_at: timestamp, status: 'ACTIVE',
+  })
+  return subject
 }
 
 export async function updateSubject({
@@ -619,6 +633,7 @@ export async function updateSubject({
   schoolYear,
   schedule,
   room,
+  section,
 }) {
   const subject = await getRowById(
     SHEET_NAMES.SUBJECTS,
@@ -628,9 +643,7 @@ export async function updateSubject({
 
   assertRecordExists(subject, 'Subject does not exist.')
 
-  if (subject.instructor_id !== instructorId) {
-    throw new Error('Instructor does not own this subject.')
-  }
+  await assertSubjectInstructor(subjectId, instructorId)
 
   if (!subjectCode?.trim()) {
     throw new Error('Subject code is required.')
@@ -653,6 +666,7 @@ export async function updateSubject({
       room: toCellValue(room),
       updated_at: new Date().toISOString(),
       units: toCellValue(units),
+      section: toCellValue(section),
     },
   )
 }
@@ -703,7 +717,11 @@ export async function createStudent({
   })
 }
 
-export async function addStudentToSubject({ subjectId, studentId, addedBy }) {
+export async function addStudentToSubject(input) {
+  return withWriteLock(input.subjectId, () => addStudentToSubjectUnlocked(input))
+}
+
+async function addStudentToSubjectUnlocked({ subjectId, studentId, addedBy }) {
   const [student, subject] = await Promise.all([
     getRowById(
       SHEET_NAMES.STUDENTS,
@@ -720,17 +738,14 @@ export async function addStudentToSubject({ subjectId, studentId, addedBy }) {
   assertRecordExists(student, 'Student does not exist.')
   assertRecordExists(subject, 'Subject does not exist.')
 
-  if (subject.instructor_id !== addedBy) {
-    throw new Error('Instructor does not own this subject.')
-  }
+  await assertSubjectInstructor(subjectId, addedBy)
 
   const duplicates = await findRows(SHEET_NAMES.SUBJECT_STUDENTS, {
     subject_id: subjectId,
     student_id: studentId,
-    status: 'ACTIVE',
   })
 
-  if (duplicates.length > 0) {
+  if (duplicates.some(link => isActiveStatus(link.status))) {
     return {
       success: false,
       message: 'Student is already added to this subject.',
@@ -739,8 +754,10 @@ export async function addStudentToSubject({ subjectId, studentId, addedBy }) {
 
   return {
     success: true,
-    record: await appendRow(SHEET_NAMES.SUBJECT_STUDENTS, {
-      subject_student_id: randomUUID(),
+    record: duplicates.length ? await updateRowById(SHEET_NAMES.SUBJECT_STUDENTS, 'subject_student_id', duplicates[0].subject_student_id, {
+      status: 'ACTIVE', added_by: addedBy, added_at: new Date().toISOString(),
+    }) : await appendRow(SHEET_NAMES.SUBJECT_STUDENTS, {
+      subject_student_id: JSON.stringify([subjectId, studentId]),
       subject_id: subjectId,
       student_id: studentId,
       added_by: addedBy,
@@ -776,8 +793,9 @@ export async function upsertGrade({
   assertRecordExists(subject, 'Subject does not exist.')
   assertRecordExists(student, 'Student does not exist.')
 
-  if (subject.instructor_id !== postedBy) {
-    throw new Error('Instructor does not own this subject.')
+  await assertSubjectInstructor(subjectId, postedBy)
+  if (subject.grading_mode === 'COLLABORATIVE') {
+    throw Object.assign(new Error('Use independent professor grading for this subject.'), { statusCode: 409 })
   }
 
   const subjectStudent = await findRows(SHEET_NAMES.SUBJECT_STUDENTS, {
@@ -852,8 +870,9 @@ export async function upsertGradePublication({
 
   assertRecordExists(subject, 'Subject does not exist.')
 
-  if (subject.instructor_id !== postedBy) {
-    throw new Error('Instructor does not own this subject.')
+  await assertSubjectInstructor(subjectId, postedBy)
+  if (subject.grading_mode === 'COLLABORATIVE') {
+    throw Object.assign(new Error('Use independent professor grading for this subject.'), { statusCode: 409 })
   }
 
   const existingPublication = await getGradePublication({ subjectId, gradingPeriod })
@@ -1017,9 +1036,8 @@ export async function reviewGradeBreakdownRequest({
 
   assertRecordExists(subject, 'Subject does not exist.')
 
-  if (subject.instructor_id !== reviewedBy) {
-    throw new Error('Instructor does not own this subject.')
-  }
+  await assertSubjectInstructor(request.subject_id, reviewedBy)
+  if (request.status !== 'PENDING') throw Object.assign(new Error('This request has already been reviewed.'), { statusCode: 409 })
 
   return updateRowById(
     SHEET_NAMES.GRADE_REQUESTS,
@@ -1181,9 +1199,29 @@ export async function getStudentGradeRequests(studentId) {
 }
 
 export async function getInstructorSubjects(instructorId) {
-  return findRows(SHEET_NAMES.SUBJECTS, {
-    instructor_id: instructorId,
-  })
+  const [subjects, assignments] = await Promise.all([
+    getAllRows(SHEET_NAMES.SUBJECTS), getAllRows(SHEET_NAMES.SUBJECT_INSTRUCTORS),
+  ])
+  return subjects.filter(subject => assignedInstructorIds(subject, assignments).includes(instructorId))
+}
+
+export function assignedInstructorIds(subject, assignments) {
+  const links = assignments.filter(link => link.subject_id === subject.subject_id)
+  const ids = links.filter(link => isActiveStatus(link.status)).map(link => link.instructor_id)
+  // Legacy owners remain assigned until their explicit relation is migrated or removed.
+  if (subject.instructor_id && !links.some(link => link.instructor_id === subject.instructor_id)) ids.push(subject.instructor_id)
+  return [...new Set(ids)]
+}
+
+export async function assertSubjectInstructor(subjectId, instructorId) {
+  const [subject, assignments] = await Promise.all([
+    getRowById(SHEET_NAMES.SUBJECTS, 'subject_id', subjectId),
+    getAllRows(SHEET_NAMES.SUBJECT_INSTRUCTORS),
+  ])
+  if (!subject || !isActiveStatus(subject.status) || !assignedInstructorIds(subject, assignments).includes(instructorId)) {
+    throw Object.assign(new Error('You are not assigned to this subject.'), { statusCode: 403 })
+  }
+  return subject
 }
 
 export async function getSubjectStudents(subjectId, instructorId) {
@@ -1195,9 +1233,7 @@ export async function getSubjectStudents(subjectId, instructorId) {
 
   assertRecordExists(subject, 'Subject does not exist.')
 
-  if (subject.instructor_id !== instructorId) {
-    throw new Error('Instructor does not own this subject.')
-  }
+  await assertSubjectInstructor(subjectId, instructorId)
 
   const [links, students] = await Promise.all([
     findRows(SHEET_NAMES.SUBJECT_STUDENTS, {

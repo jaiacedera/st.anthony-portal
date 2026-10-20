@@ -1,7 +1,12 @@
 import { getApiBaseUrl } from '../utils/apiBaseUrl'
+import { authenticatedFetch } from './authenticatedFetch'
+const fetch = authenticatedFetch('STUDENT')
 import { getLocalStudentDashboard, isLocalStudent, updateLocalStudentProfile } from '../utils/localStudent'
 
 export type StudentDashboardSubjectRecord = {
+  collaborative?: boolean
+  canRequestBreakdown?: boolean
+  gradeStatus?: 'FINAL' | 'PENDING'
   subjectId: string
   subjectCode: string
   subjectName: string
@@ -58,6 +63,7 @@ export type StudentDashboardPayload = {
 }
 
 export type StudentApprovedBreakdownResponse = {
+  collaborative?: boolean
   requestId: string
   subjectId: string
   subjectCode: string

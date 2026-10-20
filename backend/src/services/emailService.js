@@ -4,6 +4,27 @@ export function isBrevoConfigured() {
   return Boolean(env.brevoApiKey && env.brevoSenderEmail)
 }
 
+export async function sendProfessorAssignmentEmail({ recipientEmail, subjectName, subjectCode, section, addedByName }) {
+  if (!isBrevoConfigured()) return { sent: false, reason: 'Brevo email settings are not configured.' }
+  if (!recipientEmail) return { sent: false, reason: 'Professor has no email address.' }
+  try {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { accept: 'application/json', 'api-key': env.brevoApiKey, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sender: { email: env.brevoSenderEmail, name: env.brevoSenderName },
+        to: [{ email: recipientEmail }],
+        subject: `Subject assignment: ${subjectCode}`,
+        textContent: `${addedByName} added you to a subject in the School Portal.\nSubject: ${subjectName}\nCode: ${subjectCode}\nBlock/section: ${section || 'Not set'}\nSign in to your instructor portal to view the class.`,
+      }),
+    })
+    if (!response.ok) return { sent: false, reason: `Email provider returned ${response.status}.` }
+    return { sent: true }
+  } catch {
+    return { sent: false, reason: 'Email provider could not be reached.' }
+  }
+}
+
 export async function sendStudentWelcomeEmail({
   recipientEmail,
   defaultPassword,

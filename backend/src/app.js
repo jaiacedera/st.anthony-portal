@@ -8,8 +8,9 @@ import { env } from './config/env.js'
 import { createAbuseProtection } from './middleware/abuseProtection.js'
 import { readJsonBody } from './utils/request.js'
 import { sendJson } from './utils/http.js'
+import { authenticateRequest } from './middleware/sessionAuth.js'
 
-export function createRequestHandler({ limits = env.abuseLimits, routeResolver = findRoute } = {}) {
+export function createRequestHandler({ limits = env.abuseLimits, routeResolver = findRoute, authenticate = authenticateRequest } = {}) {
   const protection = createAbuseProtection(limits)
   return (req, res) => {
     applyCors(res)
@@ -30,6 +31,8 @@ export function createRequestHandler({ limits = env.abuseLimits, routeResolver =
         const body = await readJsonBody(req, limits.maxBodyBytes)
         if (!protection.beforeBodyAction(req, res, requestUrl.pathname, body)) return
       }
+      await authenticate(req, requestUrl.pathname)
+      res.setHeader('Cache-Control', 'no-store')
       await routeHandler(req, res)
     }).catch(error => {
       if (res.destroyed || res.writableEnded) return

@@ -49,6 +49,7 @@ export async function postInstructorSubject(req, res) {
       schoolYear: typeof body.schoolYear === 'string' ? body.schoolYear : '',
       schedule: typeof body.schedule === 'string' ? body.schedule : '',
       room: typeof body.room === 'string' ? body.room : '',
+      section: typeof body.section === 'string' ? body.section : '',
     })
 
     sendJson(res, 201, payload)
@@ -93,6 +94,7 @@ export async function postInstructorSubjectUpdate(req, res) {
       schoolYear: typeof body.schoolYear === 'string' ? body.schoolYear : '',
       schedule: typeof body.schedule === 'string' ? body.schedule : '',
       room: typeof body.room === 'string' ? body.room : '',
+      section: typeof body.section === 'string' ? body.section : '',
     })
 
     sendJson(res, 200, payload)

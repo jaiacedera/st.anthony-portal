@@ -16,6 +16,7 @@ import {
 } from '../../utils/studentAuth'
 
 function getDisplayedSubjectRating(subject: StudentDashboardSubjectRecord) {
+  if (subject.collaborative) return subject.grade
   if (!subject.hasPostedGrade) {
     return subject.grade
   }
@@ -30,6 +31,7 @@ function getDisplayedSubjectRating(subject: StudentDashboardSubjectRecord) {
 }
 
 function getDisplayedSubjectRatingLabel(subject: StudentDashboardSubjectRecord) {
+  if (subject.collaborative) return subject.gradeLabel
   if (!subject.hasPostedGrade) {
     return subject.gradeLabel
   }
@@ -283,7 +285,7 @@ export default function StudentDashboardPage() {
   }
 
   async function handleRequestBreakdown() {
-    if (!selectedSubject?.hasPostedGrade) {
+    if (!(selectedSubject?.canRequestBreakdown ?? selectedSubject?.hasPostedGrade)) {
       return
     }
 
@@ -671,15 +673,16 @@ export default function StudentDashboardPage() {
               </div>
 
               <div className="subject-details-section subject-details-section--grade">
-                <span className="subject-details-grade-heading">FINAL GRADE</span>
+                <span className="subject-details-grade-heading">{selectedSubject.collaborative ? selectedSubject.gradeLabel : 'FINAL GRADE'}</span>
 
-                {selectedSubject.hasPostedGrade ? (
+                {selectedSubject.hasPostedGrade || selectedSubject.collaborative ? (
                   <span className="subject-final-grade-value">{selectedSubject.grade}</span>
                 ) : (
                   <p className="subject-details-grade-note">
                     Grades have not been posted yet.
                   </p>
                 )}
+                {selectedSubject.collaborative && <p>Status: {selectedSubject.gradeStatus === 'FINAL' ? 'Final' : 'Pending — awaiting professor submissions'}</p>}
               </div>
 
               <div className="subject-details-actions">
@@ -687,7 +690,7 @@ export default function StudentDashboardPage() {
                   type="button"
                   className="request-breakdown-btn"
                   onClick={handleRequestBreakdown}
-                  disabled={!selectedSubject.hasPostedGrade}
+                  disabled={!(selectedSubject.canRequestBreakdown ?? selectedSubject.hasPostedGrade)}
                 >
                   <ClipboardIcon />
                   <span>Request Breakdown</span>

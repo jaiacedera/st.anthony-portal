@@ -47,7 +47,13 @@ import {
   getOverview,
 } from '../controllers/systemController.js'
 
+import { subjectMembersData, professorGradesData } from '../controllers/sharedSubjectsController.js'
+
 const routes = [
+  { method: 'GET', pathname: '/api/instructor/subjects/members', handler: subjectMembersData },
+  { method: 'POST', pathname: '/api/instructor/subjects/professors', handler: subjectMembersData },
+  { method: 'GET', pathname: '/api/instructor/grades/independent', handler: professorGradesData },
+  { method: 'POST', pathname: '/api/instructor/grades/independent', handler: professorGradesData },
   { method: 'GET', pathname: '/api/instructor/grades/draft', handler: instructorGradebookDraftData },
   { method: 'POST', pathname: '/api/instructor/grades/draft', handler: instructorGradebookDraftData },
   { method: 'GET', pathname: '/', handler: getOverview },

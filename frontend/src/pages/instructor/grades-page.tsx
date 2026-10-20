@@ -2633,7 +2633,6 @@ export default function GradesPage() {
     try {
       const nextSections = cloneSections(nextPreparedSections)
       const nextComponents = cloneComponents(nextPreparedComponents)
-      const savedAt = new Date().toISOString()
       const storageKey = getGradeConfigStorageKey(
         username,
         selectedSubject.id,
@@ -2643,20 +2642,18 @@ export default function GradesPage() {
       persistStoredGradeConfig(storageKey, {
         sections: nextSections,
         components: nextComponents,
-        savedAt,
+        savedAt: savedConfigAt,
       })
 
       setGradeSections(nextSections)
-      setSavedGradeSections(cloneSections(nextSections))
       setGradeComponents(nextComponents)
-      setSavedGradeComponents(cloneComponents(nextComponents))
-      setSavedConfigAt(savedAt)
       setVisibleComponentIds((current) =>
         syncVisibleComponentIds(gradeComponents, nextComponents, current),
       )
       setEditDraftSections(cloneSections(nextSections))
       setEditDraftComponents(cloneComponents(nextComponents))
       closeComponentManager()
+      setSuccessMessage('Grading breakdown applied. Click Save Changes to save it to Google Sheets.')
     } catch (error) {
       setComponentManagerError(
         error instanceof Error
@@ -2751,6 +2748,7 @@ export default function GradesPage() {
 
     setIsSaving(true)
     setErrorMessage('')
+    setSuccessMessage('')
 
     try {
       const { savedAt } = await instructorGradebookDraft({

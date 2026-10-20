@@ -25,7 +25,7 @@ test('gradebook drafts persist across loads without publishing grades', async ()
       assert.equal(sheet, 'GradebookDrafts')
       if (failWrite) throw new Error('Sheets unavailable')
       if (missingUpdate) return null
-      rows = rows.map(row => row[key] === id ? { ...row, ...record } : row)
+      if (!dropWrite) rows = rows.map(row => row[key] === id ? { ...row, ...record } : row)
       return rows.find(row => row[key] === id)
     },
     getGradePublication: () => assert.fail('Drafts must not read publication state'),
@@ -48,6 +48,10 @@ test('gradebook drafts persist across loads without publishing grades', async ()
     await assert.rejects(instructorGradebookDraft({ ...input, draft }, true), { statusCode: 409 })
     missingUpdate = false
     dropWrite = true
+    await assert.rejects(instructorGradebookDraft({ ...input, draft }, true), { statusCode: 503 })
+    // Even identical scores must not confirm a write whose timestamp was not persisted.
+    rows[0].updated_at = '2000-01-01T00:00:00.000Z'
+    await assert.rejects(instructorGradebookDraft({ ...input, draft: updated }, true), { statusCode: 503 })
     await assert.rejects(instructorGradebookDraft({ ...input, gradingPeriod: 'final', draft }, true), { statusCode: 503 })
     assert.equal((await instructorGradebookDraft({ ...input, gradingPeriod: 'final' })).draft, null)
     await assert.rejects(instructorGradebookDraft({ ...input, subjectId: 'other' }), { statusCode: 404 })

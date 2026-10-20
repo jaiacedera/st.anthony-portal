@@ -38,6 +38,34 @@ test('cloud configuration loads without browser storage and cache failures do no
   // The test storage intentionally has no setItem method.
   assert.doesNotThrow(() => gradebook.persistStoredGradeConfig('blocked', cloud))
   assert.doesNotThrow(() => gradebook.persistStoredGradeScores('blocked', { draftOverrides: {}, savedOverrides: {} }))
+  const blockedStorage = loadModule('../pages/instructor/grades-page.tsx', '\nexport { readStoredGradeConfig };', {
+    get: () => { throw new Error('Browser storage disabled') },
+  })
+  assert.equal(blockedStorage.readStoredGradeConfig('blocked', 'midterm', cloud).savedAt, cloud.savedAt)
+})
+
+test('applying a breakdown keeps the cloud baseline and requires Save Changes', () => {
+  const source = readFileSync(new URL('../pages/instructor/grades-page.tsx', import.meta.url), 'utf8')
+  const handler = source.slice(source.indexOf('  function handleSaveComponentManager()'), source.indexOf('  function handleSaveEditedScores()'))
+  const { outputText } = ts.transpileModule(`${handler}\nhandleSaveComponentManager()`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  })
+  const calls = []
+  const context = new Proxy({
+    componentManagerCategory: null,
+    componentManagerDraftSections: [], componentManagerDraftComponents: [],
+    selectedSubject: { id: 'subject' }, username: 'teacher',
+    selectedGradingPeriod: 'midterm', savedConfigAt: 'cloud-timestamp',
+    cloneSections: value => value, cloneComponents: value => value,
+  }, {
+    has: () => true,
+    get: (target, key) => key in target ? target[key] : (...args) => { calls.push([key, ...args]); return [] },
+  })
+  runInNewContext(outputText, context)
+  assert.ok(calls.some(([key]) => key === 'setGradeSections'))
+  assert.ok(calls.some(([key]) => key === 'setGradeComponents'))
+  assert.ok(!calls.some(([key]) => ['setSavedGradeSections', 'setSavedGradeComponents', 'setSavedConfigAt'].includes(key)))
+  assert.ok(calls.some(([key, message]) => key === 'setSuccessMessage' && message.includes('Save Changes')))
 })
 const student = { id: 'student-1', studentId: '2026-001', fullName: 'Test Student', subjects: [] }
 const subject = { id: 'subject-1', code: 'NCM 118', name: 'Nursing', label: 'NCM 118' }

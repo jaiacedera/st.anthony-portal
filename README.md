@@ -166,12 +166,28 @@ The backend initializes and expects these tabs:
 
 ## Connection and initialization
 
-On the instructor gradebook, **Apply Scores** stages edits and **Save Changes**
+On the instructor gradebook, **Apply Scores** and **Apply Breakdown** stage edits locally. **Save Changes**
 writes them to `GradebookDrafts`. The server reads the saved data back before
 confirming success. **Post Grades** publishes student-visible results to `Grades`.
 Previously browser-only grades must be saved from the original browser with
 Save Changes. Deploy both frontend and backend changes to Vercel for fixes to
 take effect on the live site.
+
+`GradebookDrafts` stores one draft per instructor, subject, and grading period.
+Its columns are `draft_id` (the JSON-encoded identity tuple), `instructor_id`,
+`subject_id`, `grading_period`, `updated_at` (ISO timestamp), and `payload_0`
+through `payload_15`. Join the payload cells in order to read the JSON containing
+`sections`, `components`, and score `overrides`; each cell holds up to 40,000
+characters. These are draft scores, not rows in the published `Grades` tab.
+
+Draft loads and save verification bypass the server's sheet-data cache; the API
+and browser requests use `no-store`. Save confirmation requires the payload and
+timestamp to match a fresh Sheets read. Browser storage is only a recovery cache:
+cloud drafts load even when storage is unavailable. Applying a breakdown keeps
+the gradebook unsaved until Save Changes succeeds. To recover older local-only
+scores, keep the original browser data and save from that browser. Reopen the
+gradebook on the other device to fetch the latest draft; simultaneous editing
+does not merge changes.
 
 - `GET /api/database/google-sheets/status` checks the server-side Sheets connection.
 - `POST /api/database/google-sheets/init` initializes missing tabs and headers.

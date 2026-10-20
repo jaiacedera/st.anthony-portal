@@ -26,6 +26,8 @@ export const fetchSubjectMembers = (subjectId: string, signal?: AbortSignal) =>
   request<SubjectMembers>('subjects/members', { subjectId }, false, signal)
 export const changeProfessor = (subjectId: string, instructorId: string, action: 'add' | 'remove') =>
   request<{ message: string }>('subjects/professors', { subjectId, instructorId, action }, true)
+export const assignProfessors = (subjectId: string, professors: Array<{ name: string; email: string; checked: boolean }>) =>
+  request<{ message: string }>('subjects/professors', { subjectId, action: 'add', professors }, true)
 export const fetchProfessorGrades = (subjectId: string, signal?: AbortSignal) =>
   request<{ rows: ProfessorGrade[] }>('grades/independent', { subjectId }, false, signal)
 export const saveProfessorGrade = (subjectId: string, row: ProfessorGrade) =>

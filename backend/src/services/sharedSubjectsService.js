@@ -36,7 +36,31 @@ export async function getSubjectMembers({ username, subjectId }) {
   }
 }
 
-export async function changeSubjectProfessor({ username, subjectId, instructorId, action }) {
+export async function changeSubjectProfessor({ username, subjectId, instructorId, action, professors }) {
+  if (professors !== undefined) {
+    await subjectContext(username, subjectId)
+    if (action !== 'add' || !Array.isArray(professors)) fail('Invalid professor rows.')
+    const [profiles, accounts] = await Promise.all([getAllRows(S.INSTRUCTORS), getAllRows(S.INSTRUCTOR_AUTH_ACCOUNTS)])
+    const ids = new Set()
+    // Validate every checked row before making assignments; never rename an existing account.
+    for (const row of professors.filter(row => row?.checked === true)) {
+      const email = typeof row.email === 'string' ? row.email.trim().toLowerCase() : ''
+      if (typeof row.name !== 'string' || !row.name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail('Each checked professor needs a name and valid email.')
+      const account = accounts.find(account => String(account.email).trim().toLowerCase() === email)
+      if (account && !active(account)) fail(`Instructor account ${email} is inactive.`)
+      const professor = account?.instructor_id
+        ? profiles.find(profile => profile.instructor_id === account.instructor_id)
+        : profiles.find(profile => String(profile.email).trim().toLowerCase() === email)
+      if (!professor || !active(professor)) fail(`No active instructor is linked to ${email}.`, 404)
+      ids.add(professor.instructor_id)
+    }
+    const messages = []
+    for (const id of ids) {
+      const result = await changeSubjectProfessor({ username, subjectId, instructorId: id, action: 'add' })
+      messages.push(result.message)
+    }
+    return { success: true, message: messages.join(' ') || 'No professors selected.' }
+  }
   return withSubjectLock(subjectId, async () => {
     const context = await subjectContext(username, subjectId)
     if (!['add', 'remove'].includes(action)) fail('Action must be add or remove.')

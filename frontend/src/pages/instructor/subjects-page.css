@@ -118,3 +118,8 @@
   gap: 16px;
 }
 
+.professor-assignment-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+.professor-assignment-row input[type=checkbox] { margin: 10px 0; }
+@media (max-width: 600px) {
+  .professor-assignment-row { grid-template-columns: 1fr; }
+}

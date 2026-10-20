@@ -8,7 +8,8 @@ import {
   type ReactNode,
 } from 'react'
 import { InstructorShell } from '../../components/instructor-shell'
-import { SubjectProfessorsPanel } from '../../components/subject-members'
+import { SubjectProfessorsPanel, type ProfessorAssignmentRow } from '../../components/subject-members'
+import { assignProfessors } from '../../services/sharedSubjectsApi'
 import {
   createInstructorSubject,
   fetchInstructorSubjects,
@@ -257,6 +258,7 @@ export default function SubjectsPage() {
     () => new URLSearchParams(window.location.search).get('open') === 'create',
   )
   const [subjectFormMode, setSubjectFormMode] = useState<SubjectFormMode>('create')
+  const [professorRows, setProfessorRows] = useState<ProfessorAssignmentRow[]>([])
   const [errorMessage, setErrorMessage] = useState('')
   const [bindingMessage, setBindingMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -399,6 +401,7 @@ export default function SubjectsPage() {
     setSuccessMessage('')
     setErrorMessage('')
     setSubjectFormMode('edit')
+    setProfessorRows([{ name: '', email: '', checked: false }])
     setIsCreateFormOpen(true)
     setFormState({
       section: selectedSubject.section || '',
@@ -432,6 +435,10 @@ export default function SubjectsPage() {
     setSuccessMessage('')
 
     try {
+      if (subjectFormMode === 'edit' && professorRows.some(row => row.checked &&
+        (!row.name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email.trim())))) {
+        throw new Error('Enter a name and valid email for each checked professor.')
+      }
       const payload =
         subjectFormMode === 'edit' && selectedSubject
           ? await updateInstructorSubject({
@@ -464,6 +471,13 @@ export default function SubjectsPage() {
             ? 'The subject was updated but no subject record was returned.'
             : 'The subject was created but no subject record was returned.',
         )
+      }
+
+      if (subjectFormMode === 'edit' && professorRows.some(row => row.checked)) {
+        const assigned = await assignProfessors(payload.subject.id, professorRows)
+        payload.message = `${payload.message || 'Subject updated.'} ${assigned.message}`
+        const refreshed = await fetchInstructorSubjects(username)
+        payload.subject = refreshed.subjects.find(subject => subject.id === payload.subject?.id) ?? payload.subject
       }
 
       const nextSubjects = sortSubjects([
@@ -909,7 +923,9 @@ export default function SubjectsPage() {
 
             </form>
             {subjectFormMode === 'edit' && selectedSubject && <SubjectProfessorsPanel key={selectedSubject.id} subjectId={selectedSubject.id}
+              rows={professorRows} onRowsChange={setProfessorRows} saving={isSubmitting}
               onChanged={() => { void fetchInstructorSubjects(username).then(payload => setSubjects(sortSubjects(payload.subjects))).catch(error => setErrorMessage(error.message)) }} />}
+            {errorMessage && <p className="dashboard-alert" role="alert">{errorMessage}</p>}
               <div className="subject-modal-actions selected-subject-action-list selected-subject-actions">
                 <button
                   type="submit"

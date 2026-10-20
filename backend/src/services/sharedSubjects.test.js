@@ -59,7 +59,19 @@ test('shared classes isolate grades, aggregate submissions, manage enrollments a
     assert.equal(created.subject.gradingMode, 'COLLABORATIVE')
     assert.ok(records(S.SUBJECT_INSTRUCTORS).some(link => link.subject_id === created.subject.id && link.instructor_id === 'a'))
     await assert.rejects(shared.changeSubjectProfessor({ username: 'outsider', subjectId: 'class', instructorId: 'b', action: 'add' }), { statusCode: 403 })
-    await Promise.all([1, 2].map(() => shared.changeSubjectProfessor({ username: 'a', subjectId: 'class', instructorId: 'b', action: 'add' })))
+    await assert.rejects(shared.changeSubjectProfessor({ username: 'a', subjectId: 'class', action: 'add', professors: [
+      { name: 'Professor b', email: 'b@school.test', checked: true },
+      { name: '', email: 'invalid', checked: true },
+    ] }), { statusCode: 400 })
+    assert.equal(emails.length, 0)
+    await assert.rejects(shared.changeSubjectProfessor({ username: 'a', subjectId: 'class', action: 'add', professors: [
+      { name: 'Unknown', email: 'unknown@school.test', checked: true },
+    ] }), { statusCode: 404 })
+    await Promise.all([1, 2].map(() => shared.changeSubjectProfessor({ username: 'a', subjectId: 'class', action: 'add', professors: [
+      { name: 'Professor b', email: ' B@school.test ', checked: true },
+      { name: 'Duplicate', email: 'b@school.test', checked: true },
+      { name: '', email: 'invalid', checked: false },
+    ] })))
     assert.equal(emails.length, 1)
     assert.deepEqual(emails[0], { recipientEmail: 'b@school.test', subjectName: 'Nursing', subjectCode: 'NCM', section: '3-A', addedByName: 'Professor a' })
     assert.equal((await db.getInstructorSubjects('b'))[0].subject_id, 'class')
@@ -143,6 +155,12 @@ test('shared classes isolate grades, aggregate submissions, manage enrollments a
     ])
     assert.equal(zero.final_grade, '0.00')
     assert.equal(zero.status, 'PENDING')
+    await shared.changeSubjectProfessor({ username: 'a', subjectId: 'class', action: 'add', professors: [
+      { name: 'Professor b', email: 'b@school.test', checked: true },
+      { name: 'Professor outsider', email: 'outsider@school.test', checked: true },
+    ] })
+    assert.equal((await shared.getSubjectMembers({ username: 'a', subjectId: 'class' })).professors.length, 3)
+    assert.equal(emails.length, 3)
   } finally {
     if (previousVercel === undefined) delete process.env.VERCEL
     else process.env.VERCEL = previousVercel

@@ -774,37 +774,6 @@ function isFinalKnowledgeMajorExamSection(
   )
 }
 
-function isFinalKnowledgeExamLabel(label: string) {
-  const normalizedLabel = normalizeCsvHeader(label)
-  return normalizedLabel === 'midterm exam' || normalizedLabel === 'final exam'
-}
-
-function sortFinalMajorExamComponents(components: GradeComponentConfig[]) {
-  return [...components].sort((left, right) => {
-    const getPriority = (label: string) => {
-      const normalizedLabel = normalizeCsvHeader(label)
-
-      if (normalizedLabel === 'midterm exam') {
-        return 0
-      }
-
-      if (normalizedLabel === 'final exam') {
-        return 1
-      }
-
-      return 2
-    }
-
-    const priorityDifference = getPriority(left.label) - getPriority(right.label)
-
-    if (priorityDifference !== 0) {
-      return priorityDifference
-    }
-
-    return left.order - right.order || left.id.localeCompare(right.id)
-  })
-}
-
 function normalizeFinalKnowledgeMajorExamStructure(
   sections: GradeSectionConfig[],
   components: GradeComponentConfig[],
@@ -842,103 +811,7 @@ function normalizeFinalKnowledgeMajorExamStructure(
     didMigrate = true
   }
 
-  let majorExamSection = nextSections.find(
-    (section) => section.id === 'knowledge-major-exam' && section.category === 'knowledge',
-  )
-
-  if (!majorExamSection) {
-    majorExamSection = {
-      id: 'knowledge-major-exam',
-      category: 'knowledge',
-      label: 'Major Exam',
-      weight: 20,
-      aggregationType: 'average',
-      allowAssessments: true,
-      order: 3,
-      isDefault: true,
-      isActive: true,
-      isCustom: false,
-    }
-    nextSections.push(majorExamSection)
-    didMigrate = true
-  }
-
-  if (
-    !majorExamSection.isActive ||
-    majorExamSection.label !== 'Major Exam' ||
-    majorExamSection.weight !== 20
-  ) {
-    majorExamSection.isActive = true
-    majorExamSection.label = 'Major Exam'
-    majorExamSection.weight = 20
-    majorExamSection.aggregationType = 'average'
-    majorExamSection.allowAssessments = true
-    didMigrate = true
-  }
-
-  const movableSections = nextSections.filter(
-    (section) =>
-      section.isActive &&
-      section.category === 'knowledge' &&
-      section.id !== 'knowledge-major-exam' &&
-      isFinalKnowledgeExamLabel(section.label),
-  )
-
-  for (const section of movableSections) {
-    const sectionComponents = nextComponents.filter(
-      (component) => component.isActive && component.sectionId === section.id,
-    )
-
-    for (const component of sectionComponents) {
-      component.sectionId = 'knowledge-major-exam'
-      if (normalizeCsvHeader(component.label) === normalizeCsvHeader(section.label)) {
-        component.label = section.label
-      }
-    }
-
-    section.isActive = false
-    didMigrate = true
-  }
-
-  let majorExamComponents = nextComponents.filter(
-    (component) =>
-      component.isActive && component.sectionId === 'knowledge-major-exam',
-  )
-
-  if (
-    majorExamComponents.length === 1 &&
-    normalizeCsvHeader(majorExamComponents[0].label) === 'major exam'
-  ) {
-    majorExamComponents[0].label = 'Midterm Exam'
-    didMigrate = true
-  }
-
-  for (const defaultComponent of finalMajorExamDefaultComponents) {
-    const existingComponent = majorExamComponents.find(
-      (component) =>
-        normalizeCsvHeader(component.label) === normalizeCsvHeader(defaultComponent.label),
-    )
-
-    if (existingComponent) {
-      continue
-    }
-
-    nextComponents.push({ ...defaultComponent })
-    didMigrate = true
-  }
-
-  majorExamComponents = nextComponents.filter(
-    (component) =>
-      component.isActive && component.sectionId === 'knowledge-major-exam',
-  )
-
-  sortFinalMajorExamComponents(majorExamComponents).forEach((component, index) => {
-    if (component.order !== index + 1) {
-      component.order = index + 1
-      didMigrate = true
-    }
-  })
-
+  // Saved Knowledge fields are authoritative; never restore template exams.
   return {
     sections: normalizeSectionOrders(nextSections),
     components: normalizeComponentOrders(nextComponents, nextSections),
@@ -1481,18 +1354,12 @@ function readStoredGradeConfig(
     let didMigrate = false
 
     if (shouldMigrateToPeriodDefaults(normalizedSections, normalizedComponents, gradingPeriod)) {
-      // Period migrations may replace other categories, but Skills is user-configured.
-      const skillsSections = normalizedSections.filter(section => section.category === 'skills')
-      const skillsSectionIds = new Set(skillsSections.map(section => section.id))
-      const defaults = buildDefaultGradeSections(gradingPeriod)
-      const defaultSkillsIds = new Set(defaults.filter(section => section.category === 'skills').map(section => section.id))
-
+      // Preserve subject-specific Knowledge and Skills, including deleted fields.
+      const keptSections = normalizedSections.filter(section => section.category !== 'attitude')
+      const keptIds = new Set(keptSections.map(section => section.id))
       return {
-        sections: [...defaults.filter(section => section.category !== 'skills'), ...skillsSections],
-        components: [
-          ...buildDefaultGradeComponents(gradingPeriod).filter(component => !defaultSkillsIds.has(component.sectionId)),
-          ...normalizedComponents.filter(component => skillsSectionIds.has(component.sectionId)),
-        ],
+        sections: keptSections,
+        components: normalizedComponents.filter(component => keptIds.has(component.sectionId)),
         savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
         didMigrate: true,
       }
@@ -1910,7 +1777,7 @@ export default function GradesPage() {
             : readStoredGradeScores(getGradeScoreStorageKey(username, selectedSubjectId, 'midterm')) ?? { draftOverrides: {}, savedOverrides: {} },
           midtermConfig?.migratedComponentIds ?? {},
         )
-        if (midtermConfig) {
+        if (midtermConfig && !storedConfig) {
           const inherited = inheritMidtermConfig({ sections: nextSections, components: nextComponents }, midtermConfig)
           nextSections = inherited.sections
           nextComponents = inherited.components

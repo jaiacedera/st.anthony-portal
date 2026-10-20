@@ -50,9 +50,11 @@
 .roster-options button { width: 100%; padding: 8px; border: 0; background: #fff; text-align: left; font: inherit; cursor: pointer; }
 .roster-options button:hover { background: #fff3f3; }
 .roster-page .students-table-shell { margin: 0; padding: 14px 14px 0; overflow-x: auto; flex: auto; }
-.roster-page .table-layout--students { display: grid; grid-template-columns: 5% 27% 28% 18% 13% 9%; gap: 0; min-width: 800px; align-items: center; }
+.roster-page .table-layout--students { display: grid; grid-template-columns: 40px minmax(180px, 1.3fr) minmax(200px, 1.4fr) minmax(150px, 1fr) 130px 90px 72px; gap: 0; min-width: 1000px; align-items: center; }
+.roster-page .student-group-cell { min-width: 0; padding-right: 14px; }
+.roster-page .student-group-select { display: block; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; height: 32px; }
 .roster-page .student-table-header { min-height: 37px; padding: 0 12px; border-radius: 7px 7px 0 0; background: #f2f3f6; font-size: 9px; color: #45516b; text-transform: uppercase; }
-.roster-page .students-table-body { display: block; overflow: visible; min-height: 205px; }
+.roster-page .students-table-body { display: block; overflow: visible; min-height: 205px; min-width: 1000px; }
 .roster-page .student-roster-row { min-height: 60px; padding: 10px 12px; border-bottom: 1px solid #edf0f5; font-size: 11px; }
 .roster-page .student-name-cell { min-width: 0; gap: 8px; }
 .roster-page .student-avatar { width: 28px; height: 28px; font-size: 10px; flex: none; }
@@ -187,16 +189,11 @@
   .roster-page .students-table-shell {
     flex: 1;
     min-height: 0;
-    overflow: visible;
-  }
-
-  .roster-page .table-layout--students {
-    min-width: 0;
-    grid-template-columns: 4% minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(90px, .9fr) 90px 72px;
+    overflow: auto;
   }
 
   .roster-page .students-table-body {
-    --roster-row-height: 40px;
+    --roster-row-height: 44px;
     flex: 1;
     min-height: 0;
   }

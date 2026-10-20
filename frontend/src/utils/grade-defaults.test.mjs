@@ -278,3 +278,34 @@ for (const period of ['midterm', 'final']) {
     assert.equal(pending.categories.find(c => c.key === 'skills').weighted, null)
   })
 }
+
+for (const period of ['midterm', 'final']) {
+  for (const deletion of ['removed', 'disabled']) {
+    test(`${period}: ${deletion} Knowledge exams stay deleted after apply and reload`, () => {
+      const sections = gradebook.buildDefaultGradeSections(period)
+      const defaults = gradebook.buildDefaultGradeComponents(period)
+      const deletedId = period === 'final' ? 'knowledge-major-exam-midterm' : 'knowledge-midterm-exam'
+      const components = defaults.flatMap(component => component.id !== deletedId ? [component] : deletion === 'disabled' ? [{ ...component, isActive: false }] : [])
+      const key = `instructor-grade-config::instructor::${subject.id}::${period}`
+      const overrides = Object.fromEntries(defaults.map(component => [`${student.id}::${subject.id}::${period}::${component.id}`, component.id === deletedId ? 1 : 90]))
+      const storage = new Map([
+        [key, JSON.stringify({ sections, components })],
+        [`instructor-grade-config::instructor::${subject.id}::midterm`, JSON.stringify({ sections: gradebook.buildDefaultGradeSections('midterm'), components: gradebook.buildDefaultGradeComponents('midterm') })],
+        [`instructor-grade-scores::instructor::${subject.id}::${period}`, JSON.stringify({ savedOverrides: overrides })],
+      ])
+      storage.set(key, JSON.stringify({ sections, components }))
+      const module = loadModule('../pages/instructor/grades-page.tsx', '\nexport { readStoredGradeConfig, normalizeFinalKnowledgeMajorExamStructure, buildStudentGradeSnapshot };', storage)
+      const applied = period === 'final' ? module.normalizeFinalKnowledgeMajorExamStructure(sections, components) : { sections, components }
+      const loaded = module.readStoredGradeConfig(key, period, applied)
+      const reopened = module.readStoredGradeConfig(key, period, JSON.parse(JSON.stringify(loaded)))
+      assert.ok(!reopened.components.some(component => component.id === deletedId && component.isActive))
+      const snapshot = module.buildStudentGradeSnapshot(student, subject, period, reopened.sections, reopened.components, overrides)
+      const knowledge = snapshot.categories.find(category => category.key === 'knowledge')
+      assert.ok(!knowledge.sections.flatMap(section => section.components).some(component => component.id === deletedId))
+      for (const section of knowledge.sections.filter(section => section.components.length)) assert.equal(section.average, 90)
+      const response = loadModule('./student-breakdown-response.ts', '', storage).buildApprovedBreakdownResponse({ requestId: 'r', username: 'instructor', subject, student, gradingPeriod: period })
+      assert.ok(!response.knowledge.sections.flatMap(section => section.items).some(item => item.score === 1))
+      assert.equal(response.knowledge.weighted, knowledge.weighted)
+    })
+  }
+}

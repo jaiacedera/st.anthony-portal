@@ -667,17 +667,20 @@ export default function StudentsPage() {
           <div className="student-name-copy">
             <strong title={student.fullName}>{student.fullName}</strong>
             <span>{student.studentId}</span>
-            {selectedSubjectId && <select className="student-group-select" aria-label={`Group for ${student.fullName}`}
+
+          </div>
+        </div>
+
+        <span className="student-email-cell" title={student.email}>{student.email}</span>
+        <div className="student-group-cell">
+          {selectedSubjectId ? <select className="student-group-select" aria-label={`Group for ${student.fullName}`}
               value={groups.members.find(member => member.student_id === student.id)?.group_id ?? ''}
               disabled={!groups.ready || groups.busy}
               onChange={event => void groups.change({ action: 'assign', studentId: student.id, groupId: event.target.value })}>
               <option value="">Unassigned</option>
               {groups.groups.map(group => <option key={group.id} value={group.id}>{group.group_name}</option>)}
-            </select>}
-          </div>
+            </select> : <span>Select a subject</span>}
         </div>
-
-        <span className="student-email-cell" title={student.email}>{student.email}</span>
         <span className="student-enrollment-cell">{countLabel(student.subjectCount, 'subject')}</span>
         <span className={student.subjectCount ? 'roster-status' : 'roster-status roster-status--neutral'}>{student.subjectCount ? 'Enrolled' : 'Not enrolled'}</span>
 
@@ -862,6 +865,7 @@ export default function StudentsPage() {
               <span>#</span>
               <span>Full Name</span>
               <span>Email</span>
+              <span>Group</span>
               <span>Subjects Enrolled</span>
               <span>Status</span>
               <span>Actions</span>

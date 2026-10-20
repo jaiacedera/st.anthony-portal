@@ -406,20 +406,6 @@ function normalizeCsvHeader(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-function sortFinalMajorExamComponents(components: GradeComponentConfig[]) {
-  return [...components].sort((left, right) => {
-    const getPriority = (label: string) => {
-      const normalizedLabel = normalizeCsvHeader(label)
-
-      if (normalizedLabel === 'midterm exam') return 0
-      if (normalizedLabel === 'final exam') return 1
-      return 2
-    }
-
-    return getPriority(left.label) - getPriority(right.label) || left.order - right.order
-  })
-}
-
 function normalizeSectionOrders(sections: GradeSectionConfig[]) {
   const nextSections = cloneSections(sections)
 
@@ -500,56 +486,7 @@ function normalizeFinalKnowledgeMajorExamStructure(
     }
   }
 
-  let majorExamSection = nextSections.find(
-    (section) => section.id === 'knowledge-major-exam' && section.category === 'knowledge',
-  )
-
-  if (!majorExamSection) {
-    majorExamSection = {
-      id: 'knowledge-major-exam',
-      category: 'knowledge',
-      label: 'Major Exam',
-      weight: 20,
-      aggregationType: 'average',
-      allowAssessments: true,
-      order: 3,
-      isDefault: true,
-      isActive: true,
-      isCustom: false,
-    }
-    nextSections.push(majorExamSection)
-  }
-
-  let majorExamComponents = nextComponents.filter(
-    (component) => component.isActive && component.sectionId === 'knowledge-major-exam',
-  )
-
-  if (
-    majorExamComponents.length === 1 &&
-    normalizeCsvHeader(majorExamComponents[0].label) === 'major exam'
-  ) {
-    majorExamComponents[0].label = 'Midterm Exam'
-  }
-
-  for (const defaultComponent of finalMajorExamDefaultComponents) {
-    const existingComponent = majorExamComponents.find(
-      (component) =>
-        normalizeCsvHeader(component.label) === normalizeCsvHeader(defaultComponent.label),
-    )
-
-    if (!existingComponent) {
-      nextComponents.push({ ...defaultComponent })
-    }
-  }
-
-  majorExamComponents = nextComponents.filter(
-    (component) => component.isActive && component.sectionId === 'knowledge-major-exam',
-  )
-
-  sortFinalMajorExamComponents(majorExamComponents).forEach((component, index) => {
-    component.order = index + 1
-  })
-
+  // Saved Knowledge fields are authoritative; never restore template exams.
   return {
     sections: normalizeSectionOrders(nextSections),
     components: normalizeComponentOrders(nextComponents, nextSections),
@@ -850,7 +787,9 @@ export function buildApprovedBreakdownResponse({
   let config = readStoredGradeConfig(username, subject.id, gradingPeriod)
   let overrides = readStoredGradeScores(username, subject.id, gradingPeriod)
   if (gradingPeriod === 'final') {
-    config = inheritMidtermConfig(config, readStoredGradeConfig(username, subject.id, 'midterm'))
+    if (!window.localStorage.getItem(`instructor-grade-config::${username}::${subject.id}::final`)) {
+      config = inheritMidtermConfig(config, readStoredGradeConfig(username, subject.id, 'midterm'))
+    }
     overrides = inheritMidtermScores(readStoredGradeScores(username, subject.id, 'midterm'), overrides)
   }
   const { sections, components } = config

@@ -17,17 +17,23 @@ export function inheritMidtermScores(
 }
 
 export function inheritMidtermConfig<
-  S extends { id: string; isActive: boolean },
+  S extends { id: string; isActive: boolean; category?: string },
   C extends { id: string; sectionId: string; isActive: boolean },
 >(final: { sections: S[]; components: C[] }, midterm: { sections: S[]; components: C[] }) {
   const sections = [...final.sections]
   const components = [...final.components]
+  const skillsSectionIds = new Set(
+    [...final.sections, ...midterm.sections].filter(section => section.category === 'skills').map(section => section.id),
+  )
   for (const section of midterm.sections) {
+    if (skillsSectionIds.has(section.id)) continue
     if (section.isActive && section.id !== 'knowledge-midterm-exam' && !sections.some(item => item.id === section.id)) {
       sections.push({ ...section })
     }
   }
   for (const component of midterm.components) {
+    // Final's active Skills configuration is authoritative; do not resurrect deleted fields.
+    if (skillsSectionIds.has(component.sectionId)) continue
     const id = finalComponentId(component.id)
     const sectionId = component.sectionId === 'knowledge-midterm-exam' ? 'knowledge-major-exam' : component.sectionId
     if (component.isActive && sections.some(section => section.id === sectionId && section.isActive) && !components.some(item => item.id === id)) {

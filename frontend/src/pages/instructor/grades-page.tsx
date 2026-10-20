@@ -615,7 +615,7 @@ function getConfiguredCategories(
   )
 
   return gradeCategories
-    .filter((category) => activeCategoryKeys.has(category.key))
+    .filter((category) => category.key === 'skills' || activeCategoryKeys.has(category.key))
     .map((category) => ({
       ...category,
       weight: getRequiredCategoryWeight(gradingPeriod, category.key),
@@ -1161,7 +1161,7 @@ function buildStudentGradeSnapshot(
               component.id,
             )
             const savedScore = overrides[overrideKey]
-            const score = roundTo(savedScore ?? 0, 2)
+            const score = section.category === 'skills' && savedScore === undefined ? null : roundTo(savedScore ?? 0, 2)
 
             return {
               ...component,
@@ -1224,8 +1224,7 @@ function buildStudentGradeSnapshot(
     const isIncomplete =
       category.key === 'skills'
         ? hasConfigurationMismatch ||
-          !skillsComputation?.isComplete ||
-          categorySections.some((section) => !section.components.length)
+          !skillsComputation?.isComplete
         : hasConfigurationMismatch ||
           categorySections.some(
             (section) =>
@@ -1250,7 +1249,7 @@ function buildStudentGradeSnapshot(
     : null
   const configuredWeightTotal = categories.reduce((sum, category) => sum + category.weight, 0)
   const finalScore =
-    weightedSum === null || configuredWeightTotal === 0
+    weightedSum === null || configuredWeightTotal === 0 || categories.some(category => category.key === 'skills' && category.isIncomplete)
       ? null
       : roundTo(weightedSum / (configuredWeightTotal / 100), 2)
   const isIncomplete = categories.some(
@@ -1281,39 +1280,17 @@ function buildSkillsScoreInput(
   components: Array<{ id: string; label: string; score: number | null }>,
 ) {
   return Object.fromEntries(
-    components.flatMap((component) => {
-      const canonicalId = getCanonicalSkillsComponentId(component.id, component.label)
-      return canonicalId ? [[canonicalId, component.score]] : []
-    }),
+    components.map((component) => [component.id, component.score]),
   )
 }
 
-function buildSkillsBreakdownRows(skillsComputation: SkillsGradeResult) {
+function buildSkillsBreakdownRows(skillsComputation: SkillsGradeResult, components: Array<{ id: string; label: string }> = []) {
   return [
-    { label: 'Journal', value: skillsComputation.scoreById['skills-journal'] },
-    { label: 'FDAR', value: skillsComputation.scoreById['skills-fdar'] },
-    { label: 'KARDEX', value: skillsComputation.scoreById['skills-kardex'] },
-    { label: 'PE', value: skillsComputation.scoreById['skills-pe'] },
-    { label: 'MEDS', value: skillsComputation.scoreById['skills-meds'] },
-    { label: 'Case Study', value: skillsComputation.scoreById['skills-case-study'] },
-    {
-      label: 'Case Presentation',
-      value: skillsComputation.scoreById['skills-case-presentation'],
-    },
-    { label: 'Case Average', value: skillsComputation.caseAverage },
-    { label: 'SN/HS', value: skillsComputation.scoreById['skills-snhs'] },
-    { label: 'SN/HS Contribution (30%)', value: skillsComputation.snhsContribution },
-    { label: 'Performance', value: skillsComputation.scoreById['skills-performance'] },
-    {
-      label: 'Performance Contribution (70%)',
-      value: skillsComputation.performanceContribution,
-    },
-    { label: 'Core Skills Average', value: skillsComputation.coreSkillsAverage },
-    {
-      label: 'SN/HS + Performance Total',
-      value: skillsComputation.snhsPerformanceTotal,
-    },
-    { label: 'Skills Total', value: skillsComputation.skillsTotal },
+    ...Object.entries(skillsComputation.scoreById).map(([id, value]) => ({
+      label: components.find(component => component.id === id)?.label ?? id,
+      value,
+    })),
+    { label: 'Skills Average', value: skillsComputation.skillsTotal },
     { label: 'Skills Weighted (40%)', value: skillsComputation.skillsWeighted },
   ]
 }
@@ -2319,7 +2296,7 @@ export default function GradesPage() {
 
       nextDraftValues[component.id] =
         currentComponent?.score === null || currentComponent?.score === undefined
-          ? '0'
+          ? section?.category === 'skills' ? '' : '0'
           : formatScore(currentComponent.score, 2)
     }
 
@@ -2697,6 +2674,9 @@ export default function GradesPage() {
       const parsedValue = parseNumericValue(editDraftValues[component.id] ?? '')
 
       if (parsedValue === null) {
+        if (nextPreparedSections.find(section => section.id === component.sectionId)?.category === 'skills') {
+          delete nextOverrides[getScoreOverrideKey(editSnapshot.student.id, selectedSubject.id, selectedGradingPeriod, component.id)]
+        }
         continue
       }
 
@@ -3676,7 +3656,7 @@ export default function GradesPage() {
                             <div className="grade-section-table-wrap">
                               <table className="grade-breakdown-table grade-breakdown-table--stacked">
                                 <tbody>
-                                  {buildSkillsBreakdownRows(category.skillsComputation).map((row) => (
+                                  {buildSkillsBreakdownRows(category.skillsComputation, category.sections.flatMap(section => section.components)).map((row) => (
                                     <tr key={row.label}>
                                       <th>{row.label}</th>
                                       <td>{formatScoreOrPlaceholder(row.value, 2)}</td>
@@ -3950,10 +3930,7 @@ export default function GradesPage() {
                         {buildSkillsBreakdownRows(editSkillsComputation)
                           .filter((row) =>
                             [
-                              'Case Average',
-                              'Core Skills Average',
-                              'SN/HS + Performance Total',
-                              'Skills Total',
+                              'Skills Average',
                               'Skills Weighted (40%)',
                             ].includes(row.label),
                           )

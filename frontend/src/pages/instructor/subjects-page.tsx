@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { InstructorShell } from '../../components/instructor-shell'
-import { SubjectMembersPanel } from '../../components/subject-members'
+import { SubjectProfessorsPanel } from '../../components/subject-members'
 import {
   createInstructorSubject,
   fetchInstructorSubjects,
@@ -756,8 +756,6 @@ export default function SubjectsPage() {
                     <span>Edit Subject</span>
                   </button>
                 </div>
-                <SubjectMembersPanel key={selectedSubject.id} subjectId={selectedSubject.id} username={username}
-                  onChanged={() => { void fetchInstructorSubjects(username).then(payload => setSubjects(sortSubjects(payload.subjects))).catch(error => setErrorMessage(error.message)) }} />
               </>
             ) : (
               <div className="subjects-empty-state subjects-empty-state--detail">
@@ -935,6 +933,8 @@ export default function SubjectsPage() {
                 </button>
               </div>
             </form>
+            {subjectFormMode === 'edit' && selectedSubject && <SubjectProfessorsPanel key={selectedSubject.id} subjectId={selectedSubject.id}
+              onChanged={() => { void fetchInstructorSubjects(username).then(payload => setSubjects(sortSubjects(payload.subjects))).catch(error => setErrorMessage(error.message)) }} />}
           </div>
         </div>
       ) : null}

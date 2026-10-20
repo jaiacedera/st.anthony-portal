@@ -1,71 +1,32 @@
 import assert from 'node:assert/strict'
-import path from 'node:path'
 import test from 'node:test'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { calculateSkillsGrade } from '../../../frontend/src/utils/skills-grade.js'
 
-const currentDir = path.dirname(fileURLToPath(import.meta.url))
-const skillsGradeModuleUrl = pathToFileURL(
-  path.resolve(currentDir, '../../../frontend/src/utils/skills-grade.js'),
-)
+test('Skills averages only active subgrades and retains its 40% weight', () => {
+  const scores = { journal: 87, fdar: 88, custom: 89, performance: 90, deleted: 10 }
+  const result = calculateSkillsGrade(scores, ['journal', 'fdar', 'custom', 'performance'])
+  assert.equal(result.skillsTotal, 88.5)
+  assert.ok(Math.abs(result.skillsWeighted - 35.4) < 1e-9)
+  assert.equal(result.isComplete, true)
+  assert.equal(result.scoreById.deleted, undefined)
+  assert.deepEqual(result.missingComponentIds, [])
+})
 
-async function loadSkillsGradeModule() {
-  const cacheBust = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  return import(`${skillsGradeModuleUrl.href}?case=${cacheBust}`)
-}
-
-test(
-  'calculateSkillsGrade uses the grouped case/core/snhs-performance formula',
-  { concurrency: false },
-  async () => {
-    const { calculateSkillsGrade } = await loadSkillsGradeModule()
-
-    const result = calculateSkillsGrade({
-      'skills-journal': 84,
-      'skills-fdar': 86,
-      'skills-kardex': 88,
-      'skills-pe': 90,
-      'skills-meds': 92,
-      'skills-case-study': 80,
-      'skills-case-presentation': 82,
-      'skills-snhs': 87.9,
-      'skills-performance': 81,
-    })
-
-    assert.equal(result.caseAverage, 81)
-    assert.ok(Math.abs(result.coreSkillsAverage - 86.83333333333333) < 1e-9)
-    assert.ok(Math.abs(result.snhsContribution - 26.37) < 1e-9)
-    assert.ok(Math.abs(result.performanceContribution - 56.7) < 1e-9)
-    assert.ok(Math.abs(result.snhsPerformanceTotal - 83.07) < 1e-9)
-    assert.ok(Math.abs(result.skillsTotal - 84.95166666666667) < 1e-9)
-    assert.ok(Math.abs(result.skillsWeighted - 33.980666666666664) < 1e-9)
-    assert.equal(result.isComplete, true)
-    assert.deepEqual(result.missingComponentIds, [])
-  },
-)
-
-test(
-  'calculateSkillsGrade keeps incomplete skills totals null when a required skill score is missing',
-  { concurrency: false },
-  async () => {
-    const { calculateSkillsGrade } = await loadSkillsGradeModule()
-
-    const result = calculateSkillsGrade({
-      'skills-journal': 84,
-      'skills-fdar': 86,
-      'skills-kardex': 88,
-      'skills-pe': 90,
-      'skills-meds': 92,
-      'skills-case-study': 80,
-      'skills-snhs': 87.9,
-      'skills-performance': 81,
-    })
-
-    assert.equal(result.caseAverage, null)
-    assert.equal(result.coreSkillsAverage, null)
-    assert.equal(result.snhsPerformanceTotal, 83.07)
+test('unscored active Skills fields are pending, including custom fields', () => {
+  for (const missing of [undefined, null, NaN]) {
+    const result = calculateSkillsGrade({ a: 90, custom: missing }, ['a', 'custom'])
     assert.equal(result.skillsTotal, null)
     assert.equal(result.skillsWeighted, null)
     assert.equal(result.isComplete, false)
-    assert.deepEqual(result.missingComponentIds, ['skills-case-presentation'])
-  },
-)
+    assert.deepEqual(result.missingComponentIds, ['custom'])
+  }
+  assert.equal(calculateSkillsGrade({ a: 90 }, ['a', 'missing']).isComplete, false)
+})
+
+test('empty Skills stays pending; one active field receives the entire 40%; zero is a score', () => {
+  assert.equal(calculateSkillsGrade({ old: 100 }, []).skillsWeighted, null)
+  assert.equal(calculateSkillsGrade({}).isComplete, false)
+  assert.equal(calculateSkillsGrade({ only: 90 }).skillsWeighted, 36)
+  assert.equal(calculateSkillsGrade({ only: 0 }).skillsWeighted, 0)
+  assert.equal(calculateSkillsGrade({ only: 0 }).isComplete, true)
+})

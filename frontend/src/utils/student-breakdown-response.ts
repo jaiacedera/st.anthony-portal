@@ -5,7 +5,6 @@ import type {
 import { inheritMidtermConfig, inheritMidtermScores } from './grade-carryover'
 import {
   calculateSkillsGrade,
-  getCanonicalSkillsComponentId,
   SKILLS_COMPONENT_DEFINITIONS,
 } from './skills-grade.js'
 
@@ -665,7 +664,7 @@ function getConfiguredCategories(
   )
 
   return gradeCategories
-    .filter((category) => activeCategoryKeys.has(category.key))
+    .filter((category) => category.key === 'skills' || activeCategoryKeys.has(category.key))
     .map((category) => ({
       ...category,
       weight: getRequiredCategoryWeight(gradingPeriod, category.key),
@@ -711,10 +710,7 @@ function buildSkillsScoreInput(
   components: Array<{ id: string; label: string; score: number | null }>,
 ) {
   return Object.fromEntries(
-    components.flatMap((component) => {
-      const canonicalId = getCanonicalSkillsComponentId(component.id, component.label)
-      return canonicalId ? [[canonicalId, component.score]] : []
-    }),
+    components.map((component) => [component.id, component.score]),
   )
 }
 
@@ -756,7 +752,7 @@ function buildStudentGradeSnapshot({
             component.id,
           )
           const savedScore = overrides[overrideKey]
-          const score = roundTo(savedScore ?? 0, 2)
+          const score = section.category === 'skills' && savedScore === undefined ? null : roundTo(savedScore ?? 0, 2)
 
             return {
             ...component,

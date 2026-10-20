@@ -14,11 +14,6 @@
  * @property {Record<string, number | null>} scoreById
  * @property {string[]} missingComponentIds
  * @property {boolean} isComplete
- * @property {number | null} caseAverage
- * @property {number | null} coreSkillsAverage
- * @property {number | null} snhsContribution
- * @property {number | null} performanceContribution
- * @property {number | null} snhsPerformanceTotal
  * @property {number | null} skillsTotal
  * @property {number | null} skillsWeighted
  */
@@ -174,60 +169,25 @@ function calculateStrictAverage(values) {
 }
 
 /**
+ * Only active IDs define the denominator; retained scores for deleted fields are ignored.
  * @param {SkillsGradeInput} scores
+ * @param {readonly string[]} [activeComponentIds]
  * @returns {SkillsGradeResult}
  */
-export function calculateSkillsGrade(scores) {
+export function calculateSkillsGrade(scores, activeComponentIds = Object.keys(scores)) {
+  const ids = [...new Set(activeComponentIds)]
   /** @type {Record<string, number | null>} */
-  const scoreById = {}
-
-  for (const definition of SKILLS_COMPONENT_DEFINITIONS) {
-    const rawValue = scores[definition.id]
-    scoreById[definition.id] =
-      typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : null
-  }
-
-  const caseAverage = calculateStrictAverage([
-    scoreById['skills-case-study'],
-    scoreById['skills-case-presentation'],
-  ])
-
-  const coreSkillsAverage = calculateStrictAverage([
-    scoreById['skills-journal'],
-    scoreById['skills-fdar'],
-    scoreById['skills-kardex'],
-    scoreById['skills-pe'],
-    scoreById['skills-meds'],
-    caseAverage,
-  ])
-
-  const snhsContribution =
-    scoreById['skills-snhs'] === null ? null : scoreById['skills-snhs'] * 0.3
-  const performanceContribution =
-    scoreById['skills-performance'] === null
-      ? null
-      : scoreById['skills-performance'] * 0.7
-  const snhsPerformanceTotal =
-    snhsContribution === null || performanceContribution === null
-      ? null
-      : snhsContribution + performanceContribution
-
-  const skillsTotal = calculateStrictAverage([coreSkillsAverage, snhsPerformanceTotal])
-  const skillsWeighted = skillsTotal === null ? null : skillsTotal * 0.4
-  const missingComponentIds = SKILLS_COMPONENT_DEFINITIONS.map((definition) => definition.id).filter(
-    (componentId) => scoreById[componentId] === null,
-  )
-
+  const scoreById = Object.fromEntries(ids.map(id => {
+    const value = scores[id]
+    return [id, typeof value === 'number' && Number.isFinite(value) ? value : null]
+  }))
+  const skillsTotal = calculateStrictAverage(Object.values(scoreById))
+  const missingComponentIds = ids.filter(id => scoreById[id] === null)
   return {
     scoreById,
     missingComponentIds,
-    isComplete: missingComponentIds.length === 0,
-    caseAverage,
-    coreSkillsAverage,
-    snhsContribution,
-    performanceContribution,
-    snhsPerformanceTotal,
+    isComplete: skillsTotal !== null,
     skillsTotal,
-    skillsWeighted,
+    skillsWeighted: skillsTotal === null ? null : skillsTotal * 0.4,
   }
 }

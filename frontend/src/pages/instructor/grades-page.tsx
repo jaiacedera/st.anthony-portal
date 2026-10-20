@@ -21,10 +21,7 @@ import {
 import { readInstructorAuth } from '../../utils/instructorAuth'
 import {
   calculateSkillsGrade,
-  getCanonicalSkillsComponentId,
   getSkillsComponentAliases,
-  LEGACY_SKILLS_LABELS,
-  normalizeSkillsText,
   SKILLS_COMPONENT_DEFINITIONS,
   type SkillsGradeResult,
 } from '../../utils/skills-grade.js'
@@ -960,65 +957,6 @@ function calculateAverage(values: Array<number | null>) {
   )
 }
 
-function isLegacySkillsComponent(component: GradeComponentConfig) {
-  const normalizedLabel = normalizeSkillsText(component.label)
-
-  return (
-    LEGACY_SKILLS_LABELS.has(normalizedLabel) ||
-    (/^skills-core-\d+$/u.test(component.id) &&
-      getCanonicalSkillsComponentId(component.id, component.label) !== null)
-  )
-}
-
-function shouldMigrateSkillsToDefaults(
-  sections: GradeSectionConfig[],
-  components: GradeComponentConfig[],
-) {
-  const activeSkillSectionIds = new Set(
-    sections
-      .filter((section) => section.category === 'skills' && section.isActive)
-      .map((section) => section.id),
-  )
-
-  if (!activeSkillSectionIds.size) {
-    return false
-  }
-
-  return components.some(
-    (component) =>
-      component.isActive &&
-      activeSkillSectionIds.has(component.sectionId) &&
-      isLegacySkillsComponent(component),
-  )
-}
-
-function buildSkillsComponentIdMigrationMap(
-  sections: GradeSectionConfig[],
-  components: GradeComponentConfig[],
-) {
-  const activeSkillSectionIds = new Set(
-    sections
-      .filter((section) => section.category === 'skills' && section.isActive)
-      .map((section) => section.id),
-  )
-
-  return Object.fromEntries(
-    components.flatMap((component) => {
-      if (!component.isActive || !activeSkillSectionIds.has(component.sectionId)) {
-        return []
-      }
-
-      const canonicalId = getCanonicalSkillsComponentId(component.id, component.label)
-
-      if (!canonicalId || canonicalId === component.id) {
-        return []
-      }
-
-      return [[component.id, canonicalId]]
-    }),
-  )
-}
-
 function toRemarks(score: number | null, isIncomplete: boolean) {
   if (isIncomplete || score === null || !Number.isFinite(score)) {
     return 'INC'
@@ -1440,10 +1378,6 @@ function shouldMigrateToPeriodDefaults(
   components: GradeComponentConfig[],
   gradingPeriod: GradingPeriodKey,
 ) {
-  if (shouldMigrateSkillsToDefaults(sections, components)) {
-    return true
-  }
-
   const activeSectionIds = sortSections(sections)
     .filter((section) => section.isActive)
     .map((section) => section.id)
@@ -1545,17 +1479,20 @@ function readStoredGradeConfig(
     let didMigrate = false
 
     if (shouldMigrateToPeriodDefaults(normalizedSections, normalizedComponents, gradingPeriod)) {
-      const migratedComponentIds = buildSkillsComponentIdMigrationMap(
-        normalizedSections,
-        normalizedComponents,
-      )
+      // Period migrations may replace other categories, but Skills is user-configured.
+      const skillsSections = normalizedSections.filter(section => section.category === 'skills')
+      const skillsSectionIds = new Set(skillsSections.map(section => section.id))
+      const defaults = buildDefaultGradeSections(gradingPeriod)
+      const defaultSkillsIds = new Set(defaults.filter(section => section.category === 'skills').map(section => section.id))
 
       return {
-        sections: cloneSections(buildDefaultGradeSections(gradingPeriod)),
-        components: cloneComponents(buildDefaultGradeComponents(gradingPeriod)),
+        sections: [...defaults.filter(section => section.category !== 'skills'), ...skillsSections],
+        components: [
+          ...buildDefaultGradeComponents(gradingPeriod).filter(component => !defaultSkillsIds.has(component.sectionId)),
+          ...normalizedComponents.filter(component => skillsSectionIds.has(component.sectionId)),
+        ],
         savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
         didMigrate: true,
-        migratedComponentIds,
       }
     }
 

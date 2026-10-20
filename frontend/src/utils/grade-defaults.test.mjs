@@ -246,3 +246,35 @@ for (const period of ['midterm', 'final']) {
     assert.equal(pending.finalScore, null)
   })
 }
+
+for (const period of ['midterm', 'final']) {
+  test(`${period}: reloading legacy Skills preserves active fields and deleted defaults`, () => {
+    const sections = gradebook.buildDefaultGradeSections(period)
+    const template = gradebook.buildDefaultGradeComponents(period).find(c => c.sectionId === 'skills-core')
+    const components = ['Journal', 'FDAR', 'Medications', 'Return Demo'].map((label, i) => ({
+      ...template, id: `skills-core-${i + 1}`, label, order: i,
+    }))
+    components.push({ ...template, id: 'skills-performance', isActive: false })
+    const scores = Object.fromEntries(components.map((c, i) => [
+      `${student.id}::${subject.id}::${period}::${c.id}`, i < 4 ? 87 + i : 0,
+    ]))
+    const cloud = { sections, components, savedAt: '2026-10-20' }
+    const loaded = gradebook.readStoredGradeConfig('empty-device', period, cloud)
+    const skillsState = values => JSON.stringify(values.filter(c => c.sectionId === 'skills-core').map(c => [c.id, c.isActive]).sort())
+    assert.equal(skillsState(loaded.components), skillsState(components))
+    const snapshot = gradebook.buildStudentGradeSnapshot(student, subject, period, loaded.sections, loaded.components, scores)
+    const category = snapshot.categories.find(c => c.key === 'skills')
+    assert.equal(category.total, 88.5)
+    assert.equal(category.weighted, 35.4)
+    assert.equal(category.isIncomplete, false)
+    if (period === 'midterm') {
+      // Migrating older non-Skills categories must not reset the Skills configuration either.
+      const oldSections = [...sections, { id: 'old-attitude', category: 'attitude', isActive: true, order: 99, weight: 20 }]
+      const migrated = gradebook.readStoredGradeConfig('empty-device', period, { ...cloud, sections: oldSections })
+      assert.equal(skillsState(migrated.components), skillsState(components))
+    }
+    delete scores[`${student.id}::${subject.id}::${period}::skills-core-4`]
+    const pending = gradebook.buildStudentGradeSnapshot(student, subject, period, loaded.sections, loaded.components, scores)
+    assert.equal(pending.categories.find(c => c.key === 'skills').weighted, null)
+  })
+}

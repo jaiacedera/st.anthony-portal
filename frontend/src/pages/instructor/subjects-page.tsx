@@ -788,7 +788,7 @@ export default function SubjectsPage() {
           }}
         >
           <div
-            className="subject-modal"
+            className="subject-modal subject-management-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-subject-title"
@@ -817,7 +817,7 @@ export default function SubjectsPage() {
               </button>
             </div>
 
-            <form className="subject-create-form" onSubmit={handleCreateSubject}>
+            <form id="subject-details-form" className="subject-create-form" onSubmit={handleCreateSubject}>
               <label className="subject-create-field"><span>Block / Section</span>
                 <input name="section" value={formState.section} onChange={handleFormFieldChange} placeholder="e.g. BSN 3-A" />
               </label>
@@ -907,9 +907,13 @@ export default function SubjectsPage() {
                 </label>
               </div>
 
+            </form>
+            {subjectFormMode === 'edit' && selectedSubject && <SubjectProfessorsPanel key={selectedSubject.id} subjectId={selectedSubject.id}
+              onChanged={() => { void fetchInstructorSubjects(username).then(payload => setSubjects(sortSubjects(payload.subjects))).catch(error => setErrorMessage(error.message)) }} />}
               <div className="subject-modal-actions selected-subject-action-list selected-subject-actions">
                 <button
                   type="submit"
+                  form="subject-details-form"
                   className="subject-detail-action subject-detail-action--solid"
                   disabled={isSubmitting}
                 >
@@ -932,9 +936,6 @@ export default function SubjectsPage() {
                   <span>Cancel</span>
                 </button>
               </div>
-            </form>
-            {subjectFormMode === 'edit' && selectedSubject && <SubjectProfessorsPanel key={selectedSubject.id} subjectId={selectedSubject.id}
-              onChanged={() => { void fetchInstructorSubjects(username).then(payload => setSubjects(sortSubjects(payload.subjects))).catch(error => setErrorMessage(error.message)) }} />}
           </div>
         </div>
       ) : null}

@@ -107,3 +107,14 @@
 .subject-members form, .subject-members label { display: grid; gap: 8px; }
 .subject-members input:not([type=checkbox]), .subject-members select { width: 100%; min-width: 0; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font: inherit; box-sizing: border-box; }
 .subject-members p { font-size: .85rem; line-height: 1.5; margin: 0; }
+.subject-modal.subject-management-modal {
+  display: block;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.subject-management-modal .subject-create-form {
+  flex: none;
+  gap: 16px;
+}
+

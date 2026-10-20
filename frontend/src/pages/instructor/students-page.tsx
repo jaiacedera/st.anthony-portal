@@ -1,3 +1,4 @@
+import { useSubjectGroups } from '../../hooks/useSubjectGroups'
 import {
   type FormEvent,
   useCallback,
@@ -8,6 +9,7 @@ import {
   useState,
 } from 'react'
 import { InstructorShell } from '../../components/instructor-shell'
+import { ManageGroups } from '../../components/subject-groups'
 import {
   createInstructorStudent,
   deleteInstructorStudent,
@@ -214,6 +216,8 @@ export default function StudentsPage() {
   }, [])
   const [activeTab, setActiveTab] = useState<TabKey>(pageIntent.subjectId ? 'subject' : 'all')
   const [selectedSubjectId, setSelectedSubjectId] = useState(pageIntent.subjectId)
+  const groups = useSubjectGroups(selectedSubjectId)
+  const [manageGroups, setManageGroups] = useState(false)
   const [schoolYearLabel, setSchoolYearLabel] = useState('Not set')
   const [semesterLabel, setSemesterLabel] = useState('Not set')
   const [isLoading, setIsLoading] = useState(Boolean(username))
@@ -443,7 +447,15 @@ export default function StudentsPage() {
   const pageCount = Math.max(1, Math.ceil(filteredStudents.length / effectivePageSize))
   const currentPage = Math.min(page, pageCount)
   const pageOffset = (currentPage - 1) * effectivePageSize
-  const visibleStudents = filteredStudents.slice(pageOffset, pageOffset + effectivePageSize)
+  const groupOrder = (student: InstructorStudentRecord) => {
+    const groupId = groups.members.find(member => member.student_id === student.id)?.group_id
+    const index = groups.groups.findIndex(group => group.id === groupId)
+    return index < 0 ? groups.groups.length : index
+  }
+  const orderedStudents = selectedSubjectId && groups.ready
+    ? [...filteredStudents].sort((a, b) => groupOrder(a) - groupOrder(b))
+    : filteredStudents
+  const visibleStudents = orderedStudents.slice(pageOffset, pageOffset + effectivePageSize)
   const firstVisiblePage = Math.max(1, Math.min(currentPage - 2, pageCount - 5))
   const pageNumbers = Array.from(
     { length: Math.min(6, pageCount) },
@@ -655,6 +667,13 @@ export default function StudentsPage() {
           <div className="student-name-copy">
             <strong title={student.fullName}>{student.fullName}</strong>
             <span>{student.studentId}</span>
+            {selectedSubjectId && <select className="student-group-select" aria-label={`Group for ${student.fullName}`}
+              value={groups.members.find(member => member.student_id === student.id)?.group_id ?? ''}
+              disabled={!groups.ready || groups.busy}
+              onChange={event => void groups.change({ action: 'assign', studentId: student.id, groupId: event.target.value })}>
+              <option value="">Unassigned</option>
+              {groups.groups.map(group => <option key={group.id} value={group.id}>{group.group_name}</option>)}
+            </select>}
           </div>
         </div>
 
@@ -832,10 +851,13 @@ export default function StudentsPage() {
                 </span>
                 <span>Add Student</span>
               </button>
+              {selectedSubjectId && <button type="button" className="grades-toolbar-button" onClick={() => setManageGroups(true)}>Manage Groups</button>}
               <details className="roster-options"><summary aria-label="Roster options"><MoreIcon /></summary><div><button type="button" onClick={event => { setSearchValue(''); setSelectedSubjectId(''); setStatusFilter('all'); setActiveTab('all'); setPage(1); event.currentTarget.closest('details')?.removeAttribute('open') }}>Reset filters</button></div></details>
             </div>
 
           <div className="students-table-shell">
+            {selectedSubjectId && groups.error && <p role="alert" className="dashboard-alert">{groups.error}</p>}
+            {manageGroups && selectedSubjectId && <ManageGroups key={selectedSubjectId} state={groups} onClose={() => setManageGroups(false)} />}
             <div className="instructor-table-head table-layout--students student-table-header">
               <span>#</span>
               <span>Full Name</span>
@@ -853,7 +875,12 @@ export default function StudentsPage() {
                   <div className="dashboard-loading-row student-loading-row" />
                 </div>
               ) : filteredStudents.length ? (
-                visibleStudents.map(renderStudentTableRow)
+                selectedSubjectId && groups.ready
+                  ? [...groups.groups, { id: '', group_name: 'Unassigned' }].map(group => {
+                    const rows = visibleStudents.filter(student => (groups.members.find(member => member.student_id === student.id)?.group_id ?? '') === group.id)
+                    return rows.length ? <section key={group.id}><h3 className="student-group-heading">{group.group_name}</h3>{rows.map(student => renderStudentTableRow(student, visibleStudents.indexOf(student)))}</section> : null
+                  })
+                  : visibleStudents.map(renderStudentTableRow)
               ) : (
                 <div className="dashboard-empty-state" role="status">
                   <StudentsIcon />

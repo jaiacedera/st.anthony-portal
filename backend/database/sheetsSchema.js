@@ -1,4 +1,6 @@
 export const SHEET_NAMES = {
+  SUBJECT_GROUPS: 'SubjectGroups',
+  SUBJECT_GROUP_MEMBERS: 'SubjectGroupMembers',
   AUTH_SESSIONS: 'AuthSessions',
   SUBJECT_INSTRUCTORS: 'SubjectInstructors',
   INSTRUCTOR_GRADES: 'InstructorGrades',
@@ -17,6 +19,8 @@ export const SHEET_NAMES = {
 }
 
 export const SHEET_HEADERS = {
+  [SHEET_NAMES.SUBJECT_GROUPS]: ['id', 'subject_id', 'group_name', 'created_at'],
+  [SHEET_NAMES.SUBJECT_GROUP_MEMBERS]: ['id', 'group_id', 'student_id', 'added_at'],
   [SHEET_NAMES.AUTH_SESSIONS]: ['token_hash', 'role', 'username', 'student_id', 'email', 'expires_at'],
   [SHEET_NAMES.SUBJECT_INSTRUCTORS]: ['id', 'subject_id', 'instructor_id', 'assigned_by', 'assigned_at', 'status'],
   [SHEET_NAMES.INSTRUCTOR_GRADES]: ['id', 'subject_student_id', 'instructor_id', 'knowledge_grade', 'performance_grade', 'attitude_grade', 'instructor_final_grade', 'submitted_at', 'updated_at'],
@@ -141,6 +145,8 @@ export const SHEET_HEADERS = {
 }
 
 export const SHEET_ID_COLUMNS = {
+  [SHEET_NAMES.SUBJECT_GROUPS]: 'id',
+  [SHEET_NAMES.SUBJECT_GROUP_MEMBERS]: 'id',
   [SHEET_NAMES.AUTH_SESSIONS]: 'token_hash',
   [SHEET_NAMES.SUBJECT_INSTRUCTORS]: 'id',
   [SHEET_NAMES.INSTRUCTOR_GRADES]: 'id',

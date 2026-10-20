@@ -1,6 +1,14 @@
 import { getApiBaseUrl } from '../utils/apiBaseUrl'
 import { authenticatedFetch } from './authenticatedFetch'
 const fetch = authenticatedFetch('INSTRUCTOR')
+export type SubjectGroups = {
+  groups: Array<{ id: string; group_name: string }>
+  members: Array<{ group_id: string; student_id: string }>
+}
+export const fetchSubjectGroups = (subjectId: string, signal?: AbortSignal) =>
+  request<SubjectGroups>('subjects/groups', { subjectId }, false, signal)
+export const changeSubjectGroup = (subjectId: string, input: Record<string, string>) =>
+  request<SubjectGroups>('subjects/groups', { ...input, subjectId }, true)
 
 export type SubjectMembers = {
   professors: Array<{ id: string; name: string; email: string }>

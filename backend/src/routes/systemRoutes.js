@@ -48,8 +48,11 @@ import {
 } from '../controllers/systemController.js'
 
 import { subjectMembersData, professorGradesData } from '../controllers/sharedSubjectsController.js'
+import { subjectGroupsData } from '../controllers/subjectGroupsController.js'
 
 const routes = [
+  { method: 'GET', pathname: '/api/instructor/subjects/groups', handler: subjectGroupsData },
+  { method: 'POST', pathname: '/api/instructor/subjects/groups', handler: subjectGroupsData },
   { method: 'GET', pathname: '/api/instructor/subjects/members', handler: subjectMembersData },
   { method: 'POST', pathname: '/api/instructor/subjects/professors', handler: subjectMembersData },
   { method: 'GET', pathname: '/api/instructor/grades/independent', handler: professorGradesData },

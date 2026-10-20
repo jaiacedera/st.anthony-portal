@@ -160,6 +160,13 @@ The backend initializes and expects these tabs:
 - `SubjectStudents`
 - `Grades`
 - `GradebookDrafts` (Save Changes; instructor drafts available across devices)
+- `SubjectGroups` (`id`, `subject_id`, `group_name`, `created_at`) and
+  `SubjectGroupMembers` (`id`, `group_id`, `student_id`, `added_at`): subject-specific
+  groups managed from Student Management. Run `npm run init:sheets` to add these
+  tabs to an existing spreadsheet. Moving students replaces their membership in
+  that subject; deleting a group removes only its memberships, not enrollment.
+  Grades group filters affect display only. Group writes use the existing
+  process-local locking pattern; Sheets does not provide database unique constraints.
 - `GradePublications`
 - `GradeBreakdownRequests`
 - `GradeBreakdownResponses`

@@ -1,0 +1,5 @@
+.group-management-modal { max-height: 88vh; overflow-y: auto; }
+.subject-group-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.subject-group-row input { flex: 1; min-width: 140px; padding: 10px; border: 1px solid #dce3ed; border-radius: 8px; font: inherit; }
+.student-group-select { max-width: 180px; padding: 4px; border: 1px solid #dce3ed; border-radius: 6px; font: inherit; background: white; }
+.student-group-heading { margin: 0; padding: 12px 20px; font-size: 14px; background: #f5f7fb; }

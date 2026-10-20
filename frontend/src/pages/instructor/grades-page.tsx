@@ -1,3 +1,4 @@
+import { useSubjectGroups } from '../../hooks/useSubjectGroups'
 import {
   useEffect,
   useMemo,
@@ -5,6 +6,7 @@ import {
   useState,
   type ChangeEvent,
 } from 'react'
+import { GroupFilter } from '../../components/subject-groups'
 import { ProfessorGradebook } from '../../components/professor-gradebook'
 import { InstructorShell } from '../../components/instructor-shell'
 import {
@@ -1663,6 +1665,11 @@ export default function GradesPage() {
   const [historyEntries, setHistoryEntries] = useState<GradeHistoryEntry[]>([])
   const [activeTab, setActiveTab] = useState<GradebookTabKey>('gradebook')
   const [selectedSubjectId, setSelectedSubjectId] = useState('')
+  const groups = useSubjectGroups(selectedSubjectId)
+  const [groupSelection, setGroupSelection] = useState({ subjectId: '', id: '' })
+  const selectedGroup = groupSelection.subjectId === selectedSubjectId && (groupSelection.id === 'unassigned' || groups.groups.some(group => group.id === groupSelection.id)) ? groupSelection.id : ''
+  const matchesGroup = (studentId: string) => !selectedGroup || (groups.members.find(member => member.student_id === studentId)?.group_id ?? 'unassigned') === selectedGroup
+  const groupFilter = <GroupFilter state={groups} value={selectedGroup} onChange={id => { setGroupSelection({ subjectId: selectedSubjectId, id }); setCurrentPage(1) }} />
   const [selectedGradingPeriod, setSelectedGradingPeriod] =
     useState<GradingPeriodKey>('midterm')
   const [currentPage, setCurrentPage] = useState(1)
@@ -2120,19 +2127,20 @@ export default function GradesPage() {
   const effectiveRowsPerPage = Math.min(10, rowsPerPage, viewportCapacity)
   const pageSizeOptions = [...new Set([5, 10, effectiveRowsPerPage])]
     .filter(size => size <= viewportCapacity).sort((a, b) => a - b)
-  const totalPages = Math.max(1, Math.ceil(gradeSnapshots.length / effectiveRowsPerPage))
+  const filteredGradeSnapshots = gradeSnapshots.filter(snapshot => matchesGroup(snapshot.student.id))
+  const totalPages = Math.max(1, Math.ceil(filteredGradeSnapshots.length / effectiveRowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const firstVisiblePage = Math.max(1, Math.min(safeCurrentPage - 2, totalPages - 5))
   const pageNumbers = Array.from(
     { length: Math.min(6, totalPages) },
     (_, index) => firstVisiblePage + index,
   )
-  const paginatedSnapshots = gradeSnapshots.slice(
+  const paginatedSnapshots = filteredGradeSnapshots.slice(
     (safeCurrentPage - 1) * effectiveRowsPerPage,
     safeCurrentPage * effectiveRowsPerPage,
   )
-  const displayStart = gradeSnapshots.length ? (safeCurrentPage - 1) * effectiveRowsPerPage + 1 : 0
-  const displayEnd = Math.min(safeCurrentPage * effectiveRowsPerPage, gradeSnapshots.length)
+  const displayStart = filteredGradeSnapshots.length ? (safeCurrentPage - 1) * effectiveRowsPerPage + 1 : 0
+  const displayEnd = Math.min(safeCurrentPage * effectiveRowsPerPage, filteredGradeSnapshots.length)
   const periodLabel = getGradingPeriodLabel(selectedGradingPeriod)
   const gradeSummaryLabel =
     selectedGradingPeriod === 'midterm' ? 'Midterm Grade' : `${periodLabel} Final Score`
@@ -2967,7 +2975,8 @@ export default function GradesPage() {
             {subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.label}</option>)}
           </select>
         </label>
-        <ProfessorGradebook key={selectedSubjectId} subjectId={selectedSubjectId} />
+        {groupFilter}
+        <ProfessorGradebook key={selectedSubjectId} subjectId={selectedSubjectId} matchesGroup={matchesGroup} />
         <a href="/instructor/requests">Review grade breakdown requests</a>
       </section>
     </InstructorShell>
@@ -3020,6 +3029,7 @@ export default function GradesPage() {
                 </select>
               </label>
 
+              {groupFilter}
               <label className="grades-filter-field grades-filter-field--period">
                 <span className="grades-filter-label">Grading Period</span>
                 <select
@@ -3254,7 +3264,7 @@ export default function GradesPage() {
 
               <div className="grades-table-footer">
                 <p className="grades-table-footer-copy">
-                  Showing {displayStart}–{displayEnd} of {gradeSnapshots.length} students.
+                  Showing {displayStart}–{displayEnd} of {filteredGradeSnapshots.length} students.
                 </p>
 
                 <div className="grades-pagination">

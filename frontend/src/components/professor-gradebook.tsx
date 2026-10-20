@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchProfessorGrades, saveProfessorGrade, type ProfessorGrade } from '../services/sharedSubjectsApi'
 
 const fields = ['knowledge', 'performance', 'attitude'] as const
-export function ProfessorGradebook({ subjectId }: { subjectId: string }) {
+export function ProfessorGradebook({ subjectId, matchesGroup = () => true }: { subjectId: string; matchesGroup?: (studentId: string) => boolean }) {
   const [rows, setRows] = useState<ProfessorGrade[] | null>(null)
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState('')
@@ -24,14 +24,15 @@ export function ProfessorGradebook({ subjectId }: { subjectId: string }) {
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to save grade.') }
     finally { setSaving('') }
   }
+  const visibleRows = rows?.filter(row => matchesGroup(row.studentId))
   return <article className="instructor-panel professor-gradebook">
     <h2>My Student Grades</h2>
     <p>Each category contributes one third of your grade. The subject grade averages all assigned professors’ submissions and remains pending until everyone has submitted.</p>
     {message && <p role="status" className="dashboard-alert">{message}</p>}
-    {!rows ? <p>Loading your grades…</p> : !rows.length ? <p>No enrolled students.</p> :
+    {!rows ? <p>Loading your grades…</p> : !visibleRows?.length ? <p>No students in this selection.</p> :
       <div className="grades-table-shell"><table className="grades-table">
         <thead><tr><th>Student Name</th><th>Knowledge</th><th>Performance</th><th>Attitude</th><th>My Grade</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody>{rows.map(row => {
+        <tbody>{visibleRows.map(row => {
           const valid = fields.every(field => String(row[field]).trim() !== '' && Number.isFinite(Number(row[field])) && Number(row[field]) >= 0 && Number(row[field]) <= 100)
           const average = valid ? fields.reduce((sum, field) => sum + Number(row[field]), 0) / 3 : null
           return <tr key={row.studentId}><td>{row.studentName}</td>

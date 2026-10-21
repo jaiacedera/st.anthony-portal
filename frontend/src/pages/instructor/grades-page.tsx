@@ -1536,42 +1536,7 @@ export default function GradesPage() {
   const matchesGroup = (studentId: string) => !selectedGroup || (groups.members.find(member => member.student_id === studentId)?.group_id ?? 'unassigned') === selectedGroup
   const groupFilter = <GroupFilter state={groups} value={selectedGroup} onChange={id => { setGroupSelection({ subjectId: selectedSubjectId, id }); setCurrentPage(1) }} />
   const [currentPage, setCurrentPage] = useState(1)
-  const [rowsPerPage, setRowsPerPage] = useState(10)
-  const [viewportCapacity, setViewportCapacity] = useState(10)
-  const gradeTableShellRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const shell = gradeTableShellRef.current
-    const heading = shell?.querySelector('thead')
-    const panel = shell?.parentElement
-    const footer = panel?.querySelector('.grades-table-footer')
-    if (!shell || !heading || !panel || !footer) return
-
-    const updateCapacity = () => {
-      const rowHeight = Number.parseFloat(getComputedStyle(shell).getPropertyValue('--grade-row-height'))
-      const panelStyle = getComputedStyle(panel)
-      // Measure the available space independently of the number of rendered rows.
-      const availableHeight = panel.clientHeight
-        - Number.parseFloat(panelStyle.paddingTop)
-        - Number.parseFloat(panelStyle.paddingBottom)
-        - footer.getBoundingClientRect().height
-        - heading.getBoundingClientRect().height
-        - (shell.offsetHeight - shell.clientHeight)
-        - 2
-      setViewportCapacity(rowHeight ? Math.max(1, Math.min(10, Math.floor(availableHeight / rowHeight))) : 10)
-    }
-    const observer = new ResizeObserver(updateCapacity)
-    observer.observe(shell)
-    observer.observe(heading)
-    observer.observe(panel)
-    observer.observe(footer)
-    window.addEventListener('resize', updateCapacity)
-    updateCapacity()
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('resize', updateCapacity)
-    }
-  }, [activeTab])
+  const [rowsPerPage, setRowsPerPage] = useState(20)
   const [schoolYearLabel, setSchoolYearLabel] = useState('Not set')
   const [semesterLabel, setSemesterLabel] = useState('Not set')
   const [isLoading, setIsLoading] = useState(true)
@@ -1986,9 +1951,8 @@ export default function GradesPage() {
     ],
   )
 
-  const effectiveRowsPerPage = Math.min(10, rowsPerPage, viewportCapacity)
-  const pageSizeOptions = [...new Set([5, 10, effectiveRowsPerPage])]
-    .filter(size => size <= viewportCapacity).sort((a, b) => a - b)
+  const effectiveRowsPerPage = rowsPerPage
+  const pageSizeOptions = [5, 10, 20]
   const filteredGradeSnapshots = gradeSnapshots.filter(snapshot => matchesGroup(snapshot.student.id))
   const totalPages = Math.max(1, Math.ceil(filteredGradeSnapshots.length / effectiveRowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -2990,7 +2954,7 @@ export default function GradesPage() {
 
           {activeTab === 'gradebook' ? (
             <div className="grades-tab-panel">
-              <div className="grades-table-shell" ref={gradeTableShellRef}>
+              <div className="grades-table-shell">
                 <table className="grades-table">
                   <thead>
                     <tr>

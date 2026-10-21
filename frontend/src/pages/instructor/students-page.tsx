@@ -191,28 +191,7 @@ export default function StudentsPage() {
   const [searchValue, setSearchValue] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '')
   const [statusFilter, setStatusFilter] = useState('all')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [viewportCapacity, setViewportCapacity] = useState(50)
-  const tableBodyRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const body = tableBodyRef.current
-    if (!body) return
-
-    const updateCapacity = () => {
-      const rowHeight = Number.parseFloat(getComputedStyle(body).getPropertyValue('--roster-row-height'))
-      const capacity = rowHeight ? Math.max(1, Math.floor(body.clientHeight / rowHeight)) : 50
-      setViewportCapacity(capacity)
-    }
-    const observer = new ResizeObserver(updateCapacity)
-    observer.observe(body)
-    window.addEventListener('resize', updateCapacity)
-    updateCapacity()
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('resize', updateCapacity)
-    }
-  }, [])
+  const [pageSize, setPageSize] = useState(20)
   const [selectedSubjectId, setSelectedSubjectId] = useState(pageIntent.subjectId)
   const groups = useSubjectGroups(selectedSubjectId)
   const [manageGroups, setManageGroups] = useState(false)
@@ -438,9 +417,8 @@ export default function StudentsPage() {
     })
   }, [deferredSearchValue, selectedSubjectId, statusFilter, students])
 
-  const effectivePageSize = Math.min(pageSize, viewportCapacity)
-  const pageSizeOptions = [...new Set([Math.min(10, viewportCapacity), 10, 25, 50])]
-    .filter(size => size <= viewportCapacity)
+  const effectivePageSize = pageSize
+  const pageSizeOptions = [10, 20, 25, 50]
   const pageCount = Math.max(1, Math.ceil(filteredStudents.length / effectivePageSize))
   const currentPage = Math.min(page, pageCount)
   const pageOffset = (currentPage - 1) * effectivePageSize
@@ -846,7 +824,7 @@ export default function StudentsPage() {
               <span>Actions</span>
             </div>
 
-            <div className="dashboard-panel-content students-table-body" ref={tableBodyRef}>
+            <div className="dashboard-panel-content students-table-body">
               {isLoading ? (
                 <div className="dashboard-loading-block">
                   <div className="dashboard-loading-row student-loading-row" />

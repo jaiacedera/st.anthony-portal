@@ -12,7 +12,7 @@
 .roster-semester span { display: block; font-size: 10px; }
 .roster-semester strong { display: block; font-size: 10px; color: #152037; }
 .roster-profile { color: #aa381b; background: #f9e9df; border-radius: 50%; width: 36px; height: 36px; }
-.students-page.roster-page { display: flex; flex-direction: column; height: auto; min-height: calc(100dvh - var(--header-height)); padding: 16px 20px 24px; overflow: visible; background: #f8f8f9; color: #1c253a; font: 12px/1.4 'Lato', sans-serif; }
+.students-page.roster-page { display: flex; flex-direction: column; height: auto; min-height: auto; padding: 16px 20px 24px; overflow: visible; background: #f8f8f9; color: #1c253a; font: 12px/1.4 'Lato', sans-serif; }
 .roster-page .students-page-heading { display: flex; align-items: center; flex-shrink: 0; min-height: 56px; gap: 16px; margin-bottom: 12px; }
 .roster-page .students-heading-icon { display: grid; place-items: center; flex: none; width: 52px; height: 52px; color: var(--portal-red); background: #f7e3e3; border-radius: 7px; }
 .roster-page .students-heading-icon svg { width: 30px; height: 30px; }
@@ -165,7 +165,7 @@
 /* Keep the desktop roster and pagination inside the available viewport. */
 @media (min-width: 861px) and (min-height: 600px) {
   .students-page.roster-page {
-    height: calc(100dvh - var(--header-height));
+    height: auto;
     min-height: 0;
     padding-block: 16px;
   }
@@ -189,7 +189,8 @@
   .roster-page .students-table-shell {
     flex: 1;
     min-height: 0;
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
   .roster-page .students-table-body {

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { isSheetsQuotaError, retrySheetsRead } from './sheetsRetry.js'
 import { withWriteLock } from '../src/utils/writeLock.js'
 import { createSheetsClient, getSpreadsheetId } from './googleSheets.js'
 import {
@@ -20,6 +21,8 @@ const sheetMatrixCache = new Map()
 const sheetMatrixRequests = new Map()
 const sheetInitializationCache = new Map()
 const sheetInitializationRequests = new Map()
+let sheetPropertiesCache = null
+let sheetPropertiesRequest = null
 
 function getSheetRange(sheetName, range) {
   return `'${sheetName}'!${range}`
@@ -197,12 +200,13 @@ async function ensureSheetInitialized(sheetName) {
         }),
       )
 
+      sheetPropertiesCache = null
       invalidateSheetMatrixCache(sheetName)
       markSheetInitialized(sheetName)
       return
     }
 
-    const response = await runSheetsRequest(() =>
+    const response = await runSheetsRead(() =>
       sheets.spreadsheets.values.get({
         spreadsheetId,
         range: getSheetRange(sheetName, '1:2'),
@@ -298,17 +302,15 @@ async function ensureSheetInitialized(sheetName) {
   }
 }
 
-async function getSheetMatrix(sheetName) {
+async function getSheetMatrix(sheetName, { fresh = false } = {}) {
   await ensureSheetInitialized(sheetName)
   // Auth and drafts must reflect writes made by other devices/Vercel instances.
-  if ([SHEET_NAMES.STUDENT_AUTH_ACCOUNTS, SHEET_NAMES.GRADEBOOK_DRAFTS,
+  if (fresh || [SHEET_NAMES.STUDENT_AUTH_ACCOUNTS, SHEET_NAMES.INSTRUCTOR_AUTH_ACCOUNTS, SHEET_NAMES.GRADEBOOK_DRAFTS,
     SHEET_NAMES.AUTH_SESSIONS, SHEET_NAMES.SUBJECT_INSTRUCTORS, SHEET_NAMES.SUBJECTS,
-    SHEET_NAMES.SUBJECT_GROUPS, SHEET_NAMES.SUBJECT_GROUP_MEMBERS,
-    SHEET_NAMES.SUBJECT_STUDENTS, SHEET_NAMES.INSTRUCTOR_GRADES, SHEET_NAMES.FINAL_GRADES,
-    SHEET_NAMES.GRADE_REQUESTS, SHEET_NAMES.GRADE_BREAKDOWN_RESPONSES].includes(sheetName)) {
+    SHEET_NAMES.SUBJECT_STUDENTS].includes(sheetName)) {
     const sheets = createSheetsClient()
     const spreadsheetId = getSpreadsheetId()
-    const response = await runSheetsRequest(() => sheets.spreadsheets.values.get({
+    const response = await runSheetsRead(() => sheets.spreadsheets.values.get({
       spreadsheetId,
       range: getSheetRange(sheetName, 'A:ZZ'),
     }))
@@ -338,14 +340,15 @@ async function getSheetMatrix(sheetName) {
 
   const sheets = createSheetsClient()
   const spreadsheetId = getSpreadsheetId()
-  const matrixRequest = runSheetsRequest(() =>
+  const matrixRequest = runSheetsRead(() =>
     sheets.spreadsheets.values.get({
       spreadsheetId,
       range: getSheetRange(sheetName, 'A:ZZ'),
     }),
   ).then((response) => {
     const values = response.data.values ?? []
-    cacheSheetMatrix(sheetName, values)
+    // A completed write may have invalidated this older read.
+    if (sheetMatrixRequests.get(sheetName) === matrixRequest) cacheSheetMatrix(sheetName, values)
     return values
   })
 
@@ -356,7 +359,7 @@ async function getSheetMatrix(sheetName) {
   try {
     values = await matrixRequest
   } finally {
-    sheetMatrixRequests.delete(sheetName)
+    if (sheetMatrixRequests.get(sheetName) === matrixRequest) sheetMatrixRequests.delete(sheetName)
   }
 
   return {
@@ -367,7 +370,7 @@ async function getSheetMatrix(sheetName) {
 }
 
 async function getSheetRowState(sheetName, idColumn, id) {
-  const { sheets, spreadsheetId, values } = await getSheetMatrix(sheetName)
+  const { sheets, spreadsheetId, values } = await getSheetMatrix(sheetName, { fresh: true })
   const headers = resolveSheetHeaders(sheetName, values)
   const idColumnIndex = headers.indexOf(idColumn)
 
@@ -391,16 +394,21 @@ async function getSheetRowState(sheetName, idColumn, id) {
 }
 
 async function getSheetPropertiesByName(sheetName) {
-  const sheets = createSheetsClient()
-  const spreadsheetId = getSpreadsheetId()
-  const response = await runSheetsRequest(() =>
-    sheets.spreadsheets.get({
-      spreadsheetId,
-      fields: 'sheets.properties',
-    }),
-  )
-
-  return (response.data.sheets ?? []).find(
+  if (!sheetPropertiesCache || sheetPropertiesCache.expiresAt <= Date.now()) {
+    if (!sheetPropertiesRequest) {
+      const sheets = createSheetsClient()
+      sheetPropertiesRequest = runSheetsRead(() => sheets.spreadsheets.get({
+        spreadsheetId: getSpreadsheetId(), fields: 'sheets.properties',
+      })).then(response => {
+        sheetPropertiesCache = {
+          values: response.data.sheets ?? [],
+          expiresAt: Date.now() + SHEET_INITIALIZATION_TTL_MS,
+        }
+      }).finally(() => { sheetPropertiesRequest = null })
+    }
+    await sheetPropertiesRequest
+  }
+  return sheetPropertiesCache.values.find(
     (sheet) => sheet.properties?.title === sheetName,
   )?.properties
 }
@@ -429,10 +437,16 @@ function toGoogleSheetsServiceError(error) {
       : ''
   const fallbackMessage =
     error instanceof Error ? error.message.trim() : 'Unable to reach Google Sheets.'
-  const nextError = new Error(responseMessage || fallbackMessage || 'Unable to reach Google Sheets.')
+  const nextError = new Error(isSheetsQuotaError(error)
+    ? 'Data service is temporarily busy. Please wait a minute and try again.'
+    : responseMessage || fallbackMessage || 'Unable to reach Google Sheets.')
   nextError.statusCode = 503
   nextError.expose = true
   return nextError
+}
+
+async function runSheetsRead(request) {
+  return runSheetsRequest(() => retrySheetsRead(request))
 }
 
 async function runSheetsRequest(request) {
@@ -475,7 +489,7 @@ export async function findRows(sheetName, filters = {}) {
 }
 
 export async function appendRow(sheetName, record) {
-  const { sheets, spreadsheetId, values } = await getSheetMatrix(sheetName)
+  const { sheets, spreadsheetId, values } = await getSheetMatrix(sheetName, { fresh: true })
   const headers = resolveSheetHeaders(sheetName, values)
   const rowValues = buildRowValues(headers, record)
 

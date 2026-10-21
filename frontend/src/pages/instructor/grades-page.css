@@ -99,6 +99,32 @@
   .grades-page .grades-filter-field select { max-width: 100%; }
   .grades-page .grades-pagination { flex-wrap: wrap; }
 }
+.grade-details-modal .grade-details-header,
+.grade-details-modal .grade-details-footer { flex-shrink: 0; }
+.grade-details-modal .grade-details-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+.grade-details-modal .grade-details-footer { background: #fff; }
+.grade-details-footer .subject-detail-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+}
+.grade-details-footer .subject-detail-action > svg {
+  display: block;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  font-size: 18px;
+  overflow: hidden;
+}
 .professor-gradebook { padding: 24px; margin-top: 20px; }
 .professor-gradebook p { line-height: 1.6; }
 .professor-gradebook th, .professor-gradebook td { padding: 12px; text-align: left; }

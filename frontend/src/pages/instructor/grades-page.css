@@ -44,7 +44,6 @@
   }
   .grades-page .grades-page-toolbar-filters { flex: 1; min-width: 0; flex-wrap: nowrap; gap: 20px; }
   .grades-page .grades-filter-field { flex: 1; min-width: 200px; gap: 3px; }
-  .grades-page .grades-filter-field--period { flex: 0 0 150px; min-width: 150px; }
   .grades-page .grades-filter-label { color: #6a7381; font-size: 12px; font-weight: 400; }
   .grades-page .grades-filter-field select { min-height: 32px; height: 32px; max-width: 100%; padding: 0 10px; border-color: #dfe2e9; border-radius: 5px; font-size: 12px; text-overflow: ellipsis; }
   .grades-page .grades-page-toolbar-actions { align-items: center; gap: 10px; margin-left: 20px; }

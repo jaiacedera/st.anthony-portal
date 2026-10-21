@@ -145,10 +145,8 @@ type StoredGradebookScores = {
   savedAt?: string
 }
 
-const gradingPeriods: Array<{ key: GradingPeriodKey; label: string }> = [
-  { key: 'midterm', label: 'Midterm' },
-  { key: 'final', label: 'Final' },
-]
+// API and storage remain compatible with existing Final gradebooks.
+const FINAL_GRADING_PERIOD = 'final' as const
 
 const gradeCategories: GradeCategoryDefinition[] = [
   { key: 'knowledge', label: 'Knowledge', weight: 40 },
@@ -626,7 +624,7 @@ function formatCategoryHeading(category: GradeCategoryDefinition) {
 }
 
 function getGradingPeriodLabel(gradingPeriod: GradingPeriodKey) {
-  return gradingPeriods.find((period) => period.key === gradingPeriod)?.label ?? 'Midterm'
+  return gradingPeriod === 'final' ? 'Final' : 'Midterm'
 }
 
 function formatPercentageValue(value: number) {
@@ -1518,8 +1516,8 @@ export default function GradesPage() {
   const auth = readInstructorAuth()
   const username = auth?.username ?? ''
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const initialSections = useMemo(() => buildDefaultGradeSections('midterm'), [])
-  const initialComponents = useMemo(() => buildDefaultGradeComponents('midterm'), [])
+  const initialSections = useMemo(() => buildDefaultGradeSections('final'), [])
+  const initialComponents = useMemo(() => buildDefaultGradeComponents('final'), [])
   const [students, setStudents] = useState<InstructorStudentRecord[]>([])
   const [subjects, setSubjects] = useState<InstructorRosterSubject[]>([])
   const [gradeSections, setGradeSections] = useState<GradeSectionConfig[]>(
@@ -1537,8 +1535,6 @@ export default function GradesPage() {
   const selectedGroup = groupSelection.subjectId === selectedSubjectId && (groupSelection.id === 'unassigned' || groups.groups.some(group => group.id === groupSelection.id)) ? groupSelection.id : ''
   const matchesGroup = (studentId: string) => !selectedGroup || (groups.members.find(member => member.student_id === studentId)?.group_id ?? 'unassigned') === selectedGroup
   const groupFilter = <GroupFilter state={groups} value={selectedGroup} onChange={id => { setGroupSelection({ subjectId: selectedSubjectId, id }); setCurrentPage(1) }} />
-  const [selectedGradingPeriod, setSelectedGradingPeriod] =
-    useState<GradingPeriodKey>('midterm')
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [viewportCapacity, setViewportCapacity] = useState(10)
@@ -1721,7 +1717,7 @@ export default function GradesPage() {
     const configStorageKey = getGradeConfigStorageKey(
       username,
       selectedSubjectId,
-      selectedGradingPeriod,
+      FINAL_GRADING_PERIOD,
     )
     if (collaborativeSubject) return
     const abortController = new AbortController()
@@ -1731,13 +1727,13 @@ export default function GradesPage() {
       setIsLoadingDraft(true)
       setDraftLoadFailed(false)
       setHasCloudDraft(false)
-      const periods: GradingPeriodKey[] = selectedGradingPeriod === 'final' ? ['midterm', 'final'] : ['midterm']
+      const periods: GradingPeriodKey[] = ['midterm', 'final']
       const results = await Promise.all(periods.map(gradingPeriod => instructorGradebookDraft<CloudGradebookDraft>(
         { username, subjectId: selectedSubjectId, gradingPeriod }, { signal: abortController.signal },
       )))
       if (abortController.signal.aborted) return
       results.forEach((result, index) => {
-        if (periods[index] === selectedGradingPeriod) setHasCloudDraft(Boolean(result.draft))
+        if (periods[index] === FINAL_GRADING_PERIOD) setHasCloudDraft(Boolean(result.draft))
         if (!result.draft) return
         const { sections, components, overrides } = result.draft
         persistStoredGradeConfig(getGradeConfigStorageKey(username, selectedSubjectId, periods[index]), {
@@ -1750,10 +1746,10 @@ export default function GradesPage() {
       const scoreStorageKey = getGradeScoreStorageKey(
         username,
         selectedSubjectId,
-        selectedGradingPeriod,
+        FINAL_GRADING_PERIOD,
       )
-      const cloud = results[periods.indexOf(selectedGradingPeriod)]
-      const storedConfig = readStoredGradeConfig(configStorageKey, selectedGradingPeriod,
+      const cloud = results[periods.indexOf(FINAL_GRADING_PERIOD)]
+      const storedConfig = readStoredGradeConfig(configStorageKey, FINAL_GRADING_PERIOD,
         cloud.draft ? { ...cloud.draft, savedAt: cloud.savedAt } : undefined)
       const storedScores = cloud.draft
         ? { draftOverrides: cloud.draft.overrides, savedOverrides: cloud.draft.overrides, savedAt: cloud.savedAt }
@@ -1762,12 +1758,12 @@ export default function GradesPage() {
         storedConfig?.migratedComponentIds && storedScores
           ? migrateStoredGradeScores(storedScores, storedConfig.migratedComponentIds)
           : storedScores
-      const periodDefaultSections = buildDefaultGradeSections(selectedGradingPeriod)
-      const periodDefaultComponents = buildDefaultGradeComponents(selectedGradingPeriod)
+      const periodDefaultSections = buildDefaultGradeSections(FINAL_GRADING_PERIOD)
+      const periodDefaultComponents = buildDefaultGradeComponents(FINAL_GRADING_PERIOD)
       let nextSections = storedConfig?.sections ?? cloneSections(periodDefaultSections)
       let nextComponents = storedConfig?.components ?? cloneComponents(periodDefaultComponents)
 
-      if (selectedGradingPeriod === 'final') {
+      if (FINAL_GRADING_PERIOD === 'final') {
         const midtermCloud = results[0]
         const midtermConfig = readStoredGradeConfig(getGradeConfigStorageKey(username, selectedSubjectId, 'midterm'), 'midterm',
           midtermCloud.draft ? { ...midtermCloud.draft, savedAt: midtermCloud.savedAt } : undefined)
@@ -1808,7 +1804,7 @@ export default function GradesPage() {
       }
 
       if (!storedScores || storedConfig?.didMigrate) {
-        const scoresToPersist = selectedGradingPeriod === 'final' ? storedScores : nextStoredScores
+        const scoresToPersist = FINAL_GRADING_PERIOD === 'final' ? storedScores : nextStoredScores
         persistStoredGradeScores(scoreStorageKey, {
           draftOverrides: scoresToPersist?.draftOverrides ?? {},
           savedOverrides: scoresToPersist?.savedOverrides ?? {},
@@ -1824,7 +1820,7 @@ export default function GradesPage() {
       if (!abortController.signal.aborted) setIsLoadingDraft(false)
     })
     return () => abortController.abort()
-  }, [selectedGradingPeriod, selectedSubjectId, username, collaborativeSubject])
+  }, [selectedSubjectId, username, collaborativeSubject])
 
   useEffect(() => {
     if (collaborativeSubject) return
@@ -1839,7 +1835,7 @@ export default function GradesPage() {
       {
         username,
         subjectId: selectedSubjectId,
-        gradingPeriod: selectedGradingPeriod,
+        gradingPeriod: FINAL_GRADING_PERIOD,
       },
       abortController.signal,
     )
@@ -1864,11 +1860,11 @@ export default function GradesPage() {
     return () => {
       abortController.abort()
     }
-  }, [selectedGradingPeriod, selectedSubjectId, username, collaborativeSubject])
+  }, [selectedSubjectId, username, collaborativeSubject])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [selectedSubjectId, selectedGradingPeriod, activeTab, rowsPerPage])
+  }, [selectedSubjectId, activeTab, rowsPerPage])
 
   useEffect(() => {
     if (!gradeDetailsState && !editGradesState && !isColumnSettingsOpen && !isPostConfirmOpen) {
@@ -1925,8 +1921,8 @@ export default function GradesPage() {
   }, [selectedSubject, students])
 
   const activeGradeCategories = useMemo(
-    () => getConfiguredCategories(gradeSections, selectedGradingPeriod),
-    [gradeSections, selectedGradingPeriod],
+    () => getConfiguredCategories(gradeSections, FINAL_GRADING_PERIOD),
+    [gradeSections],
   )
 
   const hasUnsavedChanges = useMemo(() => {
@@ -1961,7 +1957,7 @@ export default function GradesPage() {
       }
 
       historyMap.set(
-        getHistoryKey(entry.studentId, entry.subjectId, entry.gradingPeriod),
+        getHistoryKey(entry.studentId, entry.subjectId, FINAL_GRADING_PERIOD),
         entry,
       )
     }
@@ -1975,7 +1971,7 @@ export default function GradesPage() {
         buildStudentGradeSnapshot(
           student,
           selectedSubject,
-          selectedGradingPeriod,
+          FINAL_GRADING_PERIOD,
           gradeSections,
           gradeComponents,
           draftScoreOverrides,
@@ -1985,7 +1981,6 @@ export default function GradesPage() {
       draftScoreOverrides,
       gradeComponents,
       gradeSections,
-      selectedGradingPeriod,
       selectedSubject,
       subjectStudents,
     ],
@@ -2008,9 +2003,8 @@ export default function GradesPage() {
   )
   const displayStart = filteredGradeSnapshots.length ? (safeCurrentPage - 1) * effectiveRowsPerPage + 1 : 0
   const displayEnd = Math.min(safeCurrentPage * effectiveRowsPerPage, filteredGradeSnapshots.length)
-  const periodLabel = getGradingPeriodLabel(selectedGradingPeriod)
-  const gradeSummaryLabel =
-    selectedGradingPeriod === 'midterm' ? 'Midterm Grade' : `${periodLabel} Final Score`
+  const periodLabel = getGradingPeriodLabel(FINAL_GRADING_PERIOD)
+  const gradeSummaryLabel = 'Final Score'
   const ratingSummaryLabel = `${periodLabel} Rating`
   const latestSavedDraftAt = useMemo(() => {
     const timestamps = [savedConfigAt, savedScoresAt].map(toTimestampValue).filter(Boolean)
@@ -2084,7 +2078,7 @@ export default function GradesPage() {
       ? null
       : getCategoryValidationMessage(
           componentManagerDraftSections,
-          selectedGradingPeriod,
+          FINAL_GRADING_PERIOD,
           componentManagerCategory,
         )
 
@@ -2113,7 +2107,7 @@ export default function GradesPage() {
     }
 
     setEditDraftValues(nextDraftValues)
-  }, [editGradesState?.studentId, selectedGradingPeriod, selectedSubjectId])
+  }, [editGradesState?.studentId, selectedSubjectId])
 
   const alerts = [errorMessage, bindingMessage, successMessage].filter(Boolean)
   const breakdownRequestRows = pendingRequests.filter(
@@ -2379,7 +2373,7 @@ export default function GradesPage() {
     if (componentManagerCategory) {
       const validationMessage = getCategoryValidationMessage(
         componentManagerDraftSections,
-        selectedGradingPeriod,
+        FINAL_GRADING_PERIOD,
         componentManagerCategory,
       )
 
@@ -2412,7 +2406,7 @@ export default function GradesPage() {
       cleanedSections,
     )
     const normalizedFinalKnowledge =
-      selectedGradingPeriod === 'final'
+      FINAL_GRADING_PERIOD === 'final'
         ? normalizeFinalKnowledgeMajorExamStructure(cleanedSections, cleanedComponents)
         : null
     const nextPreparedSections = normalizedFinalKnowledge?.sections ?? cleanedSections
@@ -2429,7 +2423,7 @@ export default function GradesPage() {
       const storageKey = getGradeConfigStorageKey(
         username,
         selectedSubject.id,
-        selectedGradingPeriod,
+        FINAL_GRADING_PERIOD,
       )
 
       persistStoredGradeConfig(storageKey, {
@@ -2475,7 +2469,7 @@ export default function GradesPage() {
       cleanedSections,
     )
     const normalizedFinalKnowledge =
-      selectedGradingPeriod === 'final'
+      FINAL_GRADING_PERIOD === 'final'
         ? normalizeFinalKnowledgeMajorExamStructure(cleanedSections, cleanedComponents)
         : null
     const nextPreparedSections = normalizedFinalKnowledge?.sections ?? cleanedSections
@@ -2487,7 +2481,7 @@ export default function GradesPage() {
 
       if (parsedValue === null) {
         if (nextPreparedSections.find(section => section.id === component.sectionId)?.category === 'skills') {
-          delete nextOverrides[getScoreOverrideKey(editSnapshot.student.id, selectedSubject.id, selectedGradingPeriod, component.id)]
+          delete nextOverrides[getScoreOverrideKey(editSnapshot.student.id, selectedSubject.id, FINAL_GRADING_PERIOD, component.id)]
         }
         continue
       }
@@ -2496,14 +2490,14 @@ export default function GradesPage() {
         getScoreOverrideKey(
           editSnapshot.student.id,
           selectedSubject.id,
-          selectedGradingPeriod,
+          FINAL_GRADING_PERIOD,
           component.id,
         )
       ] = roundTo(clampNumber(parsedValue, 0, 100), 2)
     }
 
     persistStoredGradeScores(
-      getGradeScoreStorageKey(username, selectedSubject.id, selectedGradingPeriod),
+      getGradeScoreStorageKey(username, selectedSubject.id, FINAL_GRADING_PERIOD),
       {
         draftOverrides: nextOverrides,
         savedOverrides: savedScoreOverrides,
@@ -2523,7 +2517,7 @@ export default function GradesPage() {
         studentName: editSnapshot.student.fullName,
         subjectId: selectedSubject.id,
         subjectLabel: selectedSubject.label,
-        gradingPeriod: selectedGradingPeriod,
+        gradingPeriod: FINAL_GRADING_PERIOD,
         action: 'Updated score breakdown',
         actor: username || 'Instructor',
         timestamp: new Date().toISOString(),
@@ -2548,13 +2542,13 @@ export default function GradesPage() {
 
     try {
       const { savedAt } = await instructorGradebookDraft({
-        username, subjectId: selectedSubject.id, gradingPeriod: selectedGradingPeriod,
+        username, subjectId: selectedSubject.id, gradingPeriod: FINAL_GRADING_PERIOD,
       }, { draft: { sections: gradeSections, components: gradeComponents, overrides: draftScoreOverrides } })
       setHasCloudDraft(true)
       const configStorageKey = getGradeConfigStorageKey(
         username,
         selectedSubject.id,
-        selectedGradingPeriod,
+        FINAL_GRADING_PERIOD,
       )
       const nextSavedOverrides = { ...draftScoreOverrides }
 
@@ -2564,7 +2558,7 @@ export default function GradesPage() {
         savedAt,
       })
       persistStoredGradeScores(
-        getGradeScoreStorageKey(username, selectedSubject.id, selectedGradingPeriod),
+        getGradeScoreStorageKey(username, selectedSubject.id, FINAL_GRADING_PERIOD),
         {
           draftOverrides: nextSavedOverrides,
           savedOverrides: nextSavedOverrides,
@@ -2584,7 +2578,7 @@ export default function GradesPage() {
           studentName: 'Multiple students',
           subjectId: selectedSubject.id,
           subjectLabel: selectedSubject.label,
-          gradingPeriod: selectedGradingPeriod,
+          gradingPeriod: FINAL_GRADING_PERIOD,
           action: 'Saved draft scores',
           actor: username || 'Instructor',
           timestamp: new Date().toISOString(),
@@ -2646,7 +2640,7 @@ export default function GradesPage() {
       const headerComponentMap = new Map<string, GradeComponentConfig>()
 
       for (const component of gradeComponents.filter((currentComponent) => currentComponent.isActive)) {
-        for (const alias of getCsvHeaderAliases(component, selectedGradingPeriod)) {
+        for (const alias of getCsvHeaderAliases(component, FINAL_GRADING_PERIOD)) {
           headerComponentMap.set(alias, component)
         }
       }
@@ -2684,14 +2678,14 @@ export default function GradesPage() {
           }
 
           nextOverrides[
-            getScoreOverrideKey(student.id, selectedSubject.id, selectedGradingPeriod, component.id)
+            getScoreOverrideKey(student.id, selectedSubject.id, FINAL_GRADING_PERIOD, component.id)
           ] = roundTo(clampNumber(parsedValue, 0, 100), 2)
           updatedCount += 1
         })
       }
 
       persistStoredGradeScores(
-        getGradeScoreStorageKey(username, selectedSubject.id, selectedGradingPeriod),
+        getGradeScoreStorageKey(username, selectedSubject.id, FINAL_GRADING_PERIOD),
         {
           draftOverrides: nextOverrides,
           savedOverrides: savedScoreOverrides,
@@ -2706,7 +2700,7 @@ export default function GradesPage() {
           studentName: 'Batch import',
           subjectId: selectedSubject.id,
           subjectLabel: selectedSubject.label,
-          gradingPeriod: selectedGradingPeriod,
+          gradingPeriod: FINAL_GRADING_PERIOD,
           action: 'Imported CSV scores',
           actor: username || 'Instructor',
           timestamp: new Date().toISOString(),
@@ -2760,7 +2754,7 @@ export default function GradesPage() {
       const payload = await postInstructorGrades({
         username,
         subjectId: selectedSubject.id,
-        gradingPeriod: selectedGradingPeriod,
+        gradingPeriod: FINAL_GRADING_PERIOD,
         grades: gradeSnapshots.map((snapshot) => ({
           studentId: snapshot.student.id,
           grade: snapshot.finalScore === null ? '' : String(snapshot.finalScore),
@@ -2776,7 +2770,7 @@ export default function GradesPage() {
           studentName: 'Multiple students',
           subjectId: selectedSubject.id,
           subjectLabel: selectedSubject.label,
-          gradingPeriod: selectedGradingPeriod,
+          gradingPeriod: FINAL_GRADING_PERIOD,
           action: hasPostedGrades ? 'Posted grade updates' : 'Posted grades',
           actor: username || 'Instructor',
           timestamp: new Date().toISOString(),
@@ -2815,7 +2809,7 @@ export default function GradesPage() {
         studentName: '',
         subjectId: selectedSubject?.id ?? '',
         subjectLabel: selectedSubject?.label ?? 'Selected subject',
-        gradingPeriod: selectedGradingPeriod,
+        gradingPeriod: FINAL_GRADING_PERIOD,
         action:
           nextStatus === 'APPROVED'
             ? 'Approved breakdown request'
@@ -2855,7 +2849,7 @@ export default function GradesPage() {
       schoolYearLabel={schoolYearLabel}
       semesterLabel={semesterLabel}
     >
-      <section inert={isLoadingDraft || isSaving} aria-busy={isLoadingDraft || isSaving} className={`grades-page grades-page--${selectedGradingPeriod}${activeTab === 'gradebook' ? ' grades-page--gradebook' : ''}`}>
+      <section inert={isLoadingDraft || isSaving} aria-busy={isLoadingDraft || isSaving} className={`grades-page grades-page--${FINAL_GRADING_PERIOD}${activeTab === 'gradebook' ? ' grades-page--gradebook' : ''}`}>
         {alerts.length ? (
           <div className="dashboard-alert-stack" aria-live="polite">
             {alerts.map((message, index) => (
@@ -2897,21 +2891,6 @@ export default function GradesPage() {
               </label>
 
               {groupFilter}
-              <label className="grades-filter-field grades-filter-field--period">
-                <span className="grades-filter-label">Grading Period</span>
-                <select
-                  value={selectedGradingPeriod}
-                  onChange={(event) =>
-                    setSelectedGradingPeriod(event.target.value as GradingPeriodKey)
-                  }
-                >
-                  {gradingPeriods.map((period) => (
-                    <option key={period.key} value={period.key}>
-                      {period.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </div>
 
             <div className="grades-page-toolbar-actions">
@@ -3264,7 +3243,7 @@ export default function GradesPage() {
                       <p>{entry.note}</p>
                       <div className="grade-history-meta">
                         <span>{entry.subjectLabel}</span>
-                        <span>{getGradingPeriodLabel(entry.gradingPeriod)}</span>
+                        <span>Final</span>
                         <span>{entry.actor}</span>
                       </div>
                     </article>
@@ -3388,7 +3367,7 @@ export default function GradesPage() {
                                   onChange={() => handleColumnVisibilityChange(component.id)}
                                 />
                                 <span>
-                                  {getDisplayComponentLabel(component, selectedGradingPeriod)}
+                                  {getDisplayComponentLabel(component, FINAL_GRADING_PERIOD)}
                                 </span>
                               </label>
                             ))}
@@ -3511,7 +3490,7 @@ export default function GradesPage() {
                                       <th>
                                         {isFinalKnowledgeMajorExamSection(
                                           section,
-                                          selectedGradingPeriod,
+                                          FINAL_GRADING_PERIOD,
                                         )
                                           ? 'Major Exam Average'
                                           : section.aggregationType === 'average'
@@ -3524,7 +3503,7 @@ export default function GradesPage() {
                                       <th>
                                         {isFinalKnowledgeMajorExamSection(
                                           section,
-                                          selectedGradingPeriod,
+                                          FINAL_GRADING_PERIOD,
                                         )
                                           ? 'Weighted Contribution'
                                           : 'Contribution'}
@@ -3599,7 +3578,7 @@ export default function GradesPage() {
                         getHistoryKey(
                           gradeDetailsSnapshot.student.id,
                           selectedSubject?.id ?? '',
-                          selectedGradingPeriod,
+                          FINAL_GRADING_PERIOD,
                         ),
                       )
 
@@ -3666,7 +3645,7 @@ export default function GradesPage() {
             </div>
 
             <div className="grade-edit-modal-body">
-              {getConfiguredCategories(editDraftSections, selectedGradingPeriod).map((category) => (
+              {getConfiguredCategories(editDraftSections, FINAL_GRADING_PERIOD).map((category) => (
                 <section key={category.key} className="grade-edit-section">
                   <header
                     className={`score-section-header score-section-header--${category.key}`}
@@ -3697,7 +3676,7 @@ export default function GradesPage() {
 
                           const isGroupedFinalMajorExam = isFinalKnowledgeMajorExamSection(
                             section,
-                            selectedGradingPeriod,
+                            FINAL_GRADING_PERIOD,
                           )
 
                           return [
@@ -3711,10 +3690,10 @@ export default function GradesPage() {
                             ...sectionComponents.map((component) => {
                               const fieldLabel =
                                 category.key === 'skills'
-                                  ? getDisplayComponentLabel(component, selectedGradingPeriod)
+                                  ? getDisplayComponentLabel(component, FINAL_GRADING_PERIOD)
                                   : sectionComponents.length === 1 && !isGroupedFinalMajorExam
                                     ? `${section.label} (${section.weight}%)`
-                                    : getDisplayComponentLabel(component, selectedGradingPeriod)
+                                    : getDisplayComponentLabel(component, FINAL_GRADING_PERIOD)
 
                               return (
                                 <div key={component.id} className="score-field">
@@ -4019,7 +3998,7 @@ export default function GradesPage() {
                     Required Total:{' '}
                     {formatPercentageValue(
                       getRequiredCategoryWeight(
-                        selectedGradingPeriod,
+                        FINAL_GRADING_PERIOD,
                         componentManagerCategory,
                       ),
                     )}

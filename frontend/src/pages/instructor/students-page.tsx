@@ -21,7 +21,6 @@ import {
 import { readInstructorAuth } from '../../utils/instructorAuth'
 import './students-page.css'
 
-type TabKey = 'all' | 'subject'
 
 type EnrollmentDialogState = {
   action: 'add' | 'remove'
@@ -214,7 +213,6 @@ export default function StudentsPage() {
       window.removeEventListener('resize', updateCapacity)
     }
   }, [])
-  const [activeTab, setActiveTab] = useState<TabKey>(pageIntent.subjectId ? 'subject' : 'all')
   const [selectedSubjectId, setSelectedSubjectId] = useState(pageIntent.subjectId)
   const groups = useSubjectGroups(selectedSubjectId)
   const [manageGroups, setManageGroups] = useState(false)
@@ -253,7 +251,7 @@ export default function StudentsPage() {
     setSelectedSubjectId((current) =>
       payload.subjects.some((subject) => subject.id === current)
         ? current
-        : '',
+        : payload.subjects[0]?.id ?? '',
     )
     setCreateStudentForm((current) => ({
       ...current,
@@ -274,7 +272,6 @@ export default function StudentsPage() {
 
       if (requestedSubject) {
         setSelectedSubjectId(requestedSubject.id)
-        setActiveTab('subject')
 
         if (pageIntent.openCreate) {
           setIsCreateStudentOpen(true)
@@ -598,8 +595,7 @@ export default function StudentsPage() {
         await loadStudents()
       }
 
-      setSelectedSubjectId(createStudentForm.subjectIds[0] ?? '')
-      setActiveTab(createStudentForm.subjectIds.length ? 'subject' : 'all')
+      setSelectedSubjectId(current => current || createStudentForm.subjectIds[0] || subjects[0]?.id || '')
       setIsCreateStudentOpen(false)
       setSubjectPickerOpen(false)
       setSubjectSearchValue('')
@@ -790,26 +786,6 @@ export default function StudentsPage() {
             </div>
           ) : null}
 
-          <div className="students-management-toolbar">
-            <div className="student-tab-list" role="group" aria-label="Student roster views">
-              <button
-                type="button"
-                className={activeTab === 'all' ? 'student-tab is-active' : 'student-tab'}
-                onClick={() => { setActiveTab('all'); setSelectedSubjectId(''); setPage(1) }}
-                aria-pressed={activeTab === 'all'}
-              >
-                All Students
-              </button>
-              <button
-                type="button"
-                className={activeTab === 'subject' ? 'student-tab is-active' : 'student-tab'}
-                onClick={() => { setActiveTab('subject'); setSelectedSubjectId(subjects[0]?.id ?? ''); setPage(1) }}
-                aria-pressed={activeTab === 'subject'}
-              >
-                By Subject
-              </button>
-            </div>
-          </div>
         <article className="instructor-panel students-management-card">
             <div className="students-filter-bar">
               <label className="students-search-field">
@@ -823,11 +799,10 @@ export default function StudentsPage() {
                     value={selectedSubjectId}
                     onChange={(event) => {
                       setSelectedSubjectId(event.target.value)
-                      setActiveTab(event.target.value ? 'subject' : 'all')
                       setPage(1)
                     }}
                   >
-                    <option value="">All Subjects</option>
+                    {!subjects.length && <option value="">No subjects available</option>}
                     {
                       subjects.map((subject) => (
                         <option key={subject.id} value={subject.id}>
@@ -855,7 +830,7 @@ export default function StudentsPage() {
                 <span>Add Student</span>
               </button>
               {selectedSubjectId && <button type="button" className="grades-toolbar-button" onClick={() => setManageGroups(true)}>Manage Groups</button>}
-              <details className="roster-options"><summary aria-label="Roster options"><MoreIcon /></summary><div><button type="button" onClick={event => { setSearchValue(''); setSelectedSubjectId(''); setStatusFilter('all'); setActiveTab('all'); setPage(1); event.currentTarget.closest('details')?.removeAttribute('open') }}>Reset filters</button></div></details>
+              <details className="roster-options"><summary aria-label="Roster options"><MoreIcon /></summary><div><button type="button" onClick={event => { setSearchValue(''); setStatusFilter('all'); setPage(1); event.currentTarget.closest('details')?.removeAttribute('open') }}>Reset filters</button></div></details>
             </div>
 
           <div className="students-table-shell">

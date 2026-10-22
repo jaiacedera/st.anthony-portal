@@ -193,7 +193,8 @@ export function calculateSkillsGrade(scores, activeComponentIds = Object.keys(sc
       : pair.length === 1 ? values[0]
       : values[0] * weight + values[1] * (1 - weight))
   }
-  const skillsTotal = calculateStrictAverage([...totals, ...[...remaining].map(id => scoreById[id])])
+  if (remaining.size) totals.push(calculateStrictAverage([...remaining].map(id => scoreById[id])))
+  const skillsTotal = calculateStrictAverage(totals)
   const missingComponentIds = ids.filter(id => scoreById[id] === null)
   return {
     scoreById,

@@ -184,7 +184,6 @@ export function calculateSkillsGrade(scores, activeComponentIds = Object.keys(sc
   const remaining = new Set(ids)
   const totals = []
   for (const { members, weight } of [
-    { members: ['skills-case-presentation', 'skills-case-study'], weight: 0.5 },
     { members: ['skills-snhs', 'skills-performance'], weight: 0.3 },
   ]) {
     const pair = members.filter(id => remaining.delete(id))

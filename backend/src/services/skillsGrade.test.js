@@ -2,17 +2,26 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { calculateSkillsGrade } from '../../../frontend/src/utils/skills-grade.js'
 
-test('default Skills uses seven terms with Case and weighted SN Performance composites', () => {
+test('default Skills uses eight terms with standalone Case fields and weighted SN Performance', () => {
   const scores = Object.fromEntries(['fdar', 'kardex', 'journal', 'pe', 'meds'].map(id => ['skills-' + id, 80]))
   Object.assign(scores, { 'skills-case-presentation': 60, 'skills-case-study': 100, 'skills-snhs': 50, 'skills-performance': 100 })
   const result = calculateSkillsGrade(scores)
-  assert.equal(result.skillsTotal, 565 / 7)
-  assert.equal(result.skillsWeighted, (565 / 7) * 0.4)
-  assert.equal(calculateSkillsGrade(scores, Object.keys(scores).filter(id => id !== 'skills-fdar')).skillsTotal, 485 / 6)
+  assert.equal(result.skillsTotal, 645 / 8)
+  assert.equal(result.skillsWeighted, (645 / 8) * 0.4)
+  assert.equal(calculateSkillsGrade(scores, Object.keys(scores).filter(id => id !== 'skills-fdar')).skillsTotal, 565 / 7)
+  for (const [deleted, total, count] of [
+    [['skills-case-presentation'], 585, 7],
+    [['skills-case-study'], 545, 7],
+    [['skills-case-presentation', 'skills-case-study'], 485, 6],
+  ]) {
+    assert.equal(calculateSkillsGrade(scores, Object.keys(scores).filter(id => !deleted.includes(id))).skillsTotal, total / count)
+  }
+  for (const id of ['skills-case-presentation', 'skills-case-study']) {
+    assert.equal(calculateSkillsGrade({ ...scores, [id]: null }).skillsWeighted, null)
+  }
 })
 
 for (const [first, second, combined] of [
-  ['skills-case-presentation', 'skills-case-study', 70],
   ['skills-snhs', 'skills-performance', 78],
 ]) {
   test(`${first}: both, either, neither, and pending composite members`, () => {

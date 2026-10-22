@@ -26,6 +26,23 @@ function loadModule(path, extraSource = '', storage = new Map()) {
 
 const gradebook = loadModule('../pages/instructor/grades-page.tsx', '\nexport { buildStudentGradeSnapshot, buildDefaultGradeSections, buildDefaultGradeComponents, readStoredGradeConfig, persistStoredGradeConfig, persistStoredGradeScores };')
 
+test('score form saves dash as INC, clears blanks, and replaces INC with numbers', () => {
+  const source = readFileSync(new URL('../pages/instructor/grades-page.tsx', import.meta.url), 'utf8')
+  const start = source.indexOf('    const nextOverrides =', source.indexOf('  function handleSaveEditedScores()'))
+  const loop = source.slice(start, source.indexOf('    persistStoredGradeScores(', start))
+  const helpers = loadModule('../pages/instructor/grades-page.tsx', '\nexport { getScoreOverrideKey, parseNumericValue, clampNumber, roundTo };')
+  for (const [input, expected] of [['-', 'INC'], ['', undefined], ['0', 0], ['87.5', 87.5]]) {
+    const context = {
+      ...helpers, draftScoreOverrides: { 's::sub::final::field': 'INC' },
+      editSnapshot: { student: { id: 's' } }, selectedSubject: { id: 'sub' },
+      FINAL_GRADING_PERIOD: 'final', nextPreparedComponents: [{ id: 'field', isActive: true }],
+      editDraftValues: { field: input }, result: null,
+    }
+    runInNewContext(loop + '\nresult = nextOverrides;', context)
+    assert.equal(context.result['s::sub::final::field'], expected)
+  }
+})
+
 test('cloud configuration loads without browser storage and cache failures do not fail saves', () => {
   const cloud = {
     sections: gradebook.buildDefaultGradeSections('midterm'),
@@ -87,7 +104,7 @@ test('Midterm scores carry into Final fields and its approved breakdown without 
   assert.equal(values['knowledge-quiz-1'], 85)
   assert.equal(values['knowledge-long-exam-1'], 0)
   assert.equal(values['knowledge-major-exam-midterm'], 88)
-  assert.equal(values['knowledge-major-exam-final'], 0)
+  assert.equal(values['knowledge-major-exam-final'], null)
   assert.equal(values[skills.SKILLS_COMPONENT_DEFINITIONS[0].id], 92)
   assert.equal(Object.keys(final).length, 1)
   const storage = new Map([
@@ -147,15 +164,15 @@ for (const legacyState of ['missing', 'disabled']) {
     assert.ok(attitude, 'Final must include the Attitude column group')
     assert.equal(attitude.weight, 20)
     assert.equal(attitude.sections.reduce((sum, section) => sum + section.weight, 0), 20)
-    assert.equal(attitude.total, 0)
-    assert.equal(attitude.isIncomplete, false)
+    assert.equal(attitude.total, null)
+    assert.equal(attitude.isIncomplete, true)
     assert.equal(restored.didMigrate, true)
     assert.equal(restored.savedAt, '2026-09-01')
     assert.equal(snapshot.categories[0].sections[0].components[0].score, 87.5)
     const response = loadModule('./student-breakdown-response.ts', '', storage)
       .buildApprovedBreakdownResponse({ requestId: 'r1', username: 'instructor', student, subject, gradingPeriod: 'final' })
     assert.equal(response.attitude.weight, 20)
-    assert.equal(response.attitude.weighted, 0)
+    assert.equal(response.attitude.weighted, null)
     assert.equal(response.finalGrade, snapshot.finalScore)
   })
 }
@@ -179,16 +196,16 @@ test('Final uses 40/40/20 weights and keeps its scores separate from Midterm', (
 })
 
 for (const period of ['midterm', 'final']) {
-  test(`${period}: missing Skills scores remain pending while other category defaults stay unchanged`, () => {
+  test(`${period}: empty scores remain ungraded in every category`, () => {
     const sections = gradebook.buildDefaultGradeSections(period)
     const components = gradebook.buildDefaultGradeComponents(period)
     components.push({ ...components[0], id: 'custom-score', label: 'Custom assessment', isCustom: true })
     const snapshot = gradebook.buildStudentGradeSnapshot(student, subject, period, sections, components, {})
     for (const category of snapshot.categories) {
-      assert.equal(category.total, category.key === 'skills' ? null : 0)
-      assert.equal(category.weighted, category.key === 'skills' ? null : 0)
+      assert.equal(category.total, null)
+      assert.equal(category.weighted, null)
       for (const section of category.sections) {
-        for (const component of section.components) assert.equal(component.score, category.key === 'skills' ? null : 0)
+        for (const component of section.components) assert.equal(component.score, null)
       }
     }
     assert.equal(snapshot.finalScore, null)
@@ -208,7 +225,7 @@ for (const period of ['midterm', 'final']) {
     const response = responseModule.buildApprovedBreakdownResponse({ requestId: 'request-1', username: 'instructor', subject, student, gradingPeriod: period })
     const scores = response.knowledge.sections.flatMap(section => section.items.map(item => item.score))
     assert.ok(scores.includes(87.5))
-    assert.ok(scores.includes(0))
+    assert.ok(scores.includes(null))
     assert.equal(response.finalGrade, snapshot.finalScore)
     assert.equal(response.skills.weighted, null)
   })
@@ -308,4 +325,47 @@ for (const period of ['midterm', 'final']) {
       assert.equal(response.knowledge.weighted, knowledge.weighted)
     })
   }
+}
+
+for (const categoryKey of ['knowledge', 'skills', 'attitude']) {
+  test(categoryKey + ': INC persists, propagates, clears, and ignores deleted fields', () => {
+    const sections = gradebook.buildDefaultGradeSections('final')
+    const components = gradebook.buildDefaultGradeComponents('final')
+    const sectionIds = new Set(sections.filter(s => s.category === categoryKey).map(s => s.id))
+    const field = components.find(c => sectionIds.has(c.sectionId))
+    const key = id => [student.id, subject.id, 'final', id].join('::')
+    const overrides = Object.fromEntries(components.map(c => [key(c.id), 90]))
+    overrides[key(field.id)] = 'INC'
+    const storage = new Map([
+      ['instructor-grade-scores::instructor::' + subject.id + '::final', JSON.stringify({ draftOverrides: overrides, savedOverrides: overrides })],
+    ])
+    const module = loadModule('../pages/instructor/grades-page.tsx', '\nexport { readStoredGradeScores };', storage)
+    const loaded = module.readStoredGradeScores('instructor-grade-scores::instructor::' + subject.id + '::final')
+    assert.equal(loaded.savedOverrides[key(field.id)], 'INC')
+    const snapshot = gradebook.buildStudentGradeSnapshot(student, subject, 'final', sections, components, loaded.savedOverrides)
+    const category = snapshot.categories.find(c => c.key === categoryKey)
+    assert.equal(category.isInc, true)
+    assert.equal(category.total, null)
+    assert.equal(category.weighted, null)
+    assert.equal(snapshot.finalScore, null)
+    assert.equal(snapshot.rating, 'INC')
+    assert.equal(snapshot.remarks, 'INC')
+    const response = loadModule('./student-breakdown-response.ts', '', storage).buildApprovedBreakdownResponse({ requestId: 'r', username: 'instructor', subject, student, gradingPeriod: 'final' })
+    assert.equal(response[categoryKey].isInc, true)
+    assert.equal(response[categoryKey].weighted, null)
+    assert.equal(response.isInc, true)
+    assert.equal(response.rating, 'INC')
+    assert.equal(response.finalGrade, null)
+    const deleted = gradebook.buildStudentGradeSnapshot(student, subject, 'final', sections, components.filter(c => c.id !== field.id), overrides)
+    assert.equal(deleted.isInc, false)
+    overrides[key(field.id)] = 90
+    const fixed = gradebook.buildStudentGradeSnapshot(student, subject, 'final', sections, components, overrides)
+    assert.equal(fixed.isInc, false)
+    assert.equal(fixed.finalScore, 90)
+    delete overrides[key(field.id)]
+    const blank = gradebook.buildStudentGradeSnapshot(student, subject, 'final', sections, components, overrides)
+    assert.equal(blank.isInc, false)
+    assert.equal(blank.finalScore, null)
+    assert.equal(blank.rating, '--')
+  })
 }

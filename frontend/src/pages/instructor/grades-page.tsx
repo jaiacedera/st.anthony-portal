@@ -70,11 +70,13 @@ type GradeComponentConfig = {
 
 type GradeComponentSnapshot = GradeComponentConfig & {
   displayLabel: string
+  isInc: boolean
   score: number | null
 }
 
 type GradeSectionSnapshot = GradeSectionConfig & {
   components: GradeComponentSnapshot[]
+  isInc: boolean
   average: number | null
   contribution: number | null
   hasMissingScores: boolean
@@ -82,6 +84,7 @@ type GradeSectionSnapshot = GradeSectionConfig & {
 
 type GradeCategorySnapshot = GradeCategoryDefinition & {
   sections: GradeSectionSnapshot[]
+  isInc: boolean
   total: number | null
   weighted: number | null
   isIncomplete: boolean
@@ -92,13 +95,14 @@ type StudentGradeSnapshot = {
   student: InstructorStudentRecord
   subject: InstructorRosterSubject | null
   categories: GradeCategorySnapshot[]
+  isInc: boolean
   finalScore: number | null
   rating: string
   remarks: string
   isIncomplete: boolean
 }
 
-type GradeOverrideMap = Record<string, number>
+type GradeOverrideMap = Record<string, number | 'INC'>
 
 type PendingBreakdownRequest = InstructorPendingRequestPreview & {
   localStatus: string
@@ -973,22 +977,25 @@ function buildStudentGradeSnapshot(
               component.id,
             )
             const savedScore = overrides[overrideKey]
-            const score = section.category === 'skills' && savedScore === undefined ? null : roundTo(savedScore ?? 0, 2)
+            const score = typeof savedScore === 'number' ? roundTo(savedScore, 2) : null
 
             return {
               ...component,
               displayLabel: getDisplayComponentLabel(component, gradingPeriod),
               score,
+              isInc: savedScore === 'INC',
             }
           })
 
-        const average = calculateAverage(sectionComponents.map((component) => component.score))
+        const isInc = sectionComponents.some(component => component.isInc)
+        const average = sectionComponents.some(component => component.score === null) ? null : calculateAverage(sectionComponents.map((component) => component.score))
         const contribution =
           average === null ? null : roundTo(average * (section.weight / 100), 2)
 
         return {
           ...section,
           components: sectionComponents,
+          isInc,
           average,
           contribution,
           hasMissingScores: sectionComponents.some((component) => component.score === null),
@@ -1014,7 +1021,9 @@ function buildStudentGradeSnapshot(
       .filter((value): value is number => value !== null)
     const skillsWeightedValue = skillsComputation?.skillsWeighted
     const skillsTotalValue = skillsComputation?.skillsTotal
-    const weighted =
+    const isInc = categorySections.some(section => section.isInc)
+    const hasMissingScores = categorySections.some(section => section.components.some(component => component.score === null))
+    const weighted = isInc || hasMissingScores ? null :
       category.key === 'skills'
         ? skillsWeightedValue === null || skillsWeightedValue === undefined
           ? null
@@ -1022,7 +1031,7 @@ function buildStudentGradeSnapshot(
         : availableContributions.length
           ? roundTo(availableContributions.reduce((sum, value) => sum + value, 0), 2)
           : null
-    const total =
+    const total = isInc || hasMissingScores ? null :
       category.key === 'skills'
         ? skillsTotalValue === null || skillsTotalValue === undefined
           ? null
@@ -1046,6 +1055,7 @@ function buildStudentGradeSnapshot(
     return {
       ...category,
       sections: categorySections,
+      isInc,
       total,
       weighted,
       isIncomplete,
@@ -1060,8 +1070,9 @@ function buildStudentGradeSnapshot(
     ? roundTo(availableWeighted.reduce((sum, value) => sum + value, 0), 2)
     : null
   const configuredWeightTotal = categories.reduce((sum, category) => sum + category.weight, 0)
+  const isInc = categories.some(category => category.isInc)
   const finalScore =
-    weightedSum === null || configuredWeightTotal === 0 || categories.some(category => category.key === 'skills' && category.isIncomplete)
+    weightedSum === null || configuredWeightTotal === 0 || categories.some(category => category.isIncomplete)
       ? null
       : roundTo(weightedSum / (configuredWeightTotal / 100), 2)
   const isIncomplete = categories.some(
@@ -1073,7 +1084,8 @@ function buildStudentGradeSnapshot(
     subject,
     categories,
     finalScore,
-    rating: finalScore === null || isIncomplete ? '--' : gradeToRating(finalScore),
+    isInc,
+    rating: isInc ? 'INC' : finalScore === null || isIncomplete ? '--' : gradeToRating(finalScore),
     remarks: toRemarks(finalScore, isIncomplete),
     isIncomplete,
   }
@@ -1483,12 +1495,12 @@ function readStoredGradeScores(storageKey: string): StoredGradebookScores | null
     return {
       draftOverrides: Object.fromEntries(
         Object.entries(parsed.draftOverrides).filter(
-          ([, value]) => typeof value === 'number' && Number.isFinite(value),
+          ([, value]) => value === 'INC' || (typeof value === 'number' && Number.isFinite(value)),
         ),
       ),
       savedOverrides: Object.fromEntries(
         Object.entries(parsed.savedOverrides).filter(
-          ([, value]) => typeof value === 'number' && Number.isFinite(value),
+          ([, value]) => value === 'INC' || (typeof value === 'number' && Number.isFinite(value)),
         ),
       ),
       savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
@@ -2066,8 +2078,8 @@ export default function GradesPage() {
       )
 
       nextDraftValues[component.id] =
-        currentComponent?.score === null || currentComponent?.score === undefined
-          ? section?.category === 'skills' ? '' : '0'
+        currentComponent?.isInc ? '-' : currentComponent?.score === null || currentComponent?.score === undefined
+          ? ''
           : formatScore(currentComponent.score, 2)
     }
 
@@ -2110,6 +2122,7 @@ export default function GradesPage() {
   }
 
   function handleEditInputChange(componentId: string, event: ChangeEvent<HTMLInputElement>) {
+    if (!/^(?:-|\d*(?:\.\d*)?)$/.test(event.target.value)) return
     setEditDraftValues((current) => ({
       ...current,
       [componentId]: event.target.value,
@@ -2442,7 +2455,11 @@ export default function GradesPage() {
     const nextOverrides = { ...draftScoreOverrides }
 
     for (const component of nextPreparedComponents.filter((currentComponent) => currentComponent.isActive)) {
-      const parsedValue = parseNumericValue(editDraftValues[component.id] ?? '')
+      const input = (editDraftValues[component.id] ?? '').trim()
+      const key = getScoreOverrideKey(editSnapshot.student.id, selectedSubject.id, FINAL_GRADING_PERIOD, component.id)
+      if (input === '-') { nextOverrides[key] = 'INC'; continue }
+      if (!input) { delete nextOverrides[key]; continue }
+      const parsedValue = parseNumericValue(input)
 
       if (parsedValue === null) {
         if (nextPreparedSections.find(section => section.id === component.sectionId)?.category === 'skills') {
@@ -3022,17 +3039,17 @@ export default function GradesPage() {
                               key={`${snapshot.student.id}-${category.key}-total`}
                               className="grades-table-score"
                             >
-                              {formatScoreOrPlaceholder(category.total, 2)}
+                              {(category.isInc ? 'INC' : formatScoreOrPlaceholder(category.total, 2))}
                             </td>,
                             <td
                               key={`${snapshot.student.id}-${category.key}-weighted`}
                               className={`grades-table-score grades-table-score--weighted grades-table-score--${category.key}`}
                             >
-                              {formatScoreOrPlaceholder(category.weighted, 2)}
+                              {(category.isInc ? 'INC' : formatScoreOrPlaceholder(category.weighted, 2))}
                             </td>,
                           ])}
                           <td className="grades-table-final-score">
-                            {formatScoreOrPlaceholder(snapshot.finalScore, 2)}
+                            {(snapshot.isInc ? 'INC' : formatScoreOrPlaceholder(snapshot.finalScore, 2))}
                           </td>
                           <td className="grades-table-rating">{snapshot.rating}</td>
                           <td className="grades-table-remarks">
@@ -3417,7 +3434,7 @@ export default function GradesPage() {
                                   {buildSkillsBreakdownRows(category.skillsComputation, category.sections.flatMap(section => section.components)).map((row) => (
                                     <tr key={row.label}>
                                       <th>{row.label}</th>
-                                      <td>{formatScoreOrPlaceholder(row.value, 2)}</td>
+                                      <td>{category.isInc && ['Skills Average', 'Skills Weighted (40%)'].includes(row.label) ? 'INC' : formatScoreOrPlaceholder(row.value, 2)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -3442,7 +3459,7 @@ export default function GradesPage() {
                                         visibleComponents.map((component) => (
                                           <tr key={component.id}>
                                             <th>{component.displayLabel}</th>
-                                            <td>{formatScoreOrPlaceholder(component.score, 2)}</td>
+                                            <td>{(component.isInc ? 'INC' : formatScoreOrPlaceholder(component.score, 2))}</td>
                                           </tr>
                                         ))
                                       ) : (
@@ -3462,7 +3479,7 @@ export default function GradesPage() {
                                             ? 'Average'
                                             : 'Score'}
                                       </th>
-                                      <td>{formatScoreOrPlaceholder(section.average, 2)}</td>
+                                      <td>{(section.isInc ? 'INC' : formatScoreOrPlaceholder(section.average, 2))}</td>
                                     </tr>
                                     <tr>
                                       <th>
@@ -3488,7 +3505,7 @@ export default function GradesPage() {
                         )}
 
                         <div className="grade-section-summary">
-                          {category.label} Weighted = {formatScoreOrPlaceholder(category.weighted, 2)} /{' '}
+                          {category.label} Weighted = {(category.isInc ? 'INC' : formatScoreOrPlaceholder(category.weighted, 2))} /{' '}
                           {category.weight}
                         </div>
                       </div>
@@ -3509,7 +3526,7 @@ export default function GradesPage() {
                           </span>
                         </div>
                         <strong>
-                          {formatScoreOrPlaceholder(category.weighted, 2)} / {category.weight}
+                          {(category.isInc ? 'INC' : formatScoreOrPlaceholder(category.weighted, 2))} / {category.weight}
                         </strong>
                       </div>
                     ))}
@@ -3518,7 +3535,7 @@ export default function GradesPage() {
                   <div className="summary-score-block">
                     <span className="summary-label">{gradeSummaryLabel}</span>
                     <strong className="summary-value">
-                      {gradeDetailsSnapshot.finalScore === null
+                      {gradeDetailsSnapshot.isInc ? 'INC' : gradeDetailsSnapshot.finalScore === null
                         ? '--'
                         : `${formatWholeOrDecimal(gradeDetailsSnapshot.finalScore)} / 100`}
                     </strong>
@@ -3666,12 +3683,10 @@ export default function GradesPage() {
 
                                   <input
                                     id={`edit-score-${component.id}`}
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
+                                    type="text"
+                                    inputMode="text"
                                     className="grade-edit-score-input"
-                                    value={editDraftValues[component.id] ?? '0'}
+                                    value={editDraftValues[component.id] ?? ''}
                                     onChange={(event) =>
                                       handleEditInputChange(component.id, event)
                                     }
@@ -3695,7 +3710,7 @@ export default function GradesPage() {
                           .map((row) => (
                             <div key={row.label} className="skills-computation-preview-row">
                               <span>{row.label}</span>
-                              <strong>{formatScoreOrPlaceholder(row.value, 2)}</strong>
+                              <strong>{editDraftComponents.some(component => component.isActive && editDraftSections.some(section => section.id === component.sectionId && section.isActive && section.category === 'skills') && editDraftValues[component.id]?.trim() === '-') ? 'INC' : formatScoreOrPlaceholder(row.value, 2)}</strong>
                             </div>
                           ))}
                       </div>

@@ -74,28 +74,34 @@ export type StudentApprovedBreakdownResponse = {
   knowledge: {
     label: string
     weight: number
+    isInc?: boolean
     weighted: number | null
     sections: Array<{
       label: string
       weight: number
       items: Array<{
         label: string
+        isInc?: boolean
         score: number | null
       }>
       average: number | null
+      isInc?: boolean
       weighted: number | null
     }>
   }
   skills: {
     label: string
     weight: number
+    isInc?: boolean
     weighted: number | null
   } | null
   attitude: {
     label: string
     weight: number
+    isInc?: boolean
     weighted: number | null
   } | null
+  isInc?: boolean
   finalGrade: number | null
   rating: string
   remarks: string

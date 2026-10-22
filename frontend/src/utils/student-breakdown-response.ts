@@ -46,28 +46,32 @@ type GradeComponentConfig = {
 
 type GradeComponentSnapshot = GradeComponentConfig & {
   displayLabel: string
+  isInc: boolean
   score: number | null
 }
 
 type GradeSectionSnapshot = GradeSectionConfig & {
   components: GradeComponentSnapshot[]
+  isInc: boolean
   average: number | null
   contribution: number | null
 }
 
 type GradeCategorySnapshot = GradeCategoryDefinition & {
   sections: GradeSectionSnapshot[]
+  isInc: boolean
   weighted: number | null
 }
 
 type StudentGradeSnapshot = {
   categories: GradeCategorySnapshot[]
+  isInc: boolean
   finalScore: number | null
   rating: string
   remarks: string
 }
 
-type GradeOverrideMap = Record<string, number>
+type GradeOverrideMap = Record<string, number | 'INC'>
 
 type StoredGradebookConfig = {
   sections: GradeSectionConfig[]
@@ -89,28 +93,34 @@ export type ApprovedBreakdownResponse = {
   knowledge: {
     label: string
     weight: number
+    isInc?: boolean
     weighted: number | null
     sections: Array<{
       label: string
       weight: number
       items: Array<{
         label: string
+        isInc?: boolean
         score: number | null
       }>
       average: number | null
+      isInc?: boolean
       weighted: number | null
     }>
   }
   skills: {
     label: string
     weight: number
+    isInc?: boolean
     weighted: number | null
   } | null
   attitude: {
     label: string
     weight: number
+    isInc?: boolean
     weighted: number | null
   } | null
+  isInc?: boolean
   finalGrade: number | null
   rating: string
   remarks: string
@@ -572,7 +582,7 @@ function readStoredGradeScores(
 
     return Object.fromEntries(
       Object.entries(parsed.savedOverrides).filter(
-        ([, value]) => typeof value === 'number' && Number.isFinite(value),
+        ([, value]) => value === 'INC' || (typeof value === 'number' && Number.isFinite(value)),
       ),
     )
   } catch {
@@ -690,22 +700,25 @@ function buildStudentGradeSnapshot({
             component.id,
           )
           const savedScore = overrides[overrideKey]
-          const score = section.category === 'skills' && savedScore === undefined ? null : roundTo(savedScore ?? 0, 2)
+          const score = typeof savedScore === 'number' ? roundTo(savedScore, 2) : null
 
             return {
             ...component,
             displayLabel: getDisplayComponentLabel(component, gradingPeriod),
             score,
+            isInc: savedScore === 'INC',
           }
         })
 
-        const average = calculateAverage(sectionComponents.map((component) => component.score))
+        const isInc = sectionComponents.some(component => component.isInc)
+        const average = sectionComponents.some(component => component.score === null) ? null : calculateAverage(sectionComponents.map((component) => component.score))
         const contribution =
           average === null ? null : roundTo(average * (section.weight / 100), 2)
 
         return {
           ...section,
           components: sectionComponents,
+          isInc,
           average,
           contribution,
         }
@@ -726,7 +739,9 @@ function buildStudentGradeSnapshot({
           )
         : null
 
-    const weighted =
+    const isInc = categorySections.some(section => section.isInc)
+    const hasMissingScores = categorySections.some(section => section.components.some(component => component.score === null))
+    const weighted = isInc || hasMissingScores ? null :
       category.key === 'skills'
         ? skillsComputation?.skillsWeighted === null || skillsComputation?.skillsWeighted === undefined
           ? null
@@ -741,6 +756,7 @@ function buildStudentGradeSnapshot({
     return {
       ...category,
       sections: categorySections,
+      isInc,
       weighted,
     }
   })
@@ -757,6 +773,7 @@ function buildStudentGradeSnapshot({
         section.components.some((component) => component.score === null),
       ),
     )
+  const isInc = categories.some(category => category.isInc)
   const finalScore =
     configuredWeightTotal > 0 && categories.every((category) => category.weighted !== null)
       ? roundTo(weightedSum / (configuredWeightTotal / 100), 2)
@@ -767,7 +784,8 @@ function buildStudentGradeSnapshot({
   return {
     categories,
     finalScore,
-    rating: finalScore === null || isIncomplete ? '--' : gradeToRating(finalScore),
+    isInc,
+    rating: isInc ? 'INC' : finalScore === null || isIncomplete ? '--' : gradeToRating(finalScore),
     remarks: toRemarks(finalScore, isIncomplete),
   }
 }
@@ -822,13 +840,16 @@ export function buildApprovedBreakdownResponse({
       label: `Knowledge (${knowledge.weight}%)`,
       weight: knowledge.weight,
       weighted: knowledge.weighted,
+      isInc: knowledge.isInc,
       sections: knowledge.sections.map((section) => ({
         label: `${section.label} (${section.weight}%)`,
         weight: section.weight,
         items: section.components.map((component) => ({
           label: component.displayLabel,
           score: component.score,
+          isInc: component.isInc,
         })),
+        isInc: section.isInc,
         average: section.average,
         weighted: section.contribution,
       })),
@@ -838,6 +859,7 @@ export function buildApprovedBreakdownResponse({
           label: `Skills (${skills.weight}%)`,
           weight: skills.weight,
           weighted: skills.weighted,
+          isInc: skills.isInc,
         }
       : null,
     attitude: attitude
@@ -845,9 +867,11 @@ export function buildApprovedBreakdownResponse({
           label: `Attitude (${attitude.weight}%)`,
           weight: attitude.weight,
           weighted: attitude.weighted,
+          isInc: attitude.isInc,
         }
       : null,
     finalGrade: snapshot.finalScore,
+    isInc: snapshot.isInc,
     rating: snapshot.rating,
     remarks: snapshot.remarks,
     generatedAt: new Date().toISOString(),

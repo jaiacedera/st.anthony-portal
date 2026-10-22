@@ -27,7 +27,7 @@ export async function instructorGradebookDraft({ username, subjectId, gradingPer
   }
   if (!draft || !Array.isArray(draft.sections) || !Array.isArray(draft.components) ||
       !draft.overrides || typeof draft.overrides !== 'object' || Array.isArray(draft.overrides) ||
-      Object.values(draft.overrides).some(score => typeof score !== 'number' || !Number.isFinite(score) || score < 0 || score > 100)) {
+      Object.values(draft.overrides).some(score => score !== 'INC' && (typeof score !== 'number' || !Number.isFinite(score) || score < 0 || score > 100))) {
     throw Object.assign(new Error('Invalid gradebook draft.'), { statusCode: 400 })
   }
   const payload = JSON.stringify({ sections: draft.sections, components: draft.components, overrides: draft.overrides })

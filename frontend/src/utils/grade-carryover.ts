@@ -3,13 +3,13 @@ function finalComponentId(id: string) {
 }
 
 export function inheritMidtermScores(
-  midterm: Record<string, number>,
-  final: Record<string, number>,
+  midterm: Record<string, number | 'INC'>,
+  final: Record<string, number | 'INC'>,
 ) {
-  const inherited: Record<string, number> = {}
+  const inherited: Record<string, number | 'INC'> = {}
   for (const [key, value] of Object.entries(midterm)) {
     const [studentId, subjectId, period, componentId] = key.split('::')
-    if (period !== 'midterm' || !componentId || !Number.isFinite(value)) continue
+    if (period !== 'midterm' || !componentId || (value !== 'INC' && !Number.isFinite(value))) continue
     inherited[[studentId, subjectId, 'final', finalComponentId(componentId)].join('::')] = value
   }
   // An explicitly entered Final score, including zero, always takes priority.

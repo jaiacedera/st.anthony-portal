@@ -728,18 +728,18 @@ export default function StudentRequestPage() {
                       {section.items.map((item) => (
                         <div key={item.label} className="student-breakdown-row">
                           <span>{item.label}</span>
-                          <strong>{item.score === null ? '--' : item.score.toFixed(2)}</strong>
+                          <strong>{item.isInc ? 'INC' : item.score === null ? '--' : item.score.toFixed(2)}</strong>
                         </div>
                       ))}
 
                       <div className="student-breakdown-row student-breakdown-row--summary">
                         <span>Average</span>
-                        <strong>{section.average === null ? '--' : section.average.toFixed(2)}</strong>
+                        <strong>{section.isInc ? 'INC' : section.average === null ? '--' : section.average.toFixed(2)}</strong>
                       </div>
 
                       {!requestResponse.collaborative && <div className="student-breakdown-row student-breakdown-row--summary">
                         <span>Weighted</span>
-                        <strong>{section.weighted === null ? '--' : section.weighted.toFixed(2)}</strong>
+                        <strong>{section.isInc ? 'INC' : section.weighted === null ? '--' : section.weighted.toFixed(2)}</strong>
                       </div>}
                     </div>
                   </div>
@@ -748,7 +748,7 @@ export default function StudentRequestPage() {
                 <div className="student-breakdown-summary-card">
                   <span>{requestResponse.collaborative ? 'Average of submitted professor grades (provisional until all submit)' : 'Knowledge Weighted'}</span>
                   <strong>
-                    {requestResponse.knowledge.weighted === null
+                    {requestResponse.knowledge.isInc ? 'INC' : requestResponse.knowledge.weighted === null
                       ? '--'
                       : `${requestResponse.knowledge.weighted.toFixed(2)} / ${requestResponse.knowledge.weight}`}
                   </strong>
@@ -761,7 +761,7 @@ export default function StudentRequestPage() {
                   <div className="student-breakdown-summary-card">
                     <span>Weighted</span>
                     <strong>
-                      {requestResponse.skills.weighted === null
+                      {requestResponse.skills.isInc ? 'INC' : requestResponse.skills.weighted === null
                         ? '--'
                         : `${requestResponse.skills.weighted.toFixed(2)} / ${requestResponse.skills.weight}`}
                     </strong>
@@ -775,7 +775,7 @@ export default function StudentRequestPage() {
                   <div className="student-breakdown-summary-card">
                     <span>Weighted</span>
                     <strong>
-                      {requestResponse.attitude.weighted === null
+                      {requestResponse.attitude.isInc ? 'INC' : requestResponse.attitude.weighted === null
                         ? '--'
                         : `${requestResponse.attitude.weighted.toFixed(2)} / ${requestResponse.attitude.weight}`}
                     </strong>
@@ -789,7 +789,7 @@ export default function StudentRequestPage() {
                     {requestResponse.gradingPeriod === 'final' ? 'Final Grade' : 'Midterm Grade'}
                   </span>
                   <strong>
-                    {requestResponse.finalGrade === null ? '--' : requestResponse.finalGrade.toFixed(2)}
+                    {requestResponse.isInc ? 'INC' : requestResponse.finalGrade === null ? '--' : requestResponse.finalGrade.toFixed(2)}
                   </strong>
                 </div>
 

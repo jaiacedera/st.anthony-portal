@@ -36,7 +36,7 @@ test('gradebook drafts persist across loads without publishing grades', async ()
     const { instructorGradebookDraft } = await import('./instructorGradesService.js')
     const input = { username: 'teacher', subjectId: 'subject', gradingPeriod: 'midterm' }
     assert.equal((await instructorGradebookDraft(input)).draft, null)
-    const draft = { sections: [{ id: 'quiz' }], components: [{ id: 'quiz1' }], overrides: { student1: 85, student2: 0 } }
+    const draft = { sections: [{ id: 'quiz' }], components: [{ id: 'quiz1' }], overrides: { student1: 85, student2: 0, student3: 'INC' } }
     await instructorGradebookDraft({ ...input, draft }, true)
     assert.deepEqual((await instructorGradebookDraft(input)).draft, draft)
     const updated = { ...draft, overrides: { student1: 90 } }

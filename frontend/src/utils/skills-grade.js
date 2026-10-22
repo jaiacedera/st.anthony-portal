@@ -57,7 +57,7 @@ export const SKILLS_COMPONENT_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: 'skills-snhs',
     label: 'SN/HS',
-    aliases: Object.freeze(['SNHS']),
+    aliases: Object.freeze(['SNHS', 'SN/HN', 'SNHN']),
   }),
   Object.freeze({
     id: 'skills-performance',
@@ -181,7 +181,20 @@ export function calculateSkillsGrade(scores, activeComponentIds = Object.keys(sc
     const value = scores[id]
     return [id, typeof value === 'number' && Number.isFinite(value) ? value : null]
   }))
-  const skillsTotal = calculateStrictAverage(Object.values(scoreById))
+  const remaining = new Set(ids)
+  const totals = []
+  for (const { members, weight } of [
+    { members: ['skills-case-presentation', 'skills-case-study'], weight: 0.5 },
+    { members: ['skills-snhs', 'skills-performance'], weight: 0.3 },
+  ]) {
+    const pair = members.filter(id => remaining.delete(id))
+    if (!pair.length) continue
+    const values = pair.map(id => scoreById[id])
+    totals.push(values.some(value => value === null) ? null
+      : pair.length === 1 ? values[0]
+      : values[0] * weight + values[1] * (1 - weight))
+  }
+  const skillsTotal = calculateStrictAverage([...totals, ...[...remaining].map(id => scoreById[id])])
   const missingComponentIds = ids.filter(id => scoreById[id] === null)
   return {
     scoreById,

@@ -5,6 +5,7 @@ import type {
 import { inheritMidtermConfig, inheritMidtermScores } from './grade-carryover'
 import {
   calculateSkillsGrade,
+  getCanonicalSkillsComponentId,
   SKILLS_COMPONENT_DEFINITIONS,
 } from './skills-grade.js'
 
@@ -647,7 +648,7 @@ function buildSkillsScoreInput(
   components: Array<{ id: string; label: string; score: number | null }>,
 ) {
   return Object.fromEntries(
-    components.map((component) => [component.id, component.score]),
+    components.map((component) => [getCanonicalSkillsComponentId(component.id, component.label) ?? component.id, component.score]),
   )
 }
 

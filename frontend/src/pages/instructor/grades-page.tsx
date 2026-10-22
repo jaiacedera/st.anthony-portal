@@ -23,6 +23,7 @@ import {
 import { readInstructorAuth } from '../../utils/instructorAuth'
 import {
   calculateSkillsGrade,
+  getCanonicalSkillsComponentId,
   getSkillsComponentAliases,
   SKILLS_COMPONENT_DEFINITIONS,
   type SkillsGradeResult,
@@ -1091,14 +1092,14 @@ function buildSkillsScoreInput(
   components: Array<{ id: string; label: string; score: number | null }>,
 ) {
   return Object.fromEntries(
-    components.map((component) => [component.id, component.score]),
+    components.map((component) => [getCanonicalSkillsComponentId(component.id, component.label) ?? component.id, component.score]),
   )
 }
 
 function buildSkillsBreakdownRows(skillsComputation: SkillsGradeResult, components: Array<{ id: string; label: string }> = []) {
   return [
     ...Object.entries(skillsComputation.scoreById).map(([id, value]) => ({
-      label: components.find(component => component.id === id)?.label ?? id,
+      label: components.find(component => (getCanonicalSkillsComponentId(component.id, component.label) ?? component.id) === id)?.label ?? id,
       value,
     })),
     { label: 'Skills Average', value: skillsComputation.skillsTotal },

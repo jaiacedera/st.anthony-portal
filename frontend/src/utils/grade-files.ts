@@ -153,6 +153,10 @@ export async function createGradeWorkbook(fields: GradeFileField[], scope: Grade
 
 export async function downloadGradeWorkbook(filename: string, ...args: Parameters<typeof createGradeWorkbook>) {
   const workbook = await createGradeWorkbook(...args)
+  await downloadWorkbook(filename, workbook)
+}
+
+export async function downloadWorkbook(filename: string, workbook: Awaited<ReturnType<typeof createGradeWorkbook>>) {
   const buffer = await workbook.xlsx.writeBuffer()
   const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
   const link = document.createElement('a')

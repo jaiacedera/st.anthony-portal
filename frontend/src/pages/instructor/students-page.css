@@ -221,3 +221,40 @@
   .roster-page .dashboard-empty-state { min-height: 0; height: 100%; padding-block: 8px; }
   .roster-page .dashboard-loading-block { max-height: 100%; overflow: hidden; }
 }
+.create-student-email-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.create-student-email-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 9px;
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  background: #f7f7f7;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.create-student-email-tag button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.create-student-email-tag--invalid {
+  border-color: #9b1b1b;
+  background: #fff0f0;
+  color: #9b1b1b;
+}
+
+.create-student-email-errors {
+  color: #9b1b1b;
+  overflow-wrap: anywhere;
+}

@@ -29,6 +29,7 @@ type EnrollmentDialogState = {
 
 type CreateStudentFormState = {
   email: string
+  emails: string[]
   subjectIds: string[]
 }
 
@@ -55,8 +56,17 @@ function readStudentsPageIntent() {
 function createDefaultStudentForm(subjectIds: string[] = []): CreateStudentFormState {
   return {
     email: '',
+    emails: [],
     subjectIds,
   }
+}
+
+function parseStudentEmails(value: string) {
+  return value.toLowerCase().split(/[\s,;]+/).filter(Boolean)
+}
+
+function isValidStudentEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
 function StudentsIcon() {
@@ -161,10 +171,6 @@ function PaginationChevron({ direction }: { direction: 'left' | 'right' }) {
       <path d={direction === 'left' ? 'm15 18-6-6 6-6' : 'm9 18 6-6-6-6'} />
     </svg>
   )
-}
-
-function sortStudentsByName(records: InstructorStudentRecord[]) {
-  return [...records].sort((left, right) => left.fullName.localeCompare(right.fullName))
 }
 
 function StudentDetailRow({
@@ -504,6 +510,7 @@ export default function StudentsPage() {
   }
 
   function closeCreateStudentDialog() {
+    if (isCreatingStudent) return
     setIsCreateStudentOpen(false)
     setSubjectPickerOpen(false)
     setSubjectSearchValue('')
@@ -551,43 +558,60 @@ export default function StudentsPage() {
 
   async function handleCreateStudent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isCreatingStudent) return
+
+    const emails = [...new Set([...createStudentForm.emails, ...parseStudentEmails(createStudentForm.email)])]
+    const validEmails = emails.filter(isValidStudentEmail)
+    const remaining = emails.filter((email) => !isValidStudentEmail(email))
+    setCreateStudentForm((current) => ({ ...current, email: '', emails }))
+    if (!validEmails.length) {
+      setErrorMessage('Add at least one valid email.')
+      return
+    }
 
     setIsCreatingStudent(true)
     setErrorMessage('')
     setSuccessMessage('')
 
-    try {
-      const payload = await createInstructorStudent({
-        username,
-        ...createStudentForm,
-      })
-
-      if (payload.student) {
-        setStudents((current) =>
-          sortStudentsByName([
-            ...current.filter((student) => student.id !== payload.student?.id),
-            payload.student as InstructorStudentRecord,
-          ]),
-        )
-      } else {
-        await loadStudents()
+    let saved = 0
+    const errors: string[] = []
+    const warnings: string[] = []
+    for (const email of validEmails) {
+      try {
+        const payload = await createInstructorStudent({
+          username,
+          email,
+          subjectIds: createStudentForm.subjectIds,
+        })
+        saved += 1
+        if (payload.message?.includes('email was not sent')) warnings.push(`${email}: ${payload.message}`)
+      } catch (error: unknown) {
+        remaining.push(email)
+        errors.push(`${email}: ${error instanceof Error ? error.message : 'Unable to save student.'}`)
       }
-
+    }
+    try {
+      if (saved) {
+        try { await loadStudents() } catch { warnings.push('Students saved, but the roster could not refresh. Reload the page.') }
+      }
       setSelectedSubjectId(current => current || createStudentForm.subjectIds[0] || subjects[0]?.id || '')
-      setIsCreateStudentOpen(false)
+      setIsCreateStudentOpen(remaining.length > 0)
       setSubjectPickerOpen(false)
       setSubjectSearchValue('')
-      setCreateStudentForm(createDefaultStudentForm(createStudentForm.subjectIds))
-      setSuccessMessage(payload.message ?? 'Student created successfully.')
-    } catch (error: unknown) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Unable to create student.',
-      )
+      setCreateStudentForm({ ...createDefaultStudentForm(createStudentForm.subjectIds), emails: remaining })
+      setSuccessMessage(`${saved} saved; ${errors.length} failed; ${emails.length - validEmails.length} invalid skipped.`)
+      setErrorMessage([...errors, ...warnings].join(' '))
     } finally {
       setIsCreatingStudent(false)
     }
+  }
+
+  function addStudentEmails(value: string) {
+    setCreateStudentForm((current) => ({
+      ...current,
+      email: '',
+      emails: [...new Set([...current.emails, ...parseStudentEmails(value)])],
+    }))
   }
 
   function toggleCreateStudentSubject(subjectId: string) {
@@ -1118,14 +1142,26 @@ export default function StudentsPage() {
                 ) : null}
 
                 <div className="student-create-grid">
-                  <label className="student-create-field student-create-field--wide create-student-form-group">
-                    <span className="create-student-label">Email</span>
+                  <div className="student-create-field student-create-field--wide create-student-form-group">
+                    <label htmlFor="create-student-emails" className="create-student-label">Emails</label>
+                    <div className="create-student-email-tags">
+                      {createStudentForm.emails.map((email) => (
+                        <span key={email} className={`create-student-email-tag${isValidStudentEmail(email) ? '' : ' create-student-email-tag--invalid'}`}>
+                          <span>{email}{isValidStudentEmail(email) ? '' : ' (invalid)'}</span>
+                          <button type="button" aria-label={`Remove ${email}`} disabled={isCreatingStudent}
+                            onClick={() => setCreateStudentForm((current) => ({ ...current, emails: current.emails.filter((value) => value !== email) }))}>×</button>
+                        </span>
+                      ))}
+                    </div>
                     <div className="create-student-email-wrapper">
                       <span className="create-student-email-icon" aria-hidden="true">
                         <MailIcon />
                       </span>
                       <input
-                        type="email"
+                        id="create-student-emails"
+                        type="text"
+                        inputMode="email"
+                        disabled={isCreatingStudent}
                         className="create-student-email-input"
                         value={createStudentForm.email}
                         onChange={(event) =>
@@ -1133,11 +1169,22 @@ export default function StudentsPage() {
                             ...current,
                             email: event.target.value,
                           }))}
-                        placeholder="student@email.com"
-                        required
+                        onKeyDown={(event) => {
+                          if (!event.nativeEvent.isComposing && (event.key === 'Enter' || event.key === ',')) {
+                            event.preventDefault()
+                            addStudentEmails(createStudentForm.email)
+                          }
+                        }}
+                        onPaste={(event) => {
+                          event.preventDefault()
+                          const input = event.currentTarget
+                          addStudentEmails(`${input.value.slice(0, input.selectionStart ?? input.value.length)}${event.clipboardData.getData('text')}${input.value.slice(input.selectionEnd ?? input.value.length)}`)
+                        }}
+                        onBlur={() => addStudentEmails(createStudentForm.email)}
+                        placeholder="Type an email and press Enter or comma"
                       />
                     </div>
-                  </label>
+                  </div>
 
                   <label className="student-create-field student-create-field--wide create-student-form-group">
                     <span className="create-student-label">Assign Subjects (Optional)</span>
@@ -1273,6 +1320,8 @@ export default function StudentsPage() {
                   </label>
                 </div>
 
+                {successMessage ? <p role="status" className="create-student-inline-note">{successMessage}</p> : null}
+                {errorMessage ? <p role="alert" className="create-student-email-errors">{errorMessage}</p> : null}
                 <div className="student-modal-actions create-student-footer">
                   <button
                     type="button"
@@ -1287,7 +1336,7 @@ export default function StudentsPage() {
                     className="subject-detail-action subject-detail-action--solid create-student-save"
                     disabled={isCreatingStudent}
                   >
-                    <span>{isCreatingStudent ? 'Creating...' : 'Save Student'}</span>
+                    <span>{isCreatingStudent ? 'Saving...' : 'Save Students'}</span>
                   </button>
                 </div>
               </form>

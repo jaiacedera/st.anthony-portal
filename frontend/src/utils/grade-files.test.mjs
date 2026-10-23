@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { previewGradeRows, createGradeWorkbook, readGradeFile } from './grade-files.ts'
+import JSZip from 'jszip'
 
 const fields = [
   { id: 'q1', category: 'knowledge', label: 'Quiz 1' },
@@ -9,6 +10,20 @@ const fields = [
 ]
 const students = [{ id: 'one', email: 'one@school.edu', fullName: 'Jane Doe' }, { id: 'two', email: 'two@school.edu', fullName: 'John Smith' }]
 const scope = { instructor: 'teacher', subject: 'Nursing', group: 'Group A' }
+
+test('reads namespace-prefixed OpenXML from enrollment template writers', async () => {
+  const workbook = await createGradeWorkbook([], scope)
+  workbook.removeWorksheet(workbook.worksheets[0].id)
+  const sheet = workbook.addWorksheet('Students')
+  sheet.addRow(['Email', 'Subject', 'Group', 'Section'])
+  sheet.addRow(['student@example.com', 'NCM 119', 'Group 1', 'BSN-4A'])
+  const zip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer())
+  const xml = await zip.file('xl/workbook.xml').async('string')
+  zip.file('xl/workbook.xml', xml.replace('xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"', 'xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"').replace(/<(\/?)([A-Za-z][\w]*)(?=[\s/>])/g, '<$1x:$2'))
+  const rows = await readGradeFile(new File([await zip.generateAsync({ type: 'arraybuffer' })], 'students.xlsx'))
+  assert.equal(rows[0][0], 'Email')
+  assert.equal(rows[1][0], 'student@example.com')
+})
 
 test('maps reordered columns by category/name, previews changes, skips invalid scores and ignores calculated values', () => {
   const preview = previewGradeRows([

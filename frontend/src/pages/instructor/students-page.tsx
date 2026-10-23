@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { InstructorShell } from '../../components/instructor-shell'
 import { ManageGroups } from '../../components/subject-groups'
+import { StudentExcelImport } from '../../components/student-excel-import'
 import {
   createInstructorStudent,
   deleteInstructorStudent,
@@ -832,6 +833,12 @@ export default function StudentsPage() {
                 <span>Add Student</span>
               </button>
               {selectedSubjectId && <button type="button" className="grades-toolbar-button" onClick={() => setManageGroups(true)}>Manage Groups</button>}
+              <StudentExcelImport username={username} students={students} onComplete={async (summary, errors) => {
+                setSuccessMessage(summary)
+                setErrorMessage(errors)
+                groups.refresh()
+                try { await loadStudents() } catch { setErrorMessage(`${errors} Import finished, but the list could not refresh. Reload the page.`) }
+              }} />
               <details className="roster-options"><summary aria-label="Roster options"><MoreIcon /></summary><div><button type="button" onClick={event => { setSearchValue(''); setStatusFilter('all'); setPage(1); event.currentTarget.closest('details')?.removeAttribute('open') }}>Reset filters</button></div></details>
             </div>
 

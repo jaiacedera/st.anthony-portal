@@ -6,6 +6,7 @@ export function useSubjectGroups(subjectId: string) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const revision = useRef(0)
+  const [refreshKey, setRefreshKey] = useState(0)
   useEffect(() => {
     if (!subjectId) return
     const controller = new AbortController()
@@ -14,7 +15,7 @@ export function useSubjectGroups(subjectId: string) {
       if (!controller.signal.aborted && version === revision.current) { setResult({ subjectId, data }); setError('') }
     }).catch(error => { if (!controller.signal.aborted) setError(error.message) })
     return () => controller.abort()
-  }, [subjectId])
+  }, [subjectId, refreshKey])
   const data = result?.subjectId === subjectId ? result.data : null
   async function change(input: Record<string, string>) {
     const version = ++revision.current
@@ -31,6 +32,6 @@ export function useSubjectGroups(subjectId: string) {
     }
     finally { setBusy(false) }
   }
-  return { groups: data?.groups ?? [], members: data?.members ?? [], ready: Boolean(data), error, busy, change }
+  return { groups: data?.groups ?? [], members: data?.members ?? [], ready: Boolean(data), error, busy, change, refresh: () => setRefreshKey(key => key + 1) }
 }
 

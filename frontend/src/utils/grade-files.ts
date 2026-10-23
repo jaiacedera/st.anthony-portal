@@ -104,7 +104,22 @@ export async function readGradeFile(file: File): Promise<unknown[][]> {
   if (!/\.xlsx$/i.test(file.name)) throw new Error('Choose an .xlsx or .csv file.')
   const { default: ExcelJS } = await import('exceljs')
   const workbook = new ExcelJS.Workbook()
-  await workbook.xlsx.load(await file.arrayBuffer())
+  const buffer = await file.arrayBuffer()
+  try { await workbook.xlsx.load(buffer) } catch (error) {
+    // Some OpenXML writers prefix main-namespace elements; ExcelJS expects unprefixed tags.
+    const { default: JSZip } = await import('jszip')
+    const zip = await JSZip.loadAsync(buffer)
+    let normalized = false
+    for (const entry of Object.values(zip.files).filter(entry => entry.name.endsWith('.xml'))) {
+      const xml = await entry.async('string')
+      const namespace = /xmlns:([\w]+)="http:\/\/schemas.openxmlformats.org\/spreadsheetml\/2006\/main"/.exec(xml)
+      if (!namespace) continue
+      zip.file(entry.name, xml.replace(namespace[0], 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"').replace(new RegExp(`(<\\/?)${namespace[1]}:`, 'g'), '$1'))
+      normalized = true
+    }
+    if (!normalized) throw error
+    await workbook.xlsx.load(await zip.generateAsync({ type: 'arraybuffer' }))
+  }
   const sheets = workbook.worksheets.filter(sheet => sheet.state === 'visible')
   if (sheets.length !== 1) throw new Error('Import a workbook with one visible grade sheet.')
   const sheet = sheets[0]

@@ -28,7 +28,7 @@ const gradebook = loadModule('../pages/instructor/grades-page.tsx', '\nexport { 
 
 test('score form saves dash as INC, clears blanks, and replaces INC with numbers', () => {
   const source = readFileSync(new URL('../pages/instructor/grades-page.tsx', import.meta.url), 'utf8')
-  const start = source.indexOf('    const nextOverrides =', source.indexOf('  function handleSaveEditedScores()'))
+  const start = source.indexOf('    const nextOverrides =', source.indexOf('  function handleSaveEditedScores('))
   const loop = source.slice(start, source.indexOf('    persistStoredGradeScores(', start))
   const helpers = loadModule('../pages/instructor/grades-page.tsx', '\nexport { getScoreOverrideKey, parseNumericValue, clampNumber, roundTo };')
   for (const [input, expected] of [['-', 'INC'], ['', undefined], ['0', 0], ['87.5', 87.5]]) {
@@ -61,9 +61,9 @@ test('cloud configuration loads without browser storage and cache failures do no
   assert.equal(blockedStorage.readStoredGradeConfig('blocked', 'midterm', cloud).savedAt, cloud.savedAt)
 })
 
-test('applying a breakdown keeps the cloud baseline and requires Save Changes', () => {
+test('applying a breakdown keeps the cloud baseline until autosave succeeds', () => {
   const source = readFileSync(new URL('../pages/instructor/grades-page.tsx', import.meta.url), 'utf8')
-  const handler = source.slice(source.indexOf('  function handleSaveComponentManager()'), source.indexOf('  function handleSaveEditedScores()'))
+  const handler = source.slice(source.indexOf('  function handleSaveComponentManager()'), source.indexOf('  function handleSaveEditedScores('))
   const { outputText } = ts.transpileModule(`${handler}\nhandleSaveComponentManager()`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   })
@@ -82,7 +82,7 @@ test('applying a breakdown keeps the cloud baseline and requires Save Changes', 
   assert.ok(calls.some(([key]) => key === 'setGradeSections'))
   assert.ok(calls.some(([key]) => key === 'setGradeComponents'))
   assert.ok(!calls.some(([key]) => ['setSavedGradeSections', 'setSavedGradeComponents', 'setSavedConfigAt'].includes(key)))
-  assert.ok(calls.some(([key, message]) => key === 'setSuccessMessage' && message.includes('Save Changes')))
+  assert.ok(calls.some(([key, message]) => key === 'setSuccessMessage' && message.includes('Autosave pending')))
 })
 const student = { id: 'student-1', studentId: '2026-001', fullName: 'Test Student', subjects: [] }
 const subject = { id: 'subject-1', code: 'NCM 118', name: 'Nursing', label: 'NCM 118' }

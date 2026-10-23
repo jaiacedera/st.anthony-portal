@@ -1,6 +1,7 @@
 import { useSubjectGroups } from '../../hooks/useSubjectGroups'
 import {
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -31,6 +32,7 @@ import {
 import { gradeToRating, gradeToRemarks } from '../../utils/grade-rating'
 import { compareGradeStudentNames, getGradeStudentDisplayName, inheritMidtermConfig, inheritMidtermScores } from '../../utils/grade-carryover'
 import { previewGradeRows, readGradeFile, downloadGradeWorkbook, categoryLabels, type GradeImportPreview, type GradeFileField } from '../../utils/grade-files'
+import { notifyGradeEvent } from '../../utils/grade-notifications'
 import './grades-page.css'
 
 type GradebookTabKey = 'gradebook' | 'requests' | 'history'
@@ -457,16 +459,6 @@ function UploadIcon() {
       <path d="M12 16V4" />
       <path d="m7 9 5-5 5 5" />
       <path d="M4 20h16" />
-    </svg>
-  )
-}
-
-function SaveIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 21h14a1 1 0 0 0 1-1V7.5L16.5 4H5a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1Z" />
-      <path d="M8 21v-6h8v6" />
-      <path d="M8 4v5h6" />
     </svg>
   )
 }
@@ -1562,6 +1554,12 @@ export default function GradesPage() {
   const [publicationState, setPublicationState] = useState<InstructorGradePublication | null>(null)
   const [isPosting, setIsPosting] = useState(false)
   const [isLoadingDraft, setIsLoadingDraft] = useState(false)
+  const [loadedScope, setLoadedScope] = useState('')
+  const scopeKey = JSON.stringify([username, selectedSubjectId, selectedGroup])
+  const [saveFailed, setSaveFailed] = useState(false)
+  const [editDirty, setEditDirty] = useState(false)
+  const failedDraft = useRef('')
+  const saveInFlight = useRef(false)
   const [draftLoadFailed, setDraftLoadFailed] = useState(false)
   const [hasCloudDraft, setHasCloudDraft] = useState(false)
   const [isPostConfirmOpen, setIsPostConfirmOpen] = useState(false)
@@ -1677,6 +1675,9 @@ export default function GradesPage() {
       await Promise.resolve()
       if (abortController.signal.aborted) return
       setIsLoadingDraft(true)
+      setLoadedScope('')
+      setSaveFailed(false)
+      failedDraft.current = ''
       setDraftLoadFailed(false)
       setHasCloudDraft(false)
       const periods: GradingPeriodKey[] = ['midterm', 'final']
@@ -1738,6 +1739,8 @@ export default function GradesPage() {
       }
 
       setImportPreview(null)
+      setEditDirty(false)
+      setLoadedScope(scopeKey)
       setGradeSections(nextSections)
       setSavedGradeSections(cloneSections(nextSections))
       setGradeComponents(nextComponents)
@@ -1773,7 +1776,7 @@ export default function GradesPage() {
       if (!abortController.signal.aborted) setIsLoadingDraft(false)
     })
     return () => abortController.abort()
-  }, [selectedSubjectId, username, collaborativeSubject, selectedGroup, cacheUsername])
+  }, [selectedSubjectId, username, collaborativeSubject, selectedGroup, cacheUsername, scopeKey])
 
   useEffect(() => {
     if (collaborativeSubject) return
@@ -1819,6 +1822,7 @@ export default function GradesPage() {
     setCurrentPage(1)
   }, [selectedSubjectId, activeTab, rowsPerPage])
 
+  const finishEditing = useEffectEvent(() => closeEditGrades())
   useEffect(() => {
     if (!gradeDetailsState && !editGradesState && !isColumnSettingsOpen && !isPostConfirmOpen) {
       return undefined
@@ -1830,11 +1834,7 @@ export default function GradesPage() {
       }
 
       if (editGradesState) {
-        setComponentManagerCategory(null)
-        setComponentManagerDraftSections([])
-        setComponentManagerDraftComponents([])
-        setComponentManagerError('')
-        setEditGradesState(null)
+        finishEditing()
         return
       }
 
@@ -2083,11 +2083,13 @@ export default function GradesPage() {
   }
 
   function closeEditGrades() {
+    if (editDirty) handleSaveEditedScores(false)
     setComponentManagerCategory(null)
     setComponentManagerDraftSections([])
     setComponentManagerDraftComponents([])
     setComponentManagerError('')
     setEditGradesState(null)
+    setEditDirty(false)
   }
 
   function handleColumnVisibilityChange(componentId: string) {
@@ -2100,6 +2102,7 @@ export default function GradesPage() {
 
   function handleEditInputChange(componentId: string, event: ChangeEvent<HTMLInputElement>) {
     if (!/^(?:-|\d*(?:\.\d*)?)$/.test(event.target.value)) return
+    setEditDirty(true)
     setEditDraftValues((current) => ({
       ...current,
       [componentId]: event.target.value,
@@ -2395,7 +2398,7 @@ export default function GradesPage() {
       setEditDraftSections(cloneSections(nextSections))
       setEditDraftComponents(cloneComponents(nextComponents))
       closeComponentManager()
-      setSuccessMessage('Grading breakdown applied. Click Save Changes to save it to Google Sheets.')
+      setSuccessMessage('Grading breakdown applied. Autosave pending.')
     } catch (error) {
       setComponentManagerError(
         error instanceof Error
@@ -2405,7 +2408,7 @@ export default function GradesPage() {
     }
   }
 
-  function handleSaveEditedScores() {
+  function handleSaveEditedScores(close = true) {
     if (!editSnapshot || !selectedSubject) {
       return
     }
@@ -2484,36 +2487,40 @@ export default function GradesPage() {
       },
       ...current,
     ])
-    setSuccessMessage(
-      `${editSnapshot.student.fullName}'s ${periodLabel.toLowerCase()} scores are ready. Click Save Changes to sync them across devices.`,
-    )
-    closeEditGrades()
+    setEditDirty(false)
+    if (close) {
+      setEditGradesState(null)
+      setComponentManagerCategory(null)
+    }
+    return { sections: nextPreparedSections, components: nextPreparedComponents, overrides: nextOverrides }
   }
 
-  async function handleSaveChanges() {
-    if (!selectedSubject || isSaving || isLoadingDraft || draftLoadFailed) {
+  async function handleSaveChanges(draft: CloudGradebookDraft = { sections: gradeSections, components: gradeComponents, overrides: draftScoreOverrides }) {
+    if (!selectedSubject || saveInFlight.current || isSaving || isLoadingDraft || draftLoadFailed || loadedScope !== scopeKey) {
       return
     }
 
+    saveInFlight.current = true
     setIsSaving(true)
+    setSaveFailed(false)
     setErrorMessage('')
     setSuccessMessage('')
 
     try {
       const { savedAt } = await instructorGradebookDraft({
         username, subjectId: selectedSubject.id, gradingPeriod: FINAL_GRADING_PERIOD, groupId: selectedGroup,
-      }, { draft: { sections: gradeSections, components: gradeComponents, overrides: draftScoreOverrides } })
+      }, { draft })
       setHasCloudDraft(true)
       const configStorageKey = getGradeConfigStorageKey(
         cacheUsername,
         selectedSubject.id,
         FINAL_GRADING_PERIOD,
       )
-      const nextSavedOverrides = { ...draftScoreOverrides }
+      const nextSavedOverrides = { ...draft.overrides }
 
       persistStoredGradeConfig(configStorageKey, {
-        sections: gradeSections,
-        components: gradeComponents,
+        sections: draft.sections,
+        components: draft.components,
         savedAt,
       })
       persistStoredGradeScores(
@@ -2526,8 +2533,8 @@ export default function GradesPage() {
       )
 
       setSavedScoreOverrides(nextSavedOverrides)
-      setSavedGradeSections(cloneSections(gradeSections))
-      setSavedGradeComponents(cloneComponents(gradeComponents))
+      setSavedGradeSections(cloneSections(draft.sections))
+      setSavedGradeComponents(cloneComponents(draft.components))
       setSavedScoresAt(savedAt)
       setSavedConfigAt(savedAt)
       setHistoryEntries((current) => [
@@ -2545,12 +2552,15 @@ export default function GradesPage() {
         },
         ...current,
       ])
-      setSuccessMessage(
-        `${selectedSubject.label} ${periodLabel.toLowerCase()} grades were verified in Google Sheets (GradebookDrafts) and are available on your other devices.`,
-      )
+      failedDraft.current = ''
+      notifyGradeEvent(username, 'saved', 'Grades saved successfully · Google Sheets synced', notificationDetail)
     } catch (error: unknown) {
+      failedDraft.current = JSON.stringify(draft)
+      setSaveFailed(true)
+      notifyGradeEvent(username, 'save-failed', 'Autosave failed · Google Sheets sync failed', notificationDetail)
       setErrorMessage(error instanceof Error ? error.message : 'Unable to save grades to Google Sheets. Please try again.')
     } finally {
+      saveInFlight.current = false
       setIsSaving(false)
     }
   }
@@ -2635,8 +2645,14 @@ export default function GradesPage() {
         actor: username, timestamp: new Date().toISOString(),
         note: `${count} raw scores imported for ${fileScope.group}.`,
       }, ...current])
+      setSaveFailed(false)
+      notifyGradeEvent(username, 'import', 'Excel import completed · Google Sheets synced', notificationDetail)
       setSuccessMessage(count + ' raw scores imported. Totals recalculated using portal formulas; grades remain unpublished.')
-    } catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Import failed. Please retry.') }
+    } catch (error) {
+      setSaveFailed(true)
+      notifyGradeEvent(username, 'sync-failed', 'Google Sheets sync failed', notificationDetail)
+      setErrorMessage(error instanceof Error ? error.message : 'Import failed. Please retry.')
+    }
     finally { setIsSaving(false) }
   }
 
@@ -2648,6 +2664,7 @@ export default function GradesPage() {
         ...gradeCategories.map(category => snapshot.categories.find(item => item.key === category.key)?.total ?? ''),
         snapshot.finalScore ?? '', snapshot.rating, snapshot.remarks])
       await downloadGradeWorkbook('Grade Sheet', fileFields, fileScope, rows, ['Knowledge Total', 'Skills Total', 'Attitude Total', 'Final Score', 'Final Rating', 'Remarks'])
+      notifyGradeEvent(username, 'export', 'Excel export completed', notificationDetail)
     } catch { setErrorMessage('Unable to export the grade sheet. Please try again.') }
   }
 
@@ -2663,7 +2680,7 @@ export default function GradesPage() {
     }
 
     if (hasUnsavedChanges) {
-      setErrorMessage('Please save your changes before posting grades.')
+      setErrorMessage('Wait for autosave to finish before posting grades.')
       return
     }
 
@@ -2709,6 +2726,7 @@ export default function GradesPage() {
         },
         ...current,
       ])
+      notifyGradeEvent(username, 'posted', 'Final grades posted', notificationDetail)
       setSuccessMessage(`${periodLabel} grades posted successfully.`)
       setIsPostConfirmOpen(false)
     } catch (error: unknown) {
@@ -2756,6 +2774,18 @@ export default function GradesPage() {
     )
   }
 
+  const notificationDetail = fileScope.subject + ' · ' + fileScope.group
+  const pendingDraft = JSON.stringify({ sections: gradeSections, components: gradeComponents, overrides: draftScoreOverrides })
+  const saveAutomatically = useEffectEvent(() => {
+    const draft = editDirty ? handleSaveEditedScores(false) : undefined
+    void handleSaveChanges(draft)
+  })
+  useEffect(() => {
+    if (collaborativeSubject || loadedScope !== scopeKey || isLoadingDraft || draftLoadFailed || isSaving || componentManagerCategory || (!hasUnsavedChanges && !editDirty) || (!editDirty && failedDraft.current === pendingDraft)) return
+    const timer = window.setTimeout(saveAutomatically, 1000)
+    return () => window.clearTimeout(timer)
+  }, [collaborativeSubject, loadedScope, scopeKey, isLoadingDraft, draftLoadFailed, isSaving, componentManagerCategory, hasUnsavedChanges, editDirty, pendingDraft, editDraftValues])
+
   if (selectedSubject?.gradingMode === 'COLLABORATIVE') {
     return <InstructorShell active="grades" schoolYearLabel={schoolYearLabel} semesterLabel={semesterLabel}>
       <section className="grades-page">
@@ -2799,7 +2829,7 @@ export default function GradesPage() {
         </header>
 
           <div className="grades-page-toolbar">
-            <div className="grades-page-toolbar-filters">
+            <div className="grades-page-toolbar-filters" inert={hasUnsavedChanges || editDirty}>
               <label className="grades-filter-field">
                 <span className="grades-filter-label">Select Subject</span>
                 <select
@@ -2832,27 +2862,20 @@ export default function GradesPage() {
               />
               <button
                 type="button"
-                className="grades-toolbar-button grades-toolbar-button--secondary import-excel-btn"
+                className="grades-toolbar-button grades-toolbar-button--secondary"
                 onClick={handleImportTrigger}
                 disabled={!selectedSubject || isLoadingDraft || draftLoadFailed || !groups.ready}
               >
                 <UploadIcon />
-                <span>Import from Excel</span>
+                <span>Import Excel</span>
               </button>
-              <button
-                type="button"
-                className="grades-toolbar-button grades-toolbar-button--primary save-changes-btn"
-                onClick={handleSaveChanges}
-                disabled={isSaving || isLoadingDraft || draftLoadFailed || (hasCloudDraft && !hasUnsavedChanges)}
-              >
-                <SaveIcon />
-                <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
-              </button>
-              <button type="button" className="grades-toolbar-button grades-toolbar-button--secondary" onClick={() => void handleExcelExport()} disabled={!selectedSubject || isLoadingDraft || draftLoadFailed || !groups.ready}>Export to Excel</button>
-              <div className="grades-posting-status" role="status">
-                <span>{isLoadingDraft ? 'Loading saved grades...' : draftLoadFailed ? 'Cloud load failed. Reload to retry.' : hasUnsavedChanges ? 'Unsaved changes — click Save Changes to sync.' : hasCloudDraft ? 'Saved to Google Sheets · GradebookDrafts' : 'Not synced — click Save Changes to save to Google Sheets.'}</span>
+              <button type="button" className="grades-toolbar-button grades-toolbar-button--secondary" onClick={() => void handleExcelExport()} disabled={!selectedSubject || isLoadingDraft || draftLoadFailed || !groups.ready}>Export Excel</button>
+              <div className="grades-autosave-status" role="status" aria-live="polite">
+                <span>Autosave: {draftLoadFailed || saveFailed ? '⚠ Save failed' : isLoadingDraft || loadedScope !== scopeKey ? 'Loading...' : isSaving || hasUnsavedChanges || editDirty ? 'Saving...' : '✓ Saved'}</span>
+                <span>Google Sheets: {draftLoadFailed || saveFailed ? 'Sync failed' : isLoadingDraft || loadedScope !== scopeKey || isSaving || hasUnsavedChanges || editDirty ? 'Syncing...' : hasCloudDraft ? '✓ Synced' : 'No changes yet'}</span>
+                {saveFailed && <button type="button" className="grades-autosave-retry" onClick={() => void handleSaveChanges()}>Retry</button>}
               </div>
-              <div className="grades-posting-group">
+              <div className="grades-posting-group" title={[postStatusText, postStatusMeta].filter(Boolean).join(' ')}>
                 <button
                   type="button"
                   className={
@@ -2862,7 +2885,7 @@ export default function GradesPage() {
                   }
                   onClick={handlePostButtonClick}
                   disabled={
-                    isPosting || draftLoadFailed || isLoadingDraft ||
+                    isPosting || isSaving || hasUnsavedChanges || editDirty || saveFailed || draftLoadFailed || isLoadingDraft ||
                     !selectedSubject ||
                     !gradeSnapshots.length ||
                     (hasPostedGrades && !hasSavedChangesSincePosting && !hasUnsavedChanges)
@@ -2871,10 +2894,6 @@ export default function GradesPage() {
                   {hasPostedGrades && !hasSavedChangesSincePosting ? <CheckIcon /> : <PostIcon />}
                   <span>{isPosting ? 'Posting...' : postButtonLabel}</span>
                 </button>
-                {hasPostedGrades || hasUnsavedChanges ? <div className="grades-posting-status">
-                  <span>{postStatusText}</span>
-                  {postStatusMeta ? <small>{postStatusMeta}</small> : null}
-                </div> : null}
               </div>
             </div>
           </div>
@@ -3704,12 +3723,12 @@ export default function GradesPage() {
                 className="subject-detail-action"
                 onClick={closeEditGrades}
               >
-                <span>Cancel</span>
+                <span>Close</span>
               </button>
               <button
                 type="button"
                 className="subject-detail-action subject-detail-action--solid"
-                onClick={handleSaveEditedScores}
+                onClick={() => handleSaveEditedScores()}
               >
                 <span>Apply Scores</span>
               </button>

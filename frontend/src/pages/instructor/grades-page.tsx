@@ -30,6 +30,7 @@ import {
 } from '../../utils/skills-grade.js'
 import { gradeToRating, gradeToRemarks } from '../../utils/grade-rating'
 import { compareGradeStudentNames, getGradeStudentDisplayName, inheritMidtermConfig, inheritMidtermScores } from '../../utils/grade-carryover'
+import { previewGradeRows, readGradeFile, downloadGradeWorkbook, categoryLabels, type GradeImportPreview, type GradeFileField } from '../../utils/grade-files'
 import './grades-page.css'
 
 type GradebookTabKey = 'gradebook' | 'requests' | 'history'
@@ -881,37 +882,6 @@ function renderTabLabel(tab: GradebookTabKey) {
   return 'Grade History'
 }
 
-function parseCsvLine(line: string) {
-  const cells: string[] = []
-  let currentValue = ''
-  let isInsideQuotes = false
-
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index]
-
-    if (character === '"') {
-      if (isInsideQuotes && line[index + 1] === '"') {
-        currentValue += '"'
-        index += 1
-      } else {
-        isInsideQuotes = !isInsideQuotes
-      }
-      continue
-    }
-
-    if (character === ',' && !isInsideQuotes) {
-      cells.push(currentValue.trim())
-      currentValue = ''
-      continue
-    }
-
-    currentValue += character
-  }
-
-  cells.push(currentValue.trim())
-  return cells
-}
-
 function getDefaultVisibleComponentIds(components: GradeComponentConfig[]) {
   return components.filter((component) => component.isActive).map((component) => component.id)
 }
@@ -1546,6 +1516,10 @@ export default function GradesPage() {
   const groups = useSubjectGroups(selectedSubjectId)
   const [groupSelection, setGroupSelection] = useState({ subjectId: '', id: '' })
   const selectedGroup = groupSelection.subjectId === selectedSubjectId && (groupSelection.id === 'unassigned' || groups.groups.some(group => group.id === groupSelection.id)) ? groupSelection.id : ''
+  const cacheUsername = selectedGroup ? `${username}::group:${selectedGroup}` : username
+  const [importPreview, setImportPreview] = useState<(GradeImportPreview & { subjectId: string; groupId: string }) | null>(null)
+  const [removedImportFields, setRemovedImportFields] = useState<string[]>([])
+  const [newFieldSections, setNewFieldSections] = useState<Record<string, string>>({})
   const matchesGroup = (studentId: string) => !selectedGroup || (groups.members.find(member => member.student_id === studentId)?.group_id ?? 'unassigned') === selectedGroup
   const groupFilter = <GroupFilter state={groups} value={selectedGroup} onChange={id => { setGroupSelection({ subjectId: selectedSubjectId, id }); setCurrentPage(1) }} />
   const [currentPage, setCurrentPage] = useState(1)
@@ -1693,7 +1667,7 @@ export default function GradesPage() {
     }
 
     const configStorageKey = getGradeConfigStorageKey(
-      username,
+      cacheUsername,
       selectedSubjectId,
       FINAL_GRADING_PERIOD,
     )
@@ -1707,22 +1681,22 @@ export default function GradesPage() {
       setHasCloudDraft(false)
       const periods: GradingPeriodKey[] = ['midterm', 'final']
       const results = await Promise.all(periods.map(gradingPeriod => instructorGradebookDraft<CloudGradebookDraft>(
-        { username, subjectId: selectedSubjectId, gradingPeriod }, { signal: abortController.signal },
+        { username, subjectId: selectedSubjectId, gradingPeriod, groupId: selectedGroup }, { signal: abortController.signal },
       )))
       if (abortController.signal.aborted) return
       results.forEach((result, index) => {
         if (periods[index] === FINAL_GRADING_PERIOD) setHasCloudDraft(Boolean(result.draft))
         if (!result.draft) return
         const { sections, components, overrides } = result.draft
-        persistStoredGradeConfig(getGradeConfigStorageKey(username, selectedSubjectId, periods[index]), {
+        persistStoredGradeConfig(getGradeConfigStorageKey(cacheUsername, selectedSubjectId, periods[index]), {
           sections, components, savedAt: result.savedAt,
         })
-        persistStoredGradeScores(getGradeScoreStorageKey(username, selectedSubjectId, periods[index]), {
+        persistStoredGradeScores(getGradeScoreStorageKey(cacheUsername, selectedSubjectId, periods[index]), {
           draftOverrides: overrides, savedOverrides: overrides, savedAt: result.savedAt,
         })
       })
       const scoreStorageKey = getGradeScoreStorageKey(
-        username,
+        cacheUsername,
         selectedSubjectId,
         FINAL_GRADING_PERIOD,
       )
@@ -1743,12 +1717,12 @@ export default function GradesPage() {
 
       if (FINAL_GRADING_PERIOD === 'final') {
         const midtermCloud = results[0]
-        const midtermConfig = readStoredGradeConfig(getGradeConfigStorageKey(username, selectedSubjectId, 'midterm'), 'midterm',
+        const midtermConfig = readStoredGradeConfig(getGradeConfigStorageKey(cacheUsername, selectedSubjectId, 'midterm'), 'midterm',
           midtermCloud.draft ? { ...midtermCloud.draft, savedAt: midtermCloud.savedAt } : undefined)
         const midtermScores = migrateStoredGradeScores(
           midtermCloud.draft
             ? { draftOverrides: midtermCloud.draft.overrides, savedOverrides: midtermCloud.draft.overrides, savedAt: midtermCloud.savedAt }
-            : readStoredGradeScores(getGradeScoreStorageKey(username, selectedSubjectId, 'midterm')) ?? { draftOverrides: {}, savedOverrides: {} },
+            : readStoredGradeScores(getGradeScoreStorageKey(cacheUsername, selectedSubjectId, 'midterm')) ?? { draftOverrides: {}, savedOverrides: {} },
           midtermConfig?.migratedComponentIds ?? {},
         )
         if (midtermConfig && !storedConfig) {
@@ -1763,6 +1737,7 @@ export default function GradesPage() {
         }
       }
 
+      setImportPreview(null)
       setGradeSections(nextSections)
       setSavedGradeSections(cloneSections(nextSections))
       setGradeComponents(nextComponents)
@@ -1798,7 +1773,7 @@ export default function GradesPage() {
       if (!abortController.signal.aborted) setIsLoadingDraft(false)
     })
     return () => abortController.abort()
-  }, [selectedSubjectId, username, collaborativeSubject])
+  }, [selectedSubjectId, username, collaborativeSubject, selectedGroup, cacheUsername])
 
   useEffect(() => {
     if (collaborativeSubject) return
@@ -1945,7 +1920,7 @@ export default function GradesPage() {
 
   const gradeSnapshots = useMemo(
     () =>
-      subjectStudents.map((student) =>
+      subjectStudents.filter(student => !selectedGroup || (groups.members.find(member => member.student_id === student.id)?.group_id ?? 'unassigned') === selectedGroup).map((student) =>
         buildStudentGradeSnapshot(
           student,
           selectedSubject,
@@ -1961,6 +1936,8 @@ export default function GradesPage() {
       gradeSections,
       selectedSubject,
       subjectStudents,
+      selectedGroup,
+      groups.members,
     ],
   )
 
@@ -2399,7 +2376,7 @@ export default function GradesPage() {
       const nextSections = cloneSections(nextPreparedSections)
       const nextComponents = cloneComponents(nextPreparedComponents)
       const storageKey = getGradeConfigStorageKey(
-        username,
+        cacheUsername,
         selectedSubject.id,
         FINAL_GRADING_PERIOD,
       )
@@ -2479,7 +2456,7 @@ export default function GradesPage() {
     }
 
     persistStoredGradeScores(
-      getGradeScoreStorageKey(username, selectedSubject.id, FINAL_GRADING_PERIOD),
+      getGradeScoreStorageKey(cacheUsername, selectedSubject.id, FINAL_GRADING_PERIOD),
       {
         draftOverrides: nextOverrides,
         savedOverrides: savedScoreOverrides,
@@ -2524,11 +2501,11 @@ export default function GradesPage() {
 
     try {
       const { savedAt } = await instructorGradebookDraft({
-        username, subjectId: selectedSubject.id, gradingPeriod: FINAL_GRADING_PERIOD,
+        username, subjectId: selectedSubject.id, gradingPeriod: FINAL_GRADING_PERIOD, groupId: selectedGroup,
       }, { draft: { sections: gradeSections, components: gradeComponents, overrides: draftScoreOverrides } })
       setHasCloudDraft(true)
       const configStorageKey = getGradeConfigStorageKey(
-        username,
+        cacheUsername,
         selectedSubject.id,
         FINAL_GRADING_PERIOD,
       )
@@ -2540,7 +2517,7 @@ export default function GradesPage() {
         savedAt,
       })
       persistStoredGradeScores(
-        getGradeScoreStorageKey(username, selectedSubject.id, FINAL_GRADING_PERIOD),
+        getGradeScoreStorageKey(cacheUsername, selectedSubject.id, FINAL_GRADING_PERIOD),
         {
           draftOverrides: nextSavedOverrides,
           savedOverrides: nextSavedOverrides,
@@ -2582,126 +2559,96 @@ export default function GradesPage() {
     fileInputRef.current?.click()
   }
 
+  const fileFields: GradeFileField[] = gradeSections.filter(section => section.isActive).sort((a, b) => a.order - b.order).flatMap(section =>
+    getSectionComponentList(gradeComponents, section.id).map(component => ({
+      id: component.id, category: section.category, label: getDisplayComponentLabel(component, FINAL_GRADING_PERIOD),
+      aliases: getCsvHeaderAliases(component, FINAL_GRADING_PERIOD),
+    })))
+  const fileScope = { instructor: username, subject: selectedSubject?.label ?? '', group: groups.groups.find(group => group.id === selectedGroup)?.group_name ?? (selectedGroup === 'unassigned' ? 'Unassigned' : 'All students') }
+
   async function handleCsvImport(event: ChangeEvent<HTMLInputElement>) {
-    const selectedFile = event.target.files?.[0]
-
-    if (!selectedFile) {
-      return
-    }
-
-    if (!selectedSubject) {
-      setErrorMessage('Select a subject before importing grades.')
-      event.target.value = ''
-      return
-    }
-
-    if (!selectedFile.name.toLowerCase().endsWith('.csv')) {
-      setErrorMessage('Only CSV imports are supported in this workspace right now.')
-      event.target.value = ''
-      return
-    }
-
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || !selectedSubject || isLoadingDraft || draftLoadFailed) return
+    setErrorMessage('')
     try {
-      const rawText = await selectedFile.text()
-      const lines = rawText
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean)
+      const rows = await readGradeFile(file)
+      const preview = previewGradeRows(rows, fileFields, subjectStudents.filter(student => matchesGroup(student.id)), fileScope)
+      setRemovedImportFields([])
+      setNewFieldSections(Object.fromEntries(preview.newFields.map(field => {
+        const sections = gradeSections.filter(section => section.isActive && section.category === field.category)
+        const section = sections.find(section => field.label.toLowerCase().startsWith(section.label.toLowerCase())) ?? sections[0]
+        return [field.id, section?.id ?? 'new-section']
+      })))
+      setImportPreview({ ...preview, subjectId: selectedSubject.id, groupId: selectedGroup })
+    } catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Unable to read grade file.') }
+  }
 
-      if (lines.length < 2) {
-        throw new Error('The CSV file must include a header row and at least one student row.')
-      }
-
-      const headers = parseCsvLine(lines[0]).map(normalizeCsvHeader)
-      const studentIdIndex = headers.findIndex((header) => header === 'student id')
-
-      if (studentIdIndex === -1) {
-        throw new Error('The CSV file must include a "Student ID" column.')
-      }
-
-      const headerComponentMap = new Map<string, GradeComponentConfig>()
-
-      for (const component of gradeComponents.filter((currentComponent) => currentComponent.isActive)) {
-        for (const alias of getCsvHeaderAliases(component, FINAL_GRADING_PERIOD)) {
-          headerComponentMap.set(alias, component)
-        }
-      }
-
-      const nextOverrides = { ...draftScoreOverrides }
-      let updatedCount = 0
-
-      for (const line of lines.slice(1)) {
-        const row = parseCsvLine(line)
-        const studentId = row[studentIdIndex]?.trim()
-
-        if (!studentId) {
-          continue
-        }
-
-        const student = subjectStudents.find(
-          (currentStudent) => currentStudent.studentId.trim() === studentId,
-        )
-
-        if (!student) {
-          continue
-        }
-
-        headers.forEach((header, index) => {
-          const component = headerComponentMap.get(header)
-
-          if (!component) {
-            return
+  async function applyGradeImport() {
+    if (!importPreview || !selectedSubject || isSaving || importPreview.scopeErrors.length || importPreview.duplicateHeaders.length || importPreview.subjectId !== selectedSubject.id || importPreview.groupId !== selectedGroup) return
+    setIsSaving(true)
+    setErrorMessage('')
+    try {
+      const sections = cloneSections(gradeSections)
+      const components = gradeComponents.map(component => removedImportFields.includes(component.id) ? { ...component, isActive: false } : component)
+      const ids = new Map<string, string>()
+      for (const field of importPreview.newFields) {
+        let sectionId = newFieldSections[field.id]
+        if (!sectionId) continue
+        if (sectionId === 'new-section') {
+          let section = sections.find(item => item.isActive && item.category === field.category)
+          if (!section) {
+            section = { ...createCustomSection(field.category, sections.length + 1), label: categoryLabels[field.category], weight: getRequiredCategoryWeight(FINAL_GRADING_PERIOD, field.category) }
+            sections.push(section)
           }
-
-          const parsedValue = parseNumericValue(row[index] ?? '')
-
-          if (parsedValue === null) {
-            return
-          }
-
-          nextOverrides[
-            getScoreOverrideKey(student.id, selectedSubject.id, FINAL_GRADING_PERIOD, component.id)
-          ] = roundTo(clampNumber(parsedValue, 0, 100), 2)
-          updatedCount += 1
-        })
+          sectionId = section.id
+        }
+        const component = createCustomComponent(sectionId, field.label, components.length + 1)
+        components.push(component)
+        ids.set(field.id, component.id)
       }
+      const overrides = { ...draftScoreOverrides }
+      let count = 0
+      for (const score of importPreview.scores) {
+        const id = ids.get(score.fieldId) ?? score.fieldId
+        if (!components.some(component => component.id === id && component.isActive)) continue
+        overrides[getScoreOverrideKey(score.studentId, selectedSubject.id, FINAL_GRADING_PERIOD, id)] = score.value === 'INC' ? 'INC' : roundTo(score.value, 2)
+        count++
+      }
+      const { savedAt } = await instructorGradebookDraft({ username, subjectId: selectedSubject.id, gradingPeriod: FINAL_GRADING_PERIOD, groupId: selectedGroup },
+        { draft: { sections, components, overrides } })
+      persistStoredGradeConfig(getGradeConfigStorageKey(cacheUsername, selectedSubject.id, FINAL_GRADING_PERIOD), { sections, components, savedAt })
+      persistStoredGradeScores(getGradeScoreStorageKey(cacheUsername, selectedSubject.id, FINAL_GRADING_PERIOD), { draftOverrides: overrides, savedOverrides: overrides, savedAt })
+      setGradeComponents(components)
+      setGradeSections(sections)
+      setSavedGradeComponents(cloneComponents(components))
+      setSavedGradeSections(cloneSections(sections))
+      setDraftScoreOverrides(overrides)
+      setSavedScoreOverrides({ ...overrides })
+      setSavedConfigAt(savedAt); setSavedScoresAt(savedAt); setHasCloudDraft(true)
+      setVisibleComponentIds(getDefaultVisibleComponentIds(components))
+      setImportPreview(null)
+      setHistoryEntries(current => [{
+        id: `${Date.now()}-import`, studentId: '', studentName: 'Batch import',
+        subjectId: selectedSubject.id, subjectLabel: selectedSubject.label,
+        gradingPeriod: FINAL_GRADING_PERIOD, action: 'Imported grade scores',
+        actor: username, timestamp: new Date().toISOString(),
+        note: `${count} raw scores imported for ${fileScope.group}.`,
+      }, ...current])
+      setSuccessMessage(count + ' raw scores imported. Totals recalculated using portal formulas; grades remain unpublished.')
+    } catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Import failed. Please retry.') }
+    finally { setIsSaving(false) }
+  }
 
-      persistStoredGradeScores(
-        getGradeScoreStorageKey(username, selectedSubject.id, FINAL_GRADING_PERIOD),
-        {
-          draftOverrides: nextOverrides,
-          savedOverrides: savedScoreOverrides,
-          savedAt: savedScoresAt,
-        },
-      )
-      setDraftScoreOverrides(nextOverrides)
-      setHistoryEntries((current) => [
-        {
-          id: `${Date.now()}-import`,
-          studentId: '',
-          studentName: 'Batch import',
-          subjectId: selectedSubject.id,
-          subjectLabel: selectedSubject.label,
-          gradingPeriod: FINAL_GRADING_PERIOD,
-          action: 'Imported CSV scores',
-          actor: username || 'Instructor',
-          timestamp: new Date().toISOString(),
-          note: `Imported ${updatedCount} component scores from ${selectedFile.name}.`,
-        },
-        ...current,
-      ])
-      setSuccessMessage(
-        updatedCount
-          ? `Imported ${updatedCount} component scores from ${selectedFile.name}.`
-          : `No matching student/component rows were found in ${selectedFile.name}.`,
-      )
-    } catch (error: unknown) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Unable to import grades from CSV.',
-      )
-    } finally {
-      event.target.value = ''
-    }
+  async function handleExcelExport() {
+    if (!selectedSubject) return
+    try {
+      const rows = filteredGradeSnapshots.map(snapshot => [snapshot.student.fullName, snapshot.student.email,
+        ...fileFields.map(field => draftScoreOverrides[getScoreOverrideKey(snapshot.student.id, selectedSubject.id, FINAL_GRADING_PERIOD, field.id)] ?? ''),
+        ...gradeCategories.map(category => snapshot.categories.find(item => item.key === category.key)?.total ?? ''),
+        snapshot.finalScore ?? '', snapshot.rating, snapshot.remarks])
+      await downloadGradeWorkbook('Grade Sheet', fileFields, fileScope, rows, ['Knowledge Total', 'Skills Total', 'Attitude Total', 'Final Score', 'Final Rating', 'Remarks'])
+    } catch { setErrorMessage('Unable to export the grade sheet. Please try again.') }
   }
 
   function handlePostButtonClick() {
@@ -2879,7 +2826,7 @@ export default function GradesPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,text/csv"
+                accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
                 className="grades-hidden-file-input"
                 onChange={handleCsvImport}
               />
@@ -2887,6 +2834,7 @@ export default function GradesPage() {
                 type="button"
                 className="grades-toolbar-button grades-toolbar-button--secondary import-excel-btn"
                 onClick={handleImportTrigger}
+                disabled={!selectedSubject || isLoadingDraft || draftLoadFailed || !groups.ready}
               >
                 <UploadIcon />
                 <span>Import from Excel</span>
@@ -2900,6 +2848,7 @@ export default function GradesPage() {
                 <SaveIcon />
                 <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
               </button>
+              <button type="button" className="grades-toolbar-button grades-toolbar-button--secondary" onClick={() => void handleExcelExport()} disabled={!selectedSubject || isLoadingDraft || draftLoadFailed || !groups.ready}>Export to Excel</button>
               <div className="grades-posting-status" role="status">
                 <span>{isLoadingDraft ? 'Loading saved grades...' : draftLoadFailed ? 'Cloud load failed. Reload to retry.' : hasUnsavedChanges ? 'Unsaved changes — click Save Changes to sync.' : hasCloudDraft ? 'Saved to Google Sheets · GradebookDrafts' : 'Not synced — click Save Changes to save to Google Sheets.'}</span>
               </div>
@@ -2929,6 +2878,35 @@ export default function GradesPage() {
               </div>
             </div>
           </div>
+
+        {importPreview && <section className="instructor-panel grade-import-preview" role="region" aria-label="Import Preview">
+          <h2>Import Preview</h2>
+          <p>Subject: {importPreview.detected.subject ?? fileScope.subject} ? Group: {importPreview.detected.group ?? fileScope.group} ? Instructor: {importPreview.detected.instructor ?? username}</p>
+          <p>Only raw scores are imported. Blank and invalid cells preserve existing scores. Calculated Excel columns are ignored.</p>
+          {importPreview.scopeErrors.map(message => <p key={message} role="alert">{message}</p>)}
+          <details><summary>Matched students ({importPreview.matchedStudents.length})</summary><ul>{importPreview.matchedStudents.map(item => <li key={item}>{item}</li>)}</ul></details>
+          <details><summary>Unmatched students ({importPreview.unmatchedStudents.length}) ? skipped</summary><ul>{importPreview.unmatchedStudents.map((item, i) => <li key={i}>{item}</li>)}</ul></details>
+          <h3>New subgrades ({importPreview.newFields.length})</h3>
+          <p>Select a section to confirm adding each subgrade. Its scores use that section's existing weighting.</p>
+          {importPreview.newFields.map(field => <label key={field.id} className="grade-import-choice">{categoryLabels[field.category]} / {field.label}
+            <select value={newFieldSections[field.id] ?? ''} onChange={event => setNewFieldSections(current => ({ ...current, [field.id]: event.target.value }))}>
+              <option value="">Skip this subgrade</option>
+              {!gradeSections.some(section => section.isActive && section.category === field.category) && <option value="new-section">Add to a new {categoryLabels[field.category]} section</option>}
+              {gradeSections.filter(section => section.isActive && section.category === field.category).map(section => <option key={section.id} value={section.id}>Add to {section.label} ({section.weight}%)</option>)}
+            </select>
+          </label>)}
+          <h3>Missing subgrades ({importPreview.missingFields.length})</h3>
+          {importPreview.missingFields.map(field => <label key={field.id} className="grade-import-choice">{categoryLabels[field.category]} / {field.label}
+            <select value={removedImportFields.includes(field.id) ? 'remove' : 'keep'} onChange={event => setRemovedImportFields(current => event.target.value === 'remove' ? [...current, field.id] : current.filter(id => id !== field.id))}>
+              <option value="keep">Keep existing</option><option value="remove">Remove from this configuration</option>
+            </select>
+          </label>)}
+          <details open={Boolean(importPreview.invalidValues.length)}><summary>Invalid values ({importPreview.invalidValues.length})</summary><ul>{importPreview.invalidValues.map((item, i) => <li key={i}>{item}</li>)}</ul></details>
+          <details open={Boolean(importPreview.duplicateHeaders.length)}><summary>Duplicate headers ({importPreview.duplicateHeaders.length}) ? fix before importing</summary><ul>{importPreview.duplicateHeaders.map((item, i) => <li key={i}>{item}</li>)}</ul></details>
+          <p>Confirming also saves any current gradebook edits for this selection. Removing all inputs from a weighted section may leave grades incomplete until its configuration is adjusted.</p>
+          <button className="grades-toolbar-button" onClick={() => setImportPreview(null)}>Cancel</button>{' '}
+          <button className="grades-toolbar-button grades-toolbar-button--primary" disabled={isSaving || Boolean(importPreview.scopeErrors.length || importPreview.duplicateHeaders.length) || importPreview.subjectId !== selectedSubjectId || importPreview.groupId !== selectedGroup} onClick={() => void applyGradeImport()}>Confirm and Import</button>
+        </section>}
 
         <article className="instructor-panel grades-page-panel">
           <div className="grades-page-tabs-row">

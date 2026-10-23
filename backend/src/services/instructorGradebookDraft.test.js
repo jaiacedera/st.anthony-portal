@@ -10,7 +10,9 @@ test('gradebook drafts persist across loads without publishing grades', async ()
     getInstructorAccountByUsername: async () => ({ instructor_id: 'teacher' }),
   } })
   const sheets = mock.module('../../database/sheetsService.js', { namedExports: {
-    getAllRows: async () => [{ instructor_id: 'teacher', status: 'ACTIVE' }],
+    getAllRows: async sheet => sheet === 'SubjectGroups'
+      ? [{ id: 'group-a', subject_id: 'subject' }, { id: 'group-b', subject_id: 'subject' }, { id: 'foreign-group', subject_id: 'other' }]
+      : [{ instructor_id: 'teacher', status: 'ACTIVE' }],
     getInstructorSubjects: async () => [{ subject_id: 'subject', status: 'ACTIVE' }],
     findRows: async (sheet, filters) => {
       assert.equal(sheet, 'GradebookDrafts')
@@ -43,6 +45,15 @@ test('gradebook drafts persist across loads without publishing grades', async ()
     await instructorGradebookDraft({ ...input, draft: updated }, true)
     assert.equal(rows.length, 1)
     assert.deepEqual((await instructorGradebookDraft(input)).draft, updated)
+    failWrite = false
+    const groupInput = { ...input, groupId: 'group-a' }
+    assert.deepEqual((await instructorGradebookDraft(groupInput)).draft, updated)
+    const groupDraft = { ...draft, components: [{ id: 'group-only-field' }], overrides: { student1: 77 } }
+    await instructorGradebookDraft({ ...groupInput, draft: groupDraft }, true)
+    assert.deepEqual((await instructorGradebookDraft(groupInput)).draft, groupDraft)
+    assert.deepEqual((await instructorGradebookDraft(input)).draft, updated)
+    assert.deepEqual((await instructorGradebookDraft({ ...input, groupId: 'group-b' })).draft, updated)
+    await assert.rejects(instructorGradebookDraft({ ...input, groupId: 'foreign-group' }), { statusCode: 404 })
     failWrite = false
     missingUpdate = true
     await assert.rejects(instructorGradebookDraft({ ...input, draft }, true), { statusCode: 409 })

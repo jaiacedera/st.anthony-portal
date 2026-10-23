@@ -12,7 +12,7 @@ import {
 } from '../../database/sheetsService.js'
 
 // Drafts remain separate from published, student-visible grades.
-export async function instructorGradebookDraft({ username, subjectId, gradingPeriod, draft }, save = false) {
+export async function instructorGradebookDraft({ username, subjectId, gradingPeriod, groupId = '', draft }, save = false) {
   const { instructorId } = await resolveInstructorContext(username)
   const period = normalizeGradingPeriod(gradingPeriod)
   const subjects = await getInstructorSubjects(instructorId)
@@ -20,10 +20,25 @@ export async function instructorGradebookDraft({ username, subjectId, gradingPer
     throw Object.assign(new Error('Subject was not found for this instructor.'), { statusCode: 404 })
   }
   const filters = { instructor_id: instructorId, subject_id: subjectId, grading_period: period }
-  const [existing] = await findRows(SHEET_NAMES.GRADEBOOK_DRAFTS, filters)
+  if (groupId && groupId !== 'unassigned') {
+    const groups = await getAllRows(SHEET_NAMES.SUBJECT_GROUPS)
+    if (!groups.some(group => group.id === groupId && group.subject_id === subjectId)) {
+      throw Object.assign(new Error('Group was not found for this subject.'), { statusCode: 404 })
+    }
+  }
+  filters.draft_id = JSON.stringify(groupId ? [instructorId, subjectId, period, groupId] : [instructorId, subjectId, period])
+  let [existing] = await findRows(SHEET_NAMES.GRADEBOOK_DRAFTS, filters)
   if (!save) {
+    // A group's first draft starts from the subject configuration, then saves independently.
+    let inherited = false
+    if (!existing && groupId) {
+      ;[existing] = await findRows(SHEET_NAMES.GRADEBOOK_DRAFTS, {
+        ...filters, draft_id: JSON.stringify([instructorId, subjectId, period]),
+      })
+      inherited = Boolean(existing)
+    }
     const payload = existing ? Array.from({ length: 16 }, (_, i) => existing[`payload_${i}`] || '').join('') : ''
-    return { success: true, draft: payload ? JSON.parse(payload) : null, savedAt: existing?.updated_at || '' }
+    return { success: true, draft: payload ? JSON.parse(payload) : null, savedAt: inherited ? '' : existing?.updated_at || '' }
   }
   if (!draft || !Array.isArray(draft.sections) || !Array.isArray(draft.components) ||
       !draft.overrides || typeof draft.overrides !== 'object' || Array.isArray(draft.overrides) ||
@@ -43,7 +58,7 @@ export async function instructorGradebookDraft({ username, subjectId, gradingPer
       throw Object.assign(new Error('The saved draft was removed. Please reload and save again.'), { statusCode: 409 })
     }
   } else {
-    await appendRow(SHEET_NAMES.GRADEBOOK_DRAFTS, { ...record, draft_id: JSON.stringify([instructorId, subjectId, period]) })
+    await appendRow(SHEET_NAMES.GRADEBOOK_DRAFTS, record)
   }
   const [persisted] = await findRows(SHEET_NAMES.GRADEBOOK_DRAFTS, filters)
   const persistedPayload = persisted ? Array.from({ length: 16 }, (_, i) => persisted[`payload_${i}`] || '').join('') : ''

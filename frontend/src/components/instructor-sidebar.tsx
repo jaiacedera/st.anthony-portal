@@ -9,6 +9,7 @@ export type InstructorSection =
   | 'students'
   | 'grades'
   | 'requests'
+  | 'file-templates'
   | 'profile'
 
 type InstructorSidebarProps = {
@@ -27,6 +28,7 @@ const navItems: NavItem[] = [
   { key: 'students', label: 'Students', href: '/instructor/students' },
   { key: 'grades', label: 'Grades', href: '/instructor/grades' },
   { key: 'requests', label: 'Requests', href: '/instructor/requests' },
+  { key: 'file-templates', label: 'File Templates', href: '/instructor/file-templates' },
   { key: 'profile', label: 'Profile', href: '/instructor/profile' },
 ]
 

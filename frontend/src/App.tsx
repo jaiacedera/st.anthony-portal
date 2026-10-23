@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import InstructorAuthPage from './pages/instructor/instructor-auth-page'
 import DashboardPage from './pages/instructor/dashboard-page'
 import GradesPage from './pages/instructor/grades-page'
+import FileTemplatesPage from './pages/instructor/file-templates-page'
 import InstructorProfilePage from './pages/instructor/instructor-profile'
 import RequestsPage from './pages/instructor/requests-page'
 import StudentsPage from './pages/instructor/students-page'
@@ -86,6 +87,8 @@ function App() {
   if (pathname === '/instructor/grades') {
     return <GradesPage />
   }
+
+  if (pathname === '/instructor/file-templates') return <FileTemplatesPage />
 
   if (pathname === '/instructor/requests') {
     return <RequestsPage />

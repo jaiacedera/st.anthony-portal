@@ -594,7 +594,7 @@ export async function deleteInstructorStudent(
 }
 
 export async function instructorGradebookDraft<T>(
-  input: { username: string; subjectId: string; gradingPeriod: 'midterm' | 'final' },
+  input: { username: string; subjectId: string; gradingPeriod: 'midterm' | 'final'; groupId?: string },
   options: { draft?: T; signal?: AbortSignal } = {},
 ): Promise<{ success: boolean; draft: T | null; savedAt: string }> {
   const saving = options.draft !== undefined

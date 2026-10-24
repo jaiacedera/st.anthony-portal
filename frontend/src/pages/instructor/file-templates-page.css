@@ -9,7 +9,7 @@
 }
 
 .file-templates-page .file-templates-grid {
-  grid-template-columns: repeat(auto-fill, minmax(0, 200px));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 370px));
   justify-content: start;
 }
 
@@ -34,7 +34,7 @@
   margin: 0;
   padding: 0;
   min-width: 0;
-  height: 105px;
+  height: 190px;
   border: 1px solid #e4e4e4;
   border-radius: 12px;
   background: #fff;

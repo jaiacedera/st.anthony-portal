@@ -70,8 +70,8 @@ export default function DashboardPage() {
   const emptyDescription = (fallback: string) => query ? 'Try another name or subject code.' : errorMessage ? 'Please refresh to try again.' : fallback
   return <main className={`instructor-portal-page id-page portal-shell${sidebarOpen ? ' id-page--sidebar-open' : ' portal-shell--collapsed'}`}>
     <h1 className="id-sr-only">Instructor dashboard</h1>
-    <div id="dashboard-navigation" className="id-sidebar" hidden={!sidebarOpen}>
-      <InstructorSidebar active="dashboard" />
+    <div id="dashboard-navigation" className="id-sidebar">
+      <InstructorSidebar active="dashboard" collapsed={!sidebarOpen} />
     </div>
     <PortalHeader portal="instructor" sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(open => !open)} searchValue={search} onSearchChange={setSearch} schoolYearLabel={dashboard?.header.schoolYear} semesterLabel={dashboard?.header.semester} notificationCount={dashboard?.stats.pendingRequestCount} />
     <div className="id-content">

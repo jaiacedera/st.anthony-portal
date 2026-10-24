@@ -19,7 +19,7 @@ export function InstructorShell({ active, schoolYearLabel, semesterLabel, childr
       isViewportPage ? 'instructor-portal-page--dashboard' : '',
       !sidebarOpen ? 'portal-shell--collapsed' : '',
     ].filter(Boolean).join(' ')}>
-      {sidebarOpen && <InstructorSidebar active={active} />}
+      <InstructorSidebar active={active} collapsed={!sidebarOpen} />
       <section className={isViewportPage ? 'instructor-main-panel instructor-main-panel--dashboard' : 'instructor-main-panel'}>
         <PortalHeader portal="instructor" schoolYearLabel={schoolYearLabel} semesterLabel={semesterLabel} sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(open => !open)} searchValue={searchValue} onSearchChange={onSearchChange} />
         <div className={isViewportPage ? 'instructor-main-content instructor-main-content--dashboard' : 'instructor-main-content'}>{children}</div>

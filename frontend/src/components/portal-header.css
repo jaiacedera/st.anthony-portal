@@ -41,3 +41,29 @@
   .portal-header-semester { margin-left: 0; flex: 1; }
   .portal-header-profile { width: 36px; height: 36px; }
 }
+.instructor-portal-page.portal-shell--collapsed:not(.student-portal-page) {
+  --sidebar-width: 72px;
+  --portal-sidebar-offset: 72px;
+}
+.portal-shell--collapsed:not(.student-portal-page) .instructor-sidebar {
+  width: 72px;
+  padding-inline: 10px;
+}
+.portal-shell--collapsed:not(.student-portal-page) .instructor-sidebar-title,
+.portal-shell--collapsed:not(.student-portal-page) .instructor-nav-label { display: none; }
+.portal-shell--collapsed:not(.student-portal-page) .instructor-sidebar-logo { width: 40px; height: 40px; }
+.portal-shell--collapsed:not(.student-portal-page) .instructor-nav-link,
+.portal-shell--collapsed:not(.student-portal-page) .instructor-logout-link {
+  justify-content: center;
+  gap: 0;
+  padding-inline: 0;
+  margin-inline: 0;
+  width: 100%;
+  min-height: 44px;
+}
+.portal-shell--collapsed:not(.student-portal-page) .instructor-logout-link { padding-block: 12px; }
+.portal-shell--collapsed:not(.student-portal-page) .instructor-logout-link:hover { background: rgb(255 255 255 / 8%); }
+.portal-shell--collapsed:not(.student-portal-page) .instructor-main-panel { min-width: 0; }
+@media (max-width: 860px) {
+  .portal-shell--collapsed:not(.student-portal-page) .portal-header { left: 0; }
+}

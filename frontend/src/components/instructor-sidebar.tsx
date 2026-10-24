@@ -14,6 +14,7 @@ export type InstructorSection =
 
 type InstructorSidebarProps = {
   active: InstructorSection
+  collapsed?: boolean
 }
 
 type NavItem = {
@@ -145,7 +146,7 @@ function renderIcon(section: InstructorSection) {
   return <FileIcon />
 }
 
-export function InstructorSidebar({ active }: InstructorSidebarProps) {
+export function InstructorSidebar({ active, collapsed = false }: InstructorSidebarProps) {
   const logout = useLogout()
   function handleNavigate(event: MouseEvent<HTMLAnchorElement>, href: string) {
     event.preventDefault()
@@ -173,19 +174,22 @@ export function InstructorSidebar({ active }: InstructorSidebarProps) {
             key={item.key}
             className={item.key === active ? 'instructor-nav-link active' : 'instructor-nav-link'}
             href={item.href}
+            title={collapsed ? item.label : undefined}
+            aria-label={item.label}
+            aria-current={item.key === active ? 'page' : undefined}
             onClick={(event) => handleNavigate(event, item.href)}
           >
             <span className="instructor-nav-icon">{renderIcon(item.key)}</span>
-            <span>{item.label}</span>
+            <span className="instructor-nav-label">{item.label}</span>
           </a>
         ))}
       </nav>
 
-      <a className="instructor-logout-link" href="/instructor" onClick={handleLogout}>
+      <a className="instructor-logout-link" href="/instructor" onClick={handleLogout} title={collapsed ? 'Logout' : undefined} aria-label="Logout">
         <span className="instructor-nav-icon">
           <LogoutIcon />
         </span>
-        <span>Logout</span>
+        <span className="instructor-nav-label">Logout</span>
       </a>
     </aside>
   )

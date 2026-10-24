@@ -1521,6 +1521,8 @@ export default function GradesPage() {
   const [semesterLabel, setSemesterLabel] = useState('Not set')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const exportInFlight = useRef(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [bindingMessage, setBindingMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -2658,18 +2660,27 @@ export default function GradesPage() {
   }
 
   async function handleExcelExport() {
-    if (!selectedSubject) return
+    if (!selectedSubject || exportInFlight.current) return
+    exportInFlight.current = true
+    setIsExporting(true)
+    setErrorMessage('')
+    setSuccessMessage('')
     try {
+      // Let the loading feedback paint before preparing the workbook.
+      await new Promise<void>(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)))
       const selectedGroups = selectedGroup
         ? [{ id: selectedGroup, group_name: fileScope.group }]
         : [...groups.groups, { id: 'unassigned', group_name: 'Unassigned' }].filter(group =>
           subjectStudents.some(student => (groups.members.find(member => member.student_id === student.id)?.group_id ?? 'unassigned') === group.id))
       const exportGroups = await Promise.all(selectedGroups.map(async group => {
         const cloud = !selectedGroup ? await instructorGradebookDraft<CloudGradebookDraft>({ username, subjectId: selectedSubject.id, gradingPeriod: FINAL_GRADING_PERIOD, groupId: group.id }) : null
-        const config = cloud?.draft && cloud.savedAt ? cloud.draft : { sections: gradeSections, components: gradeComponents, overrides: draftScoreOverrides }
-        const fields = gradeCategories.flatMap(category => config.sections.filter(section => section.isActive && section.category === category.key).sort((a, b) => a.order - b.order).flatMap(section =>
+        const savedGroupDraft = cloud?.draft && cloud.savedAt ? cloud.draft : null
+        const config = savedGroupDraft ?? { sections: gradeSections, components: gradeComponents, overrides: draftScoreOverrides }
+        const fields = !savedGroupDraft ? fileFields : gradeCategories.flatMap(category => config.sections.filter(section => section.isActive && section.category === category.key).sort((a, b) => a.order - b.order).flatMap(section =>
           getSectionComponentList(config.components, section.id).map(component => ({ id: component.id, category: category.key, label: getDisplayComponentLabel(component, FINAL_GRADING_PERIOD) }))))
-        const snapshots = subjectStudents.filter(student => (groups.members.find(member => member.student_id === student.id)?.group_id ?? 'unassigned') === group.id)
+        const snapshots = !savedGroupDraft
+          ? gradeSnapshots.filter(snapshot => (groups.members.find(member => member.student_id === snapshot.student.id)?.group_id ?? 'unassigned') === group.id)
+          : subjectStudents.filter(student => (groups.members.find(member => member.student_id === student.id)?.group_id ?? 'unassigned') === group.id)
           .map(student => buildStudentGradeSnapshot(student, selectedSubject, FINAL_GRADING_PERIOD, config.sections, config.components, config.overrides))
         return { name: group.group_name, fields, students: snapshots.map(snapshot => ({
           name: snapshot.student.fullName,
@@ -2681,8 +2692,14 @@ export default function GradesPage() {
       const workbook = await createOfficialGradeWorkbook({ schoolYear: schoolYearLabel, subject: selectedSubject.code,
         description: selectedSubject.name, semester: semesterLabel, date: new Date().toLocaleDateString('en-PH', { timeZone: 'Asia/Shanghai' }) }, exportGroups)
       await downloadWorkbook('Grade Sheet', workbook)
-      notifyGradeEvent(username, 'export', 'Excel export completed', notificationDetail)
-    } catch { setErrorMessage('Unable to export the grade sheet. Please try again.') }
+      setSuccessMessage('Grade sheet exported successfully')
+      notifyGradeEvent(username, 'export', 'Grade sheet exported successfully', notificationDetail)
+    } catch {
+      setErrorMessage('Export failed. Please try again.')
+    } finally {
+      exportInFlight.current = false
+      setIsExporting(false)
+    }
   }
 
   function handlePostButtonClick() {
@@ -2886,7 +2903,10 @@ export default function GradesPage() {
                 <UploadIcon />
                 <span>Import Excel</span>
               </button>
-              <button type="button" className="grades-toolbar-button grades-toolbar-button--secondary" onClick={() => void handleExcelExport()} disabled={!selectedSubject || isLoadingDraft || draftLoadFailed || !groups.ready}>Export Excel</button>
+              <button type="button" className="grades-toolbar-button grades-toolbar-button--secondary" onClick={() => void handleExcelExport()} disabled={isExporting || !selectedSubject || isLoadingDraft || draftLoadFailed || !groups.ready} aria-busy={isExporting}>
+                {isExporting && <span className="grades-export-spinner" aria-hidden="true" />}
+                {isExporting ? 'Exporting...' : 'Export Excel'}
+              </button>
               <div className="grades-autosave-status" role="status" aria-live="polite">
                 <span>Autosave: {draftLoadFailed || saveFailed ? '⚠ Save failed' : isLoadingDraft || loadedScope !== scopeKey ? 'Loading...' : isSaving || hasUnsavedChanges || editDirty ? 'Saving...' : '✓ Saved'}</span>
                 <span>Google Sheets: {draftLoadFailed || saveFailed ? 'Sync failed' : isLoadingDraft || loadedScope !== scopeKey || isSaving || hasUnsavedChanges || editDirty ? 'Syncing...' : hasCloudDraft ? '✓ Synced' : 'No changes yet'}</span>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { InstructorShell } from '../../components/instructor-shell'
+import './grades-page.css'
 import './file-templates-page.css'
 
 const templates = [
@@ -18,7 +19,15 @@ export default function FileTemplatesPage() {
   }
   return <InstructorShell active="file-templates">
     <section className="grades-page file-templates-page">
-      <header className="grades-page-heading"><h1>File Templates</h1></header>
+      <header className="grades-page-heading">
+        <span className="grades-heading-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 3.5h6.5L19 9v11.5A1.5 1.5 0 0 1 17.5 22h-10A1.5 1.5 0 0 1 6 20.5v-15A2 2 0 0 1 7 3.5Z" />
+            <path d="M13 3.5V9h6M9 13h6M9 17h6" />
+          </svg>
+        </span>
+        <h1>File Templates</h1>
+      </header>
       <p className="file-templates-description">Download Excel templates for grades and student enrollment.</p>
       <div className="file-templates-grid">
         {templates.map(([name, description], index) => <article className="instructor-panel file-template-card" key={name}>

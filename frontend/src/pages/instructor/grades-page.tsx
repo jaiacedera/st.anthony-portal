@@ -31,7 +31,8 @@ import {
 } from '../../utils/skills-grade.js'
 import { gradeToRating, gradeToRemarks } from '../../utils/grade-rating'
 import { compareGradeStudentNames, getGradeStudentDisplayName, inheritMidtermConfig, inheritMidtermScores } from '../../utils/grade-carryover'
-import { previewGradeRows, readGradeFile, downloadGradeWorkbook, categoryLabels, type GradeImportPreview, type GradeFileField } from '../../utils/grade-files'
+import { previewGradeRows, readGradeFile, downloadWorkbook, categoryLabels, type GradeImportPreview, type GradeFileField } from '../../utils/grade-files'
+import { createOfficialGradeWorkbook } from '../../utils/official-grade-export'
 import { notifyGradeEvent } from '../../utils/grade-notifications'
 import './grades-page.css'
 
@@ -2659,11 +2660,27 @@ export default function GradesPage() {
   async function handleExcelExport() {
     if (!selectedSubject) return
     try {
-      const rows = filteredGradeSnapshots.map(snapshot => [snapshot.student.fullName, snapshot.student.email,
-        ...fileFields.map(field => draftScoreOverrides[getScoreOverrideKey(snapshot.student.id, selectedSubject.id, FINAL_GRADING_PERIOD, field.id)] ?? ''),
-        ...gradeCategories.map(category => snapshot.categories.find(item => item.key === category.key)?.total ?? ''),
-        snapshot.finalScore ?? '', snapshot.rating, snapshot.remarks])
-      await downloadGradeWorkbook('Grade Sheet', fileFields, fileScope, rows, ['Knowledge Total', 'Skills Total', 'Attitude Total', 'Final Score', 'Final Rating', 'Remarks'])
+      const selectedGroups = selectedGroup
+        ? [{ id: selectedGroup, group_name: fileScope.group }]
+        : [...groups.groups, { id: 'unassigned', group_name: 'Unassigned' }].filter(group =>
+          subjectStudents.some(student => (groups.members.find(member => member.student_id === student.id)?.group_id ?? 'unassigned') === group.id))
+      const exportGroups = await Promise.all(selectedGroups.map(async group => {
+        const cloud = !selectedGroup ? await instructorGradebookDraft<CloudGradebookDraft>({ username, subjectId: selectedSubject.id, gradingPeriod: FINAL_GRADING_PERIOD, groupId: group.id }) : null
+        const config = cloud?.draft && cloud.savedAt ? cloud.draft : { sections: gradeSections, components: gradeComponents, overrides: draftScoreOverrides }
+        const fields = gradeCategories.flatMap(category => config.sections.filter(section => section.isActive && section.category === category.key).sort((a, b) => a.order - b.order).flatMap(section =>
+          getSectionComponentList(config.components, section.id).map(component => ({ id: component.id, category: category.key, label: getDisplayComponentLabel(component, FINAL_GRADING_PERIOD) }))))
+        const snapshots = subjectStudents.filter(student => (groups.members.find(member => member.student_id === student.id)?.group_id ?? 'unassigned') === group.id)
+          .map(student => buildStudentGradeSnapshot(student, selectedSubject, FINAL_GRADING_PERIOD, config.sections, config.components, config.overrides))
+        return { name: group.group_name, fields, students: snapshots.map(snapshot => ({
+          name: snapshot.student.fullName,
+          scores: Object.fromEntries(fields.map(field => [field.id, config.overrides[getScoreOverrideKey(snapshot.student.id, selectedSubject.id, FINAL_GRADING_PERIOD, field.id)] ?? null])),
+          categories: snapshot.categories, finalScore: snapshot.finalScore, rating: snapshot.rating, remarks: snapshot.remarks, isInc: snapshot.isInc,
+        })) }
+      }))
+      if (!exportGroups.length) exportGroups.push({ name: fileScope.group, fields: fileFields, students: [] })
+      const workbook = await createOfficialGradeWorkbook({ schoolYear: schoolYearLabel, subject: selectedSubject.code,
+        description: selectedSubject.name, semester: semesterLabel, date: new Date().toLocaleDateString('en-PH', { timeZone: 'Asia/Shanghai' }) }, exportGroups)
+      await downloadWorkbook('Grade Sheet', workbook)
       notifyGradeEvent(username, 'export', 'Excel export completed', notificationDetail)
     } catch { setErrorMessage('Unable to export the grade sheet. Please try again.') }
   }
